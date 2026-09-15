@@ -8,6 +8,15 @@ dist/
 .DS_Store
 *.log
 
+# Local runtime databases must never enter the repository.
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+runtime-data/
+data/
+
 # Certificates / private key material must never enter the repository.
 *.p12
 *.pfx
