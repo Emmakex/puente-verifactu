@@ -21,6 +21,10 @@ function validDate(value) {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
+function validRate(value) {
+  return /^-?\d+(?:\.\d{1,4})?$/.test(value ?? '');
+}
+
 function validateParty(party, path, errors, { requireId = true } = {}) {
   if (!party || typeof party !== 'object') {
     errors.push(issue('VF_VALIDATION_PARTY_REQUIRED', path, 'Faltan los datos de identificación.', 'Identification data is missing.'));
@@ -37,7 +41,12 @@ function validateAmounts(intent, errors) {
     for (const field of ['baseAmount', 'taxAmount']) {
       if (!isAmount(line?.[field])) errors.push(issue('VF_VALIDATION_AMOUNT', `taxBreakdown.${index}.${field}`, 'El importe debe usar formato decimal exacto, por ejemplo 100.00.', 'Amount must use exact decimal format, for example 100.00.'));
     }
-    if (line?.rate !== undefined && !/^-?\d+(?:\.\d{1,4})?$/.test(line.rate)) errors.push(issue('VF_VALIDATION_RATE', `taxBreakdown.${index}.rate`, 'El tipo impositivo no tiene un formato válido.', 'Tax rate has an invalid format.'));
+    if (line?.rate !== undefined && !validRate(line.rate)) errors.push(issue('VF_VALIDATION_RATE', `taxBreakdown.${index}.rate`, 'El tipo impositivo no tiene un formato válido.', 'Tax rate has an invalid format.'));
+    if (line?.surchargeRate !== undefined && !validRate(line.surchargeRate)) errors.push(issue('VF_VALIDATION_RATE', `taxBreakdown.${index}.surchargeRate`, 'El tipo de recargo de equivalencia no tiene un formato válido.', 'Equivalence surcharge rate has an invalid format.'));
+    if (line?.surchargeAmount !== undefined && !isAmount(line.surchargeAmount)) errors.push(issue('VF_VALIDATION_AMOUNT', `taxBreakdown.${index}.surchargeAmount`, 'La cuota de recargo debe usar formato decimal exacto.', 'Surcharge amount must use exact decimal format.'));
+    const hasSurchargeRate = line?.surchargeRate !== undefined;
+    const hasSurchargeAmount = line?.surchargeAmount !== undefined;
+    if (hasSurchargeRate !== hasSurchargeAmount) errors.push(issue('VF_VALIDATION_SURCHARGE_PAIR', `taxBreakdown.${index}`, 'El recargo de equivalencia debe indicar tipo y cuota conjuntamente.', 'Equivalence surcharge must include both rate and amount.'));
   }
 
   for (const field of ['baseAmount', 'taxAmount', 'totalAmount']) {
@@ -55,15 +64,24 @@ function validateTotals(intent, errors) {
   if (intent.taxBreakdown.some((line) => !isAmount(line.baseAmount) || !isAmount(line.taxAmount))) return;
   if (!isAmount(intent.totals?.baseAmount) || !isAmount(intent.totals?.taxAmount) || !isAmount(intent.totals?.totalAmount)) return;
   if ((intent.adjustments ?? []).some((adjustment) => !isAmount(adjustment.amount))) return;
+  if (intent.taxBreakdown.some((line) => line.surchargeAmount !== undefined && !isAmount(line.surchargeAmount))) return;
 
   const base = sumAmounts(intent.taxBreakdown.map((line) => line.baseAmount));
   const tax = sumAmounts(intent.taxBreakdown.map((line) => line.taxAmount));
   if (toCents(base) !== toCents(intent.totals.baseAmount)) errors.push(issue('VF_VALIDATION_TOTAL_BASE_MISMATCH', 'totals.baseAmount', 'La suma de bases no coincide con el total de base.', 'Tax bases do not add up to the base total.'));
   if (toCents(tax) !== toCents(intent.totals.taxAmount)) errors.push(issue('VF_VALIDATION_TOTAL_TAX_MISMATCH', 'totals.taxAmount', 'La suma de cuotas no coincide con el total de impuestos.', 'Tax amounts do not add up to the tax total.'));
 
-  const adjustments = (intent.adjustments ?? []).reduce((sum, item) => sum + toCents(item.amount), 0n);
-  const expected = toCents(intent.totals.baseAmount) + toCents(intent.totals.taxAmount) + adjustments;
-  if (expected !== toCents(intent.totals.totalAmount)) errors.push(issue('VF_VALIDATION_TOTAL_MISMATCH', 'totals.totalAmount', 'El total de factura no cuadra con base + impuestos + ajustes.', 'Invoice total does not equal base + tax + adjustments.'));
+  const lineSurchargeDefined = intent.taxBreakdown.some((line) => line.surchargeAmount !== undefined);
+  const lineSurcharge = intent.taxBreakdown.reduce((sum, line) => sum + (line.surchargeAmount !== undefined ? toCents(line.surchargeAmount) : 0n), 0n);
+  const genericSurcharge = (intent.adjustments ?? []).filter((item) => item.type === 'surcharge').reduce((sum, item) => sum + toCents(item.amount), 0n);
+  if (lineSurchargeDefined && genericSurcharge !== 0n && lineSurcharge !== genericSurcharge) {
+    errors.push(issue('VF_VALIDATION_SURCHARGE_MISMATCH', 'adjustments', 'El recargo de equivalencia agregado no coincide con la suma del desglose por líneas.', 'Aggregate equivalence surcharge does not match the line breakdown.'));
+  }
+
+  const effectiveSurcharge = lineSurchargeDefined ? lineSurcharge : genericSurcharge;
+  const otherAdjustments = (intent.adjustments ?? []).filter((item) => item.type !== 'surcharge').reduce((sum, item) => sum + toCents(item.amount), 0n);
+  const expected = toCents(intent.totals.baseAmount) + toCents(intent.totals.taxAmount) + effectiveSurcharge + otherAdjustments;
+  if (expected !== toCents(intent.totals.totalAmount)) errors.push(issue('VF_VALIDATION_TOTAL_MISMATCH', 'totals.totalAmount', 'El total de factura no cuadra con base + impuestos + recargo + ajustes.', 'Invoice total does not equal base + tax + surcharge + adjustments.'));
 }
 
 export function validateInvoiceIntent(intent) {
@@ -91,6 +109,7 @@ export function validateInvoiceIntent(intent) {
   else if (intent.currency !== 'EUR') warnings.push(issue('VF_WARNING_NON_EUR', 'currency', 'Moneda no EUR: el motor fiscal deberá aplicar la política de conversión correspondiente antes del envío.', 'Non-EUR currency: the fiscal engine must apply the relevant conversion policy before submission.', 'warning'));
 
   if (!Array.isArray(intent?.taxBreakdown) || intent.taxBreakdown.length === 0) errors.push(issue('VF_VALIDATION_TAX_BREAKDOWN', 'taxBreakdown', 'Debe existir al menos una línea de desglose fiscal.', 'At least one tax breakdown line is required.'));
+  if ((intent?.taxBreakdown?.length ?? 0) > 12) errors.push(issue('VF_VALIDATION_TAX_BREAKDOWN_LIMIT', 'taxBreakdown', 'AEAT admite como máximo 12 líneas de desglose fiscal por registro.', 'AEAT allows at most 12 tax breakdown lines per record.'));
   for (const [index, line] of (intent?.taxBreakdown ?? []).entries()) {
     for (const field of ['taxCode', 'regimeKey', 'operationClass']) {
       if (!isNonEmptyString(line?.[field])) errors.push(issue('VF_VALIDATION_TAX_CLASSIFICATION', `taxBreakdown.${index}.${field}`, 'Falta la clasificación fiscal de la línea.', 'Tax classification is missing.'));
