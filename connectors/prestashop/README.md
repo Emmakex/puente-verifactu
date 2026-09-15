@@ -4,7 +4,7 @@ Conector nativo y deliberadamente fino para **PrestaShop 1.7.8.x y 8.x**. Su tra
 
 ## Estado
 
-Foundation v1 implementada en modo manual seguro y extractor fiscal reforzado:
+Foundation v1 implementada en modo manual seguro, extractor fiscal reforzado y matriz real de compatibilidad validada:
 
 - configuración por tienda para endpoint HTTPS y `MappingProfile` server-side;
 - Bearer token cifrado localmente con AES-256-GCM usando una clave derivada de `_COOKIE_KEY_`;
@@ -14,9 +14,21 @@ Foundation v1 implementada en modo manual seguro y extractor fiscal reforzado:
 - idempotencia estable por tienda + pedido + número de factura;
 - persistencia local mínima de `recordId`, estado y último error;
 - aislamiento básico multitienda;
-- gate CI contractual, sintaxis PHP 7.4 y fixtures fiscales ejecutables.
+- gate CI contractual, sintaxis PHP 7.4, fixtures fiscales ejecutables y smoke con instalaciones reales de PrestaShop.
 
-Todavía **no** activa envíos automáticos ni rectificativas. Eso se añade después de validar esta base y la matriz real PrestaShop.
+Todavía **no** activa envíos automáticos ni rectificativas. El siguiente gate es el paquete ZIP reproducible con instalación/upgrade smoke antes de continuar con UX operativa y rectificativas.
+
+## Compatibilidad validada
+
+La matriz real de CI instala el módulo dentro de tiendas efímeras PrestaShop Flashlight y valida una factura creada mediante la API nativa `Order::setInvoice()` antes de construir el payload del conector.
+
+Combinaciones validadas el **15 de septiembre de 2026**:
+
+- PrestaShop **1.7.8.11** / PHP **7.4**;
+- PrestaShop **8.1.7** / PHP **8.1**;
+- PrestaShop **8.2.7** / PHP **8.1**.
+
+Cada job comprueba arranque real de la tienda, instalación y activación del módulo, creación de `pvf_order_sync`, carga de clases runtime, generación de una `OrderInvoice` nativa y construcción completa de `tax_lines` y totales desde esa factura. Esta matriz no implica soporte para PrestaShop 9.
 
 ## Principio de seguridad
 
@@ -42,7 +54,7 @@ La ecotasa queda bloqueada en esta versión hasta definir un contrato fiscal exp
 ## Requisitos
 
 - PrestaShop >= 1.7.8 y < 9.0 para esta primera matriz contractual.
-- PHP 7.4+ para el gate inicial del repositorio.
+- PHP 7.4+ para el gate inicial del repositorio; la matriz real valida las combinaciones indicadas arriba.
 - extensiones PHP OpenSSL y cURL.
 - endpoint Puente VeriFactu accesible mediante HTTPS.
 - token Bearer y `MappingProfile` configurados en el servidor.
@@ -111,6 +123,20 @@ El perfil de referencia está en `examples/mapping-profile.json`.
 
 Los fixtures están en `fixtures/tax-breakdown-v1.json` y forman parte del CI obligatorio.
 
+## Gate de instalación real
+
+`scripts/ci/prestashop-compatibility-smoke.sh` usa PrestaShop Flashlight y MariaDB en contenedores efímeros. El smoke:
+
+1. empaqueta temporalmente el módulo con raíz `puenteverifactu`;
+2. arranca una tienda PrestaShop real;
+3. auto-instala el módulo mediante el mecanismo de Flashlight;
+4. valida versión de PrestaShop/PHP y que el módulo está activo;
+5. comprueba la tabla local del conector;
+6. crea una factura de prueba mediante la API nativa cuando el dataset no trae una;
+7. construye el payload real y exige `tax_lines`, identidad fiscal, moneda y totales.
+
+El ZIP utilizado aquí es únicamente un paquete temporal de CI. El ZIP reproducible de release y su gate de upgrade son el siguiente incremento separado.
+
 ## Límites conocidos
 
 - no se fiscalizan automáticamente cambios de estado;
@@ -118,13 +144,11 @@ Los fixtures están en `fixtures/tax-breakdown-v1.json` y forman parte del CI ob
 - no hay todavía semáforo dentro de la ficha nativa del pedido;
 - pedidos con varias facturas quedan bloqueados hasta añadir selección explícita por `OrderInvoice`;
 - ecotasa queda bloqueada hasta disponer de mapping fiscal específico;
-- la matriz real de CI con instalaciones PrestaShop se incorpora en el siguiente gate;
-- PrestaShop 9 se evaluará explícitamente en la matriz antes de declararlo compatible.
+- PrestaShop 9 no está declarado compatible y se evaluará explícitamente antes de incorporarlo.
 
 ## Siguiente incremento
 
-1. compatibilidad real 1.7.8.x / 8.x en CI;
-2. paquete ZIP reproducible e instalación/upgrade smoke;
-3. integración del estado en la ficha de pedido;
-4. rectificativas/abonos idempotentes;
-5. automatización opt-in después de validar el flujo manual.
+1. paquete ZIP reproducible e instalación/upgrade smoke;
+2. integración del estado en la ficha de pedido;
+3. rectificativas/abonos idempotentes;
+4. automatización opt-in después de validar el flujo manual.
