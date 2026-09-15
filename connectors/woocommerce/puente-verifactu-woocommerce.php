@@ -3,7 +3,7 @@
  * Plugin Name: Puente VeriFactu for WooCommerce
  * Plugin URI: https://github.com/Emmakex/puente-verifactu
  * Description: Connects WooCommerce orders to Puente VeriFactu without implementing AEAT fiscal logic inside WordPress.
- * Version: 0.1.0
+ * Version: 0.2.0
  * Author: Kairoseth Extensions
  * Text Domain: puente-verifactu-woocommerce
  * Domain Path: /languages
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PV_WOO_VERSION', '0.1.0' );
+define( 'PV_WOO_VERSION', '0.2.0' );
 define( 'PV_WOO_FILE', __FILE__ );
 define( 'PV_WOO_PATH', plugin_dir_path( __FILE__ ) );
 
@@ -50,6 +50,8 @@ add_action(
         require_once PV_WOO_PATH . 'includes/class-pv-woo-settings.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-client.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-order-payload.php';
+        require_once PV_WOO_PATH . 'includes/class-pv-woo-refund-payload.php';
+        require_once PV_WOO_PATH . 'includes/class-pv-woo-admin-status.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-connector.php';
 
         PV_Woo_Connector::instance()->boot();
@@ -63,8 +65,12 @@ register_deactivation_hook(
         if ( function_exists( 'as_unschedule_all_actions' ) ) {
             as_unschedule_all_actions( 'pv_woo_process_order', array(), 'puente-verifactu' );
             as_unschedule_all_actions( 'pv_woo_reconcile_order', array(), 'puente-verifactu' );
+            as_unschedule_all_actions( 'pv_woo_process_refund', array(), 'puente-verifactu' );
+            as_unschedule_all_actions( 'pv_woo_reconcile_refund', array(), 'puente-verifactu' );
         }
         wp_clear_scheduled_hook( 'pv_woo_process_order' );
         wp_clear_scheduled_hook( 'pv_woo_reconcile_order' );
+        wp_clear_scheduled_hook( 'pv_woo_process_refund' );
+        wp_clear_scheduled_hook( 'pv_woo_reconcile_refund' );
     }
 );
