@@ -97,7 +97,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 
 **Límite explícito:** SQLite/rate limit local son un perfil de una sola instancia. Multi-réplica/HA, backups/restauración automatizados y outbox durable de producción se endurecen en Fase 6. El gate AEAT #6 sigue bloqueando piloto fiscal real/release.
 
-## Fase 5 — Kairoseth Extensions 🚧
+## Fase 5 — Kairoseth Extensions ✅
 
 ### WooCommerce ✅
 
@@ -144,14 +144,14 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Upgrade `0.3.0 → 0.4.0` preservando estado principal/rectificativo, registrando hooks y dejando automatización OFF.
 - [x] Smoke real que demuestra ausencia de efectos automáticos mientras los switches están desactivados.
 
-### Aceptación transversal
+### Aceptación transversal ✅
 
-- [ ] Reconciliación/fallback end-to-end común entre conectores.
-- [ ] Tests de compatibilidad y Connector Contract Suite para cada extensión.
+- [x] Reconciliación/fallback end-to-end común entre conectores.
+- [x] Tests de compatibilidad y Connector Contract Suite para cada extensión.
 
-**Estado:** WooCommerce queda técnicamente cerrado y PrestaShop alcanza el alcance nativo `0.4.0`. Connector Contract Suite v2 ya fija la semántica transversal `sync`: un `recordId` existente solo puede reconciliarse y nunca reemitirse como fallback; una operación nueva exige `eventId`, preflight e idempotencia estable incluso tras fallos retryable. El siguiente incremento aplica esa semántica como gate ejecutable específico sobre WooCommerce y PrestaShop antes de marcar la aceptación transversal como cerrada. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
+**Estado:** Fase 5 técnicamente cerrada. Connector Contract Suite v2 fija y valida la misma semántica sobre WooCommerce y PrestaShop reales: con `recordId` existente solo se consulta/reconcilia y nunca se reemite como fallback; fallos retryable preservan identidad/idempotencia; operaciones nuevas mantienen preflight e idempotencia estable. El gate común ejecuta seis escenarios equivalentes de factura y rectificativa en las matrices reales de ambos conectores. Durante este gate se detectó y corrigió además la compatibilidad de reconciliación de refunds WooCommerce/HPOS usando la abstracción CRUD común `WC_Abstract_Order`.
 
-**Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre de la aceptación transversal y al gate AEAT #6 antes de cualquier piloto fiscal real.
+**Salida cumplida:** conectores nativos WooCommerce y PrestaShop end-to-end técnicamente validados bajo un contrato transversal común. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real o release.
 
 ## Fase 6 — Production Readiness
 
