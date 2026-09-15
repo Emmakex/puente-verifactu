@@ -192,6 +192,15 @@ final class PVFPrestaShopOrderSlipPayload
         return $negative;
     }
 
+    public static function observedTaxMatchesRate($baseCents, $taxCents, $rate, $toleranceCents = self::TAX_TOLERANCE_CENTS)
+    {
+        $baseCents = (int) $baseCents;
+        $taxCents = (int) $taxCents;
+        $toleranceCents = max(0, (int) $toleranceCents);
+        $expected = (int) round(((float) $baseCents) * ((float) $rate) / 100.0, 0, PHP_ROUND_HALF_UP);
+        return abs($expected - $taxCents) <= $toleranceCents;
+    }
+
     private static function orderDetailRate(OrderDetail $orderDetail)
     {
         $calculator = $orderDetail->getTaxCalculator();
@@ -218,8 +227,7 @@ final class PVFPrestaShopOrderSlipPayload
 
     private static function assertObservedTaxMatchesRate($baseCents, $taxCents, $rate, $scope)
     {
-        $expected = (int) round(((float) $baseCents) * ((float) $rate) / 100.0, 0, PHP_ROUND_HALF_UP);
-        if (abs($expected - (int) $taxCents) > self::TAX_TOLERANCE_CENTS) {
+        if (!self::observedTaxMatchesRate($baseCents, $taxCents, $rate)) {
             throw new RuntimeException(
                 'The PrestaShop credit-slip ' . (string) $scope
                 . ' tax does not match its native historical tax rate. Fiscal attribution is blocked.'
