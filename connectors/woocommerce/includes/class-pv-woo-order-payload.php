@@ -4,34 +4,17 @@ defined( 'ABSPATH' ) || exit;
 
 final class PV_Woo_Order_Payload {
     public static function build( WC_Order $order, array $settings ) {
-        $date = $order->get_date_created();
-        $name = trim( $order->get_billing_company() );
-        if ( '' === $name ) {
-            $name = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
-        }
-        if ( '' === $name ) {
-            $name = __( 'WooCommerce customer', 'puente-verifactu-woocommerce' );
-        }
-
-        $tax_id = '';
-        if ( ! empty( $settings['tax_id_meta_key'] ) ) {
-            $tax_id = trim( (string) $order->get_meta( $settings['tax_id_meta_key'], true ) );
-        }
-        $tax_id = (string) apply_filters( 'pv_woo_customer_tax_id', $tax_id, $order );
-
-        $invoice_number = self::invoice_number( $order, $settings );
-
         $payload = array(
             'connector_schema' => 1,
             'source_invoice_id'=> 'woo:' . get_current_blog_id() . ':order:' . $order->get_id(),
             'order_id'         => (string) $order->get_id(),
             'order_number'     => (string) $order->get_order_number(),
-            'invoice_number'   => $invoice_number,
-            'order_date'       => $date ? $date->date( 'Y-m-d' ) : gmdate( 'Y-m-d' ),
+            'invoice_number'   => self::invoice_number( $order, $settings ),
+            'order_date'       => self::invoice_date( $order, $settings ),
             'description'      => sprintf( 'WooCommerce order %s', $order->get_order_number() ),
             'currency'         => (string) $order->get_currency(),
-            'customer_name'    => $name,
-            'customer_tax_id'  => $tax_id,
+            'customer_name'    => self::customer_name( $order ),
+            'customer_tax_id'  => self::customer_tax_id( $order, $settings ),
             'total_amount'     => self::money( $order->get_total() ),
             'discount_amount'  => self::money( $order->get_discount_total() ),
             'shipping_amount'  => self::money( $order->get_shipping_total() ),
@@ -42,7 +25,26 @@ final class PV_Woo_Order_Payload {
         return apply_filters( 'pv_woo_order_source_payload', $payload, $order, $settings );
     }
 
-    private static function invoice_number( WC_Order $order, array $settings ) {
+    public static function customer_name( WC_Order $order ) {
+        $name = trim( $order->get_billing_company() );
+        if ( '' === $name ) {
+            $name = trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() );
+        }
+        if ( '' === $name ) {
+            $name = __( 'WooCommerce customer', 'puente-verifactu-woocommerce' );
+        }
+        return $name;
+    }
+
+    public static function customer_tax_id( WC_Order $order, array $settings ) {
+        $tax_id = '';
+        if ( ! empty( $settings['tax_id_meta_key'] ) ) {
+            $tax_id = trim( (string) $order->get_meta( $settings['tax_id_meta_key'], true ) );
+        }
+        return trim( (string) apply_filters( 'pv_woo_customer_tax_id', $tax_id, $order ) );
+    }
+
+    public static function invoice_number( WC_Order $order, array $settings ) {
         $source = isset( $settings['invoice_number_source'] ) ? (string) $settings['invoice_number_source'] : '';
         $number = '';
 
@@ -55,7 +57,13 @@ final class PV_Woo_Order_Payload {
         return trim( (string) apply_filters( 'pv_woo_invoice_number', $number, $order, $settings ) );
     }
 
-    private static function tax_lines( WC_Order $order ) {
+    public static function invoice_date( WC_Order $order, array $settings ) {
+        $date = $order->get_date_created();
+        $value = $date ? $date->date( 'Y-m-d' ) : gmdate( 'Y-m-d' );
+        return trim( (string) apply_filters( 'pv_woo_invoice_date', $value, $order, $settings ) );
+    }
+
+    public static function tax_lines( WC_Order $order ) {
         $rates = array();
         foreach ( $order->get_taxes() as $tax_item ) {
             $rate_id = (string) $tax_item->get_rate_id();
@@ -97,16 +105,16 @@ final class PV_Woo_Order_Payload {
         return array_values( $lines );
     }
 
-    private static function money( $value ) {
+    public static function money( $value ) {
         return wc_format_decimal( $value, wc_get_price_decimals(), false );
     }
 
-    private static function rate( $value ) {
+    public static function rate( $value ) {
         $formatted = wc_format_decimal( $value, 4, true );
         return '' === $formatted ? '0' : $formatted;
     }
 
-    private static function decimal_add( $left, $right ) {
+    public static function decimal_add( $left, $right ) {
         $scale = 4;
         $a = self::scaled_int( $left, $scale );
         $b = self::scaled_int( $right, $scale );
