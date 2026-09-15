@@ -8,6 +8,7 @@ import { createSqlitePersistence } from '../../../packages/sqlite-store/src/inde
 import { createHttpAuthenticator } from './auth.mjs';
 import { createIntegrationResolvers } from './integration-config.mjs';
 import { createPuenteHttpServer } from './http-server.mjs';
+import { createOperationalObserver } from './observability.mjs';
 import { FixedWindowRateLimiter } from './rate-limit.mjs';
 
 const DEFAULT_ONBOARDING_DIR = resolve(fileURLToPath(new URL('../../onboarding/', import.meta.url)));
@@ -25,6 +26,9 @@ export function createPuenteRuntime({
   onboardingDir = DEFAULT_ONBOARDING_DIR,
   rateLimiter = new FixedWindowRateLimiter(),
   clock = () => new Date(),
+  observabilityClock = () => Date.now(),
+  backupManifestPath = null,
+  observabilityThresholds = {},
 } = {}) {
   const normalizedSif = {
     systemId: requiredString(sif?.systemId, 'sif.systemId'),
@@ -60,6 +64,12 @@ export function createPuenteRuntime({
     resolveMappingProfile: resolvers.resolveMappingProfile,
     resolveWebhookSecret: resolvers.resolveWebhookSecret,
   });
+  const operationalObserver = createOperationalObserver({
+    persistence,
+    backupManifestPath,
+    clock: observabilityClock,
+    thresholds: observabilityThresholds,
+  });
   const server = createPuenteHttpServer({
     apiHandler,
     authenticateHttp,
@@ -73,6 +83,7 @@ export function createPuenteRuntime({
         return { ok: false };
       }
     },
+    operationalStatus: async () => operationalObserver.snapshot(),
   });
 
   return {
@@ -80,6 +91,7 @@ export function createPuenteRuntime({
     bridge,
     imports,
     persistence,
+    operationalObserver,
     recoveredReservations: Number(recoveredReservations),
     close: async () => {
       if (server.listening) await new Promise((resolveClose, reject) => server.close((error) => error ? reject(error) : resolveClose()));
