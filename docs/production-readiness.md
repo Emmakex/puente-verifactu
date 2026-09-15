@@ -13,6 +13,7 @@ No sustituye el gate externo AEAT de Fase 3. **No puede existir release ni pilot
 5. Un resultado remoto incierto nunca se reenvía ciegamente: pasa a `reconciliation_required` hasta que una reconciliación explícita confirme si se puede completar, bloquear o reintentar.
 6. Single-node y HA/multi-réplica se tratan como perfiles distintos; no se atribuyen garantías distribuidas a SQLite.
 7. La evidencia de release no contiene certificados, claves privadas, tokens ni datos fiscales innecesarios.
+8. La observabilidad global nunca se expone a una credencial tenant/integración por defecto; requiere autoridad operacional explícita.
 
 ## Gates
 
@@ -89,9 +90,37 @@ Las pruebas cubren persistencia tras reinicio, dispatch único, lease activo fre
 
 ### 6.3 Observabilidad y alertas
 
-Pendiente.
+Estado: **implementación v1 en validación CI**.
 
-Debe incluir métricas operativas accionables como mínimo para colas, errores, reintentos, edad de operaciones pendientes, jobs en `reconciliation_required`, disponibilidad AEAT/bridge, backup reciente y fallos de integridad/restauración. Los logs deben continuar sanitizados.
+Contrato del gate:
+
+- `/healthz` sigue indicando únicamente proceso vivo;
+- `/readyz` sigue indicando únicamente disponibilidad mínima de SQLite;
+- `GET /v1/ops/status` expone snapshot operacional agregado y requiere autenticación + permiso `ops:read`;
+- una credencial tenant/integración válida sin `ops:read` recibe `403 VF_OPS_FORBIDDEN`;
+- el snapshot no contiene NIF, factura, payload de outbox, job IDs, tenant IDs, credenciales ni rutas locales;
+- contadores AEAT por estado, pendientes vencidos, leases expirados y edad del pendiente/reconciliación más antiguos se calculan directamente del store durable;
+- `reconciliation_required`, `blocked` y lease expirado generan alertas críticas;
+- edad de pending genera warning/critical por umbral;
+- `PV_BACKUP_MANIFEST_PATH` permite vigilar antigüedad del último backup creado/verificado;
+- backup no configurado produce warning, manifest ausente/inválido o demasiado antiguo produce alerta crítica;
+- si SQLite falla, el snapshot sigue siendo generable con estado crítico sanitizado en vez de depender de un 500 opaco;
+- los códigos de alerta son estables y aptos para integración con el monitor que el despliegue elija.
+
+Umbrales por defecto v1:
+
+- pending AEAT: warning 5 min / critical 15 min;
+- backup: warning 26 h / critical 50 h.
+
+Gate ejecutable:
+
+```bash
+npm run ops:smoke
+```
+
+El contrato completo, incluidos los códigos `VF_OBS_*`, se documenta en `docs/operations-observability.md`.
+
+**Límite:** no se impone todavía un proveedor de monitorización. El endpoint JSON es framework-neutral y puede ser recogido por Prometheus exporter, Grafana Agent, Datadog, Uptime Kuma u otra capa operacional sin acoplarla al motor fiscal.
 
 ### 6.4 Runbooks operativos
 
