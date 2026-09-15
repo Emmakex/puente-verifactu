@@ -153,11 +153,20 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 
 **Salida cumplida:** conectores nativos WooCommerce y PrestaShop end-to-end técnicamente validados bajo un contrato transversal común. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real o release.
 
-## Fase 6 — Production Readiness
+## Fase 6 — Production Readiness 🚧
 
-Hardening HA/multi-réplica cuando aplique, outbox durable, backups/restauración, observabilidad/alertas, runbooks, verificación regulatoria final, declaración responsable por versión y piloto progresivo.
+- [x] Backup/restore SQLite verificable: snapshot WAL consistente, SHA-256 + manifest, `integrity_check`, `foreign_key_check`, restore staging y reemplazo offline protegido.
+- [ ] Política operacional de almacenamiento remoto, cifrado, retención, antigüedad y ejercicio periódico de restore.
+- [ ] Outbox durable de producción con recuperación/reintentos persistidos y reconciliación de resultados inciertos.
+- [ ] Observabilidad y alertas operativas para colas, reintentos, fallos, edad de pendientes, disponibilidad y backups.
+- [ ] Runbooks completos de deploy, rollback, incidente, recuperación y rotación de credenciales.
+- [ ] Perfil HA/multi-réplica con store/locking/rate limiting compartidos cuando el despliegue lo requiera.
+- [ ] Verificación regulatoria final y evidencia de release por versión.
+- [ ] Piloto progresivo con rollback y monitorización activa.
 
-**Gate de entrada a release/piloto:** Fase 3 externa cerrada, además de todos los gates propios de Fase 6.
+**Estado:** Fase 6 iniciada. El primer gate interno de recuperación SQLite queda cubierto por API, CLI y CI; esto **no** convierte el perfil SQLite en HA ni resuelve por sí solo la política externa de retención/storage. Ver `docs/production-readiness.md` y `packages/sqlite-store/README.md`.
+
+**Gate de entrada a release/piloto:** Fase 3 externa cerrada (#6), además de todos los gates propios de Fase 6 aplicables al perfil de despliegue.
 
 ## Posterior
 
