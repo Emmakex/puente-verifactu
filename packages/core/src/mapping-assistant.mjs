@@ -1,5 +1,7 @@
 import { MAPPING_PROFILE_VERSION } from '../../contracts/src/constants.mjs';
-import { MAPPING_ALIASES, getPath, normalizeMappingHeader } from './mapping.mjs';
+import { MAPPING_ALIASES, getPath, normalizeMappingHeader, setPath } from './mapping.mjs';
+
+export const MAPPING_TARGETS = Object.freeze(Object.keys(MAPPING_ALIASES));
 
 export const ESSENTIAL_MAPPING_TARGETS = Object.freeze([
   'number',
@@ -19,6 +21,10 @@ export const CONFIGURATION_TARGETS = Object.freeze([
   'taxBreakdown.0.regimeKey',
   'taxBreakdown.0.operationClass',
 ]);
+
+function assistantError(code, message) {
+  return Object.assign(new Error(message), { code });
+}
 
 function tokens(value) {
   return new Set(normalizeMappingHeader(value).split(' ').filter(Boolean));
@@ -80,7 +86,8 @@ function valueSignal(target, values) {
   return { boost: 0, reason: null };
 }
 
-function transformsFor(target) {
+export function mappingTransformsForTarget(target) {
+  if (!MAPPING_TARGETS.includes(target)) throw assistantError('VF_MAPPING_TARGET_UNKNOWN', `Unknown mapping target: ${target}`);
   const steps = ['trim'];
   if (target === 'issueDate') steps.push('date_dmy');
   if (target === 'invoiceType' || target.endsWith('.taxId')) steps.push('upper');
@@ -130,7 +137,7 @@ export function suggestMapping(headers, { sampleRows = [], sourceType = 'file', 
   const auto = suggestions.filter((suggestion) => suggestion.status === 'auto');
   const review = suggestions.filter((suggestion) => suggestion.status === 'review');
   const fields = Object.fromEntries(auto.map((suggestion) => [suggestion.source, suggestion.target]));
-  const transforms = Object.fromEntries(auto.map((suggestion) => [suggestion.source, transformsFor(suggestion.target)]));
+  const transforms = Object.fromEntries(auto.map((suggestion) => [suggestion.source, mappingTransformsForTarget(suggestion.target)]));
   const consideredTargets = new Set(suggestions.map((suggestion) => suggestion.target));
   const unmappedHeaders = headers.filter((header) => !usedSources.has(header));
   const missingEssentialTargets = ESSENTIAL_MAPPING_TARGETS.filter((target) => !consideredTargets.has(target) && getPath(constants, target) == null);
@@ -171,7 +178,37 @@ export function acceptMappingSuggestions(report, acceptedSources = []) {
   for (const suggestion of report.suggestions ?? []) {
     if (suggestion.status !== 'review' || !accepted.has(suggestion.source)) continue;
     profile.fields[suggestion.source] = suggestion.target;
-    profile.transforms[suggestion.source] = transformsFor(suggestion.target);
+    profile.transforms[suggestion.source] = mappingTransformsForTarget(suggestion.target);
+  }
+  return profile;
+}
+
+export function buildMappingProfile(report, { acceptedSources = [], overrides = {}, constants = {} } = {}) {
+  if (report?.assistantVersion !== 1) throw assistantError('VF_MAPPING_ASSISTANT_VERSION_INVALID', 'Mapping assistant report version must be 1');
+  const profile = acceptMappingSuggestions(report, acceptedSources);
+  const sources = new Set([
+    ...Object.keys(report.profile?.fields ?? {}),
+    ...(report.suggestions ?? []).map((item) => item.source),
+    ...(report.unmappedHeaders ?? []),
+  ]);
+
+  for (const [source, target] of Object.entries(overrides ?? {})) {
+    if (!sources.has(source)) throw assistantError('VF_MAPPING_SOURCE_UNKNOWN', `Unknown source column: ${source}`);
+    if (target == null || target === '') {
+      delete profile.fields[source];
+      delete profile.transforms[source];
+      continue;
+    }
+    if (!MAPPING_TARGETS.includes(target)) throw assistantError('VF_MAPPING_TARGET_UNKNOWN', `Unknown mapping target: ${target}`);
+    const duplicateSource = Object.entries(profile.fields).find(([existingSource, existingTarget]) => existingSource !== source && existingTarget === target)?.[0];
+    if (duplicateSource) throw assistantError('VF_MAPPING_TARGET_DUPLICATE', `Target ${target} is already mapped from ${duplicateSource}`);
+    profile.fields[source] = target;
+    profile.transforms[source] = mappingTransformsForTarget(target);
+  }
+
+  profile.constants = structuredClone(profile.constants ?? {});
+  for (const [path, value] of Object.entries(constants ?? {})) {
+    if (value !== undefined && value !== null && value !== '') setPath(profile.constants, path, value);
   }
   return profile;
 }
