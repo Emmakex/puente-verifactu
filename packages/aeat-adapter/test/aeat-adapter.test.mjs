@@ -69,6 +69,37 @@ test('serializes a basic alta with AEAT namespaces and escaped values', () => {
   assert.match(xml, /<sf:TipoHuella>01<\/sf:TipoHuella>/);
 });
 
+test('serializes rectification blocks in exact AEAT XSD order', () => {
+  const rectifyingIntent = {
+    ...intent,
+    invoiceType: 'R1',
+    sourceInvoiceId: 'rect-1',
+    number: 'R1',
+    rectification: {
+      type: 'S',
+      correctedBaseAmount: '100.00',
+      correctedTaxAmount: '21.00',
+      correctedSurchargeAmount: '5.20',
+      originalInvoices: [{ series: 'A-', number: '0', issueDate: '2026-09-01' }],
+    },
+    replacedInvoices: [{ series: 'B-', number: '0', issueDate: '2026-09-02' }],
+  };
+  const rectifyingRecord = {
+    ...record,
+    invoice: { ...record.invoice, fiscalNumber: 'A-R1' },
+    invoiceType: 'R1',
+    source: { ...record.source, sourceInvoiceId: 'rect-1' },
+  };
+  const xml = serializeAeatSoapRequest({ issuer, entries: [{ intent: rectifyingIntent, record: rectifyingRecord }], sif });
+  const type = xml.indexOf('<sf:TipoRectificativa>');
+  const corrected = xml.indexOf('<sf:FacturasRectificadas>');
+  const replaced = xml.indexOf('<sf:FacturasSustituidas>');
+  const amounts = xml.indexOf('<sf:ImporteRectificacion>');
+  const description = xml.indexOf('<sf:DescripcionOperacion>');
+  assert.ok(type < corrected && corrected < replaced && replaced < amounts && amounts < description);
+  assert.match(xml, /<sf:CuotaRecargoRectificado>5.20<\/sf:CuotaRecargoRectificado>/);
+});
+
 test('serializes previous chain reference on next record', () => {
   const next = {
     ...record,
