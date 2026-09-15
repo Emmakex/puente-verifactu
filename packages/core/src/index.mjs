@@ -5,6 +5,7 @@ export * from './fiscal-records.mjs';
 export * from './hash.mjs';
 export * from './idempotency.mjs';
 export * from './mapping.mjs';
+export * from './mapping-assistant.mjs';
 export * from './memory-intent-store.mjs';
 export * from './preflight.mjs';
 export * from './state-machine.mjs';
