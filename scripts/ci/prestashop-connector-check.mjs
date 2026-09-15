@@ -1,35 +1,48 @@
 import { readFileSync, existsSync } from 'node:fs';
 
-const required = [
-  'connectors/prestashop/README.md',
-  'connectors/prestashop/puenteverifactu.php',
-  'connectors/prestashop/classes/PVFPrestaShopSecretStore.php',
-  'connectors/prestashop/classes/PVFPrestaShopClient.php',
-  'connectors/prestashop/classes/PVFPrestaShopOrderPayload.php',
-  'connectors/prestashop/classes/PVFPrestaShopTaxBreakdown.php',
-  'connectors/prestashop/examples/mapping-profile.json',
-  'connectors/prestashop/fixtures/tax-breakdown-v1.json',
-  'scripts/ci/prestashop-tax-fixtures.php'
-];
+const paths = {
+  readme: 'connectors/prestashop/README.md',
+  module: 'connectors/prestashop/puenteverifactu.php',
+  secret: 'connectors/prestashop/classes/PVFPrestaShopSecretStore.php',
+  client: 'connectors/prestashop/classes/PVFPrestaShopClient.php',
+  payload: 'connectors/prestashop/classes/PVFPrestaShopOrderPayload.php',
+  breakdown: 'connectors/prestashop/classes/PVFPrestaShopTaxBreakdown.php',
+  adminStatus: 'connectors/prestashop/classes/PVFPrestaShopAdminStatus.php',
+  mapping: 'connectors/prestashop/examples/mapping-profile.json',
+  fixtures: 'connectors/prestashop/fixtures/tax-breakdown-v1.json',
+  upgradeStatus: 'connectors/prestashop/upgrade/install-0.2.0.php',
+  taxFixtureScript: 'scripts/ci/prestashop-tax-fixtures.php'
+};
 
+const required = Object.values(paths);
 const failures = [];
 for (const path of required) {
   if (!existsSync(path)) failures.push({ code: 'PRESTA_REQUIRED_PATH_MISSING', path });
 }
 
-const moduleFile = existsSync(required[1]) ? readFileSync(required[1], 'utf8') : '';
-const clientFile = existsSync(required[3]) ? readFileSync(required[3], 'utf8') : '';
-const secretFile = existsSync(required[2]) ? readFileSync(required[2], 'utf8') : '';
-const payloadFile = existsSync(required[4]) ? readFileSync(required[4], 'utf8') : '';
-const breakdownFile = existsSync(required[5]) ? readFileSync(required[5], 'utf8') : '';
-const readme = existsSync(required[0]) ? readFileSync(required[0], 'utf8') : '';
+function read(path) {
+  return existsSync(path) ? readFileSync(path, 'utf8') : '';
+}
+
+const moduleFile = read(paths.module);
+const clientFile = read(paths.client);
+const secretFile = read(paths.secret);
+const payloadFile = read(paths.payload);
+const breakdownFile = read(paths.breakdown);
+const statusFile = read(paths.adminStatus);
+const upgradeStatusFile = read(paths.upgradeStatus);
+const readme = read(paths.readme);
 
 const expectations = [
   [moduleFile.includes('class PuenteVerifactu extends Module'), 'PRESTA_MODULE_CLASS_MISSING'],
+  [moduleFile.includes("const VERSION = '0.2.0'"), 'PRESTA_MODULE_VERSION_INVALID'],
   [moduleFile.includes("'min' => '1.7.8.0'") && moduleFile.includes("'max' => '8.99.99'"), 'PRESTA_VERSION_RANGE_MISSING'],
   [moduleFile.includes("runManualAction('preflight')") && moduleFile.includes("runManualAction('send')") && moduleFile.includes("runManualAction('reconcile')"), 'PRESTA_MANUAL_SAFE_FLOW_MISSING'],
   [moduleFile.includes('idempotencyKey') && moduleFile.includes("':invoice:'"), 'PRESTA_IDEMPOTENCY_MISSING'],
   [moduleFile.includes('pvf_order_sync') && moduleFile.includes('UNIQUE KEY `pvf_shop_order`'), 'PRESTA_LOCAL_SYNC_STATE_MISSING'],
+  [moduleFile.includes("registerHook('displayAdminOrderMainBottom')") && moduleFile.includes('hookDisplayAdminOrderMainBottom'), 'PRESTA_NATIVE_ORDER_STATUS_HOOK_MISSING'],
+  [moduleFile.includes('PVFPrestaShopAdminStatus::summarize') && moduleFile.includes('getSyncRow($orderId)'), 'PRESTA_NATIVE_ORDER_STATUS_LOCAL_READ_MISSING'],
+  [moduleFile.includes("'green' => $this->l('Synced')") && moduleFile.includes("'amber' => $this->l('Pending / review')") && moduleFile.includes("'red' => $this->l('Action required')") && moduleFile.includes("'gray' => $this->l('Not sent')"), 'PRESTA_NATIVE_ORDER_STATUS_LABELS_MISSING'],
   [clientFile.includes("strpos($this->endpoint, 'https://') === 0"), 'PRESTA_HTTPS_GUARD_MISSING'],
   [clientFile.includes('CURLOPT_SSL_VERIFYPEER => true') && clientFile.includes('CURLOPT_SSL_VERIFYHOST => 2'), 'PRESTA_TLS_VERIFY_MISSING'],
   [clientFile.includes("'Idempotency-Key: '"), 'PRESTA_IDEMPOTENCY_HEADER_MISSING'],
@@ -44,6 +57,10 @@ const expectations = [
   [payloadFile.includes("'currency' => strtoupper"), 'PRESTA_CURRENCY_MISSING'],
   [breakdownFile.includes('final class PVFPrestaShopTaxBreakdown') && breakdownFile.includes('public static function reconcile'), 'PRESTA_BREAKDOWN_RECONCILIATION_MISSING'],
   [breakdownFile.includes("mergeScaledLine($lines, '0'"), 'PRESTA_ZERO_RATE_RESIDUAL_MISSING'],
+  [statusFile.includes('final class PVFPrestaShopAdminStatus') && statusFile.includes('public static function summarize'), 'PRESTA_ADMIN_STATUS_CLASS_INVALID'],
+  [statusFile.includes("$status === 'accepted'") && statusFile.includes("array('blocked', 'rejected', 'aeat_rejected', 'failed')"), 'PRESTA_ADMIN_STATUS_MAPPING_MISSING'],
+  [statusFile.includes("return 'gray'") && statusFile.includes("return 'green'") && statusFile.includes("return 'red'") && statusFile.includes("return 'amber'"), 'PRESTA_ADMIN_STATUS_LEVELS_MISSING'],
+  [upgradeStatusFile.includes('upgrade_module_0_2_0') && upgradeStatusFile.includes("registerHook('displayAdminOrderMainBottom')"), 'PRESTA_STATUS_UPGRADE_HOOK_MISSING'],
   [readme.includes('No contiene reglas AEAT'), 'PRESTA_THIN_CONNECTOR_DOC_MISSING']
 ];
 
@@ -51,14 +68,20 @@ for (const [ok, code] of expectations) {
   if (!ok) failures.push({ code });
 }
 
-for (const [path, content] of [[required[1], moduleFile], [required[3], clientFile], [required[4], payloadFile]]) {
+for (const [path, content] of [
+  [paths.module, moduleFile],
+  [paths.client, clientFile],
+  [paths.payload, payloadFile],
+  [paths.adminStatus, statusFile],
+  [paths.upgradeStatus, upgradeStatusFile]
+]) {
   if (/certificado|certificate|SOAP|RegistroAlta|RegistroAnulacion/i.test(content)) {
     failures.push({ code: 'PRESTA_FISCAL_LOGIC_LEAK', path });
   }
 }
 
 try {
-  const profile = JSON.parse(readFileSync(required[6], 'utf8'));
+  const profile = JSON.parse(readFileSync(paths.mapping, 'utf8'));
   if (profile?.sourceType !== 'native' || profile?.fields?.invoice_number !== 'number' || profile?.fields?.tax_lines !== 'taxBreakdown') {
     failures.push({ code: 'PRESTA_MAPPING_PROFILE_INVALID' });
   }
@@ -70,7 +93,7 @@ try {
 }
 
 try {
-  const fixture = JSON.parse(readFileSync(required[7], 'utf8'));
+  const fixture = JSON.parse(readFileSync(paths.fixtures, 'utf8'));
   const ids = new Set((fixture?.cases ?? []).map((item) => item?.id));
   for (const id of [
     'multi-rate-shipping-wrapping',
@@ -102,5 +125,6 @@ console.log(JSON.stringify({
   schema_version: 1,
   status: 'ok',
   check: 'prestashop-connector-v1',
-  required_paths: required.length
+  required_paths: required.length,
+  native_order_status: true
 }, null, 2));

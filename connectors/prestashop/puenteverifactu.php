@@ -7,10 +7,11 @@ if (!defined('_PS_VERSION_')) {
 require_once __DIR__ . '/classes/PVFPrestaShopSecretStore.php';
 require_once __DIR__ . '/classes/PVFPrestaShopClient.php';
 require_once __DIR__ . '/classes/PVFPrestaShopOrderPayload.php';
+require_once __DIR__ . '/classes/PVFPrestaShopAdminStatus.php';
 
 class PuenteVerifactu extends Module
 {
-    const VERSION = '0.1.0';
+    const VERSION = '0.2.0';
     const CONFIG_ENDPOINT = 'PVF_ENDPOINT';
     const CONFIG_PROFILE_ID = 'PVF_PROFILE_ID';
     const CONFIG_TIMEOUT = 'PVF_TIMEOUT';
@@ -36,7 +37,8 @@ class PuenteVerifactu extends Module
     {
         return parent::install()
             && $this->installSchema()
-            && Configuration::updateValue(self::CONFIG_TIMEOUT, 15, false, null, (int) $this->context->shop->id);
+            && Configuration::updateValue(self::CONFIG_TIMEOUT, 15, false, null, (int) $this->context->shop->id)
+            && $this->registerHook('displayAdminOrderMainBottom');
     }
 
     public function uninstall()
@@ -66,6 +68,74 @@ class PuenteVerifactu extends Module
         }
 
         return $output . $this->renderSettingsForm() . $this->renderManualPanel();
+    }
+
+    public function hookDisplayAdminOrderMainBottom($params)
+    {
+        $orderId = isset($params['id_order']) ? (int) $params['id_order'] : 0;
+        if ($orderId <= 0) {
+            return '';
+        }
+
+        $order = new Order($orderId);
+        if (!Validate::isLoadedObject($order)) {
+            return '';
+        }
+        if ((int) $order->id_shop !== (int) $this->context->shop->id) {
+            return '';
+        }
+
+        $summary = PVFPrestaShopAdminStatus::summarize($this->getSyncRow($orderId));
+        $labels = array(
+            'green' => $this->l('Synced'),
+            'amber' => $this->l('Pending / review'),
+            'red' => $this->l('Action required'),
+            'gray' => $this->l('Not sent'),
+        );
+        $badgeClasses = array(
+            'green' => 'badge-success',
+            'amber' => 'badge-warning',
+            'red' => 'badge-danger',
+            'gray' => 'badge-secondary',
+        );
+        $level = isset($labels[$summary['level']]) ? $summary['level'] : 'amber';
+        $controlsUrl = $this->context->link->getAdminLink('AdminModules', true, array(), array(
+            'configure' => $this->name,
+            'tab_module' => $this->tab,
+            'module_name' => $this->name,
+            'PVF_ORDER_ID' => $orderId,
+        ));
+
+        $html = '<div class="card mt-2 pvf-order-status-card">'
+            . '<h3 class="card-header"><i class="material-icons">verified_user</i> ' . $this->l('Puente VeriFactu') . '</h3>'
+            . '<div class="card-body">'
+            . '<p><span class="badge ' . Tools::safeOutput($badgeClasses[$level]) . '">● ' . Tools::safeOutput($labels[$level]) . '</span></p>';
+
+        if ($summary['status'] === '') {
+            $html .= '<p class="mb-2">' . $this->l('No Puente VeriFactu operation exists for this order yet.') . '</p>';
+        } else {
+            $html .= '<p class="mb-1"><strong>' . $this->l('Local status:') . '</strong> '
+                . Tools::safeOutput($summary['status']) . '</p>';
+        }
+
+        if ($summary['record_id'] !== '') {
+            $html .= '<p class="mb-1"><strong>' . $this->l('Puente record:') . '</strong> '
+                . Tools::safeOutput($summary['record_id']) . '</p>';
+        }
+        if ($summary['date_upd'] !== '') {
+            $html .= '<p class="mb-1"><strong>' . $this->l('Last local update:') . '</strong> '
+                . Tools::safeOutput($summary['date_upd']) . '</p>';
+        }
+        if ($summary['last_error'] !== '') {
+            $html .= '<div class="alert alert-warning mt-2 mb-2"><strong>' . $this->l('Review:') . '</strong> '
+                . Tools::safeOutput($summary['last_error']) . '</div>';
+        }
+
+        $html .= '<p class="mb-0"><a class="btn btn-default" href="' . Tools::safeOutput($controlsUrl) . '">'
+            . $this->l('Open VeriFactu controls') . '</a></p>'
+            . '</div></div>';
+
+        return $html;
     }
 
     private function saveSettings()
