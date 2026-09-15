@@ -16,7 +16,22 @@ Vectores conocidos para hash/encadenamiento y ejemplos oficiales versionados. Un
 
 ### Integration tests
 
-Persistencia, outbox, colas, secret provider, certificados simulados y callbacks.
+Persistencia, outbox, colas, secret provider, certificados simulados, callbacks y sesiones temporales de importación.
+
+### Customer-facing / onboarding
+
+Todo cambio de interfaz o onboarding debe mantener ES/EN conjuntamente y cubrir el contrato responsive/UX afectado.
+
+El flujo cero-código tiene un gate explícito `npm run onboarding:smoke` que valida:
+
+1. carga de archivo;
+2. detección de formato;
+3. mapping asistido;
+4. configuración fija;
+5. preflight sin efectos;
+6. presencia de copy ES/EN.
+
+Los tests también cubren aislamiento de sesión por organización/instalación, expiración, allowlists de mapping/configuración y protección contra prototype pollution.
 
 ### External sandbox tests
 
@@ -24,15 +39,16 @@ Portal de pruebas AEAT cuando esté disponible: alta válida, rechazo controlado
 
 ### Acceptance
 
-Flujo extremo a extremo desde un conector de referencia hasta estado final y reconciliación.
+Flujo extremo a extremo desde un conector de referencia hasta estado final y reconciliación. Para el canal cero-código, aceptación desde CSV/XLSX hasta preflight comprensible para usuario no técnico.
 
 ## Gates mínimos
 
-- lint/format;
-- typecheck;
+- lint/format cuando exista tooling aplicable;
+- typecheck cuando exista contrato tipado aplicable;
 - unit;
 - contract;
 - integration afectada;
+- UX/responsive/ES-EN para cambios customer-facing;
 - security checks relevantes;
 - prueba regulatoria cuando cambie material AEAT;
 - documentación del contrato modificado.
