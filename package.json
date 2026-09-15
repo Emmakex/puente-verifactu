@@ -13,6 +13,7 @@
     "preflight:demo": "node connectors/file-import/src/cli.mjs --csv examples/file-import/facturas.csv --profile examples/file-import/mapping.json",
     "mapping:demo": "node connectors/file-import/src/cli.mjs --file examples/file-import/facturas.csv --infer",
     "onboarding:smoke": "node scripts/ci/onboarding-smoke.mjs",
+    "contract:reference": "node packages/connector-contract-suite/src/cli.mjs --module ./connectors/reference/contract.mjs",
     "aeat:gate": "node scripts/aeat/live-gate.mjs"
   }
 }
