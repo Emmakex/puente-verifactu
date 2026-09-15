@@ -6,7 +6,7 @@
   "type": "module",
   "engines": { "node": ">=22.13.0" },
   "scripts": {
-    "check": "node scripts/ci/repo-check.mjs && node scripts/ci/runbooks-check.mjs && node scripts/ci/backup-lifecycle-contract.mjs && node scripts/ci/release-evidence-check.mjs",
+    "check": "node scripts/ci/repo-check.mjs && node scripts/ci/runbooks-check.mjs && node scripts/ci/backup-lifecycle-contract.mjs && node scripts/ci/release-evidence-check.mjs && node scripts/ci/aeat-certificate-preflight-contract.mjs",
     "test": "node --test",
     "preflight:demo": "node connectors/file-import/src/cli.mjs --csv examples/file-import/facturas.csv --profile examples/file-import/mapping.json",
     "mapping:demo": "node connectors/file-import/src/cli.mjs --file examples/file-import/facturas.csv --infer",
