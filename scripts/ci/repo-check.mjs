@@ -15,6 +15,10 @@ const requiredPaths = [
   'docs/adr/0002-chameleon-integration.md',
   'docs/adr/0003-defer-external-gates-with-release-block.md',
   'apps/api/README.md',
+  'apps/onboarding/README.md',
+  'apps/onboarding/index.html',
+  'apps/onboarding/app.js',
+  'apps/onboarding/src/model.mjs',
   'packages/contracts/README.md',
   'packages/core/README.md',
   'packages/diagnostics/README.md',
@@ -23,7 +27,8 @@ const requiredPaths = [
   'connectors/reference/README.md',
   'connectors/file-import/README.md',
   'connectors/file-import/src/xlsx.mjs',
-  'packages/core/src/mapping-assistant.mjs'
+  'packages/core/src/mapping-assistant.mjs',
+  'scripts/ci/onboarding-smoke.mjs'
 ];
 
 const failures = [];
@@ -36,6 +41,9 @@ try {
   const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
   if (pkg?.engines?.node !== '>=22') {
     failures.push({ code: 'REPO_NODE_CONTRACT_INVALID', expected: '>=22', received: pkg?.engines?.node ?? null });
+  }
+  if (pkg?.scripts?.['onboarding:smoke'] !== 'node scripts/ci/onboarding-smoke.mjs') {
+    failures.push({ code: 'REPO_ONBOARDING_GATE_MISSING', expected: 'onboarding:smoke script' });
   }
 } catch (error) {
   failures.push({ code: 'REPO_PACKAGE_JSON_INVALID', message: error.message });

@@ -33,3 +33,6 @@ jobs:
 
       - name: Assisted mapping smoke
         run: npm run mapping:demo
+
+      - name: Zero-code onboarding smoke
+        run: npm run onboarding:smoke

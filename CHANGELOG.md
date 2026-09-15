@@ -6,6 +6,10 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Wizard cero-código responsive ES/EN para cargar CSV/XLSX, confirmar mappings, completar configuración fija y ejecutar preflight sin enviar a AEAT.
+- Sesiones temporales de importación aisladas por organización/instalación con TTL, límites de tamaño y eliminación segura.
+- Allowlist de destinos/configuración y hardening contra prototype pollution en cualquier `MappingProfile`.
+- Smoke CI end-to-end del onboarding cero-código con diagnóstico estructurado.
 - Importador XLSX read-only sin dependencias externas, con selección de hoja, fechas Excel y límites defensivos.
 - Mapping Assistant v1 con confianza, revisión explícita, campos pendientes y borrador seguro de `MappingProfile`.
 - Inspección unificada CSV/XLSX y smoke CI de mapping asistido.

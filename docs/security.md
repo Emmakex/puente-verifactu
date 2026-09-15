@@ -19,6 +19,8 @@ Proteger credenciales, certificados, datos fiscales y separación entre organiza
 
 Conectores: autenticación server-to-server con credenciales rotables. Usuarios: RBAC separado del rol del conector. Los permisos del navegador no otorgan capacidades fiscales por sí solos.
 
+El wizard de onboarding usa sesión de usuario autenticada; nunca recibe API keys de conectores ni secretos AEAT. Organización, instalación y sistema origen se derivan de esa sesión en backend.
+
 ## Gestión de secretos
 
 Los secretos se gestionan en un secret manager, vault o archivo montado fuera del repositorio. Nunca en Git, variables de frontend, dumps de soporte o tickets. Debe existir rotación y revocación.
@@ -28,6 +30,27 @@ Para AEAT, el entorno de ejecución recibe solo una referencia/ruta/secret bindi
 ## Aislamiento tenant
 
 Todas las consultas se filtran por `organization_id` en la capa de autorización y en repositorio. Los tests deben incluir intentos explícitos de acceso cruzado.
+
+Las sesiones temporales de importación se vinculan a organización + instalación. Una sesión ajena responde como no encontrada para no revelar su existencia.
+
+## Importación CSV/XLSX
+
+Los archivos pueden contener datos personales/fiscales y se consideran datos no confiables.
+
+Controles v1:
+
+- límite de fichero de onboarding de 5 MiB;
+- XLSX con límites de entradas ZIP, tamaño expandido, filas y columnas;
+- no se extraen entradas XLSX al filesystem;
+- DTD/ENTITY bloqueados;
+- fórmulas no se ejecutan, solo puede leerse el valor cacheado;
+- mappings y constantes editables limitados por allowlists;
+- rutas `__proto__`, `prototype` y `constructor` bloqueadas en el core;
+- el binario original no se conserva después del parseo en la implementación de referencia;
+- las filas parseadas se mantienen en sesión temporal con TTL de 15 minutos por defecto;
+- contenido de filas/archivos no se escribe en logs.
+
+Antes de un despliegue multi-instancia, las sesiones temporales pasarán a un store compartido con TTL, cifrado apropiado y política explícita de borrado.
 
 ## Integridad
 
@@ -52,6 +75,8 @@ Aplicar minimización de datos, retención documentada y controles de acceso. No
 - duplicación por reintentos;
 - robo de certificado;
 - acceso cross-tenant;
+- prototype pollution mediante mapping/configuración;
+- archivos ZIP/XML maliciosos;
 - SSRF hacia endpoints arbitrarios;
 - manipulación de callback/webhook;
 - inyección XML / XXE;

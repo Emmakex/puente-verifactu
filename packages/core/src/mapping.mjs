@@ -18,6 +18,9 @@ export const MAPPING_ALIASES = Object.freeze({
   sourceInvoiceId: ['id factura', 'invoice id', 'external id'],
 });
 
+const FORBIDDEN_PATH_PARTS = new Set(['__proto__', 'prototype', 'constructor']);
+const MAPPING_TARGET_SET = new Set(Object.keys(MAPPING_ALIASES));
+
 export function normalizeMappingHeader(value) {
   return String(value)
     .normalize('NFD')
@@ -30,7 +33,13 @@ export function normalizeMappingHeader(value) {
 }
 
 function pathParts(path) {
-  return path.split('.').map((part) => (/^\d+$/.test(part) ? Number(part) : part));
+  const raw = String(path ?? '');
+  if (!raw || raw.length > 256) throw new Error('Mapping path is empty or too long');
+  const parts = raw.split('.').map((part) => (/^\d+$/.test(part) ? Number(part) : part));
+  if (parts.some((part) => typeof part === 'string' && FORBIDDEN_PATH_PARTS.has(part))) {
+    throw new Error(`Unsafe mapping path: ${raw}`);
+  }
+  return parts;
 }
 
 export function setPath(target, path, value) {
@@ -47,6 +56,7 @@ export function setPath(target, path, value) {
 
     const next = parts[index + 1];
     if (cursor[part] === undefined) cursor[part] = typeof next === 'number' ? [] : {};
+    if (!cursor[part] || typeof cursor[part] !== 'object') throw new Error(`Mapping path conflicts with scalar value: ${path}`);
     cursor = cursor[part];
   }
 
@@ -107,10 +117,18 @@ export function validateMappingProfile(profile) {
   if (!profile?.sourceType) errors.push('sourceType is required');
   if (!profile?.fields || typeof profile.fields !== 'object' || Array.isArray(profile.fields)) errors.push('fields must be an object');
 
+  for (const [source, target] of Object.entries(profile?.fields ?? {})) {
+    if (!MAPPING_TARGET_SET.has(target)) errors.push(`Unsupported mapping target ${target} for ${source}`);
+  }
+
   const allowedTransforms = new Set(['trim', 'upper', 'lower', 'decimal_comma', 'date_dmy']);
   for (const [source, transforms] of Object.entries(profile?.transforms ?? {})) {
     if (!Array.isArray(transforms)) errors.push(`transforms.${source} must be an array`);
     else for (const transform of transforms) if (!allowedTransforms.has(transform)) errors.push(`Unsupported transform ${transform} for ${source}`);
+  }
+
+  for (const target of Object.keys(profile?.defaults ?? {})) {
+    try { pathParts(target); } catch (error) { errors.push(error.message); }
   }
 
   return { ok: errors.length === 0, errors };
