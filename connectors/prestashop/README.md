@@ -1,15 +1,15 @@
-# Puente VeriFactu — PrestaShop connector 0.3.0
+# Puente VeriFactu — PrestaShop connector 0.4.0
 
 Conector nativo y deliberadamente fino para **PrestaShop 1.7.8.x y 8.x**. Extrae hechos comerciales de facturas y abonos nativos, construye payloads neutrales y habla con la API universal de Puente VeriFactu. **No contiene reglas AEAT, XML, SOAP, certificados ni decisiones fiscales sensibles.**
 
 ## Estado
 
-Versión `0.3.0` validada con flujo manual seguro para factura y rectificativa, extractor fiscal reforzado, paquete reproducible, estado operativo en la ficha del pedido y abonos nativos `OrderSlip`:
+Versión `0.4.0` con flujo manual seguro y automatización **opt-in** por tienda:
 
 - configuración por tienda para endpoint HTTPS y `MappingProfile` server-side;
 - Bearer token cifrado localmente con AES-256-GCM usando una clave derivada de `_COOKIE_KEY_`;
 - payload neutral de factura con número fiscal nativo, fecha, moneda, destinatario, totales y desglose por tipos;
-- flujo manual de factura `preflight -> issue -> reconcile`;
+- flujo manual de factura `preflight -> issue -> reconcile` siempre disponible;
 - idempotencia estable por tienda + pedido + número de factura;
 - semáforo verde/ámbar/rojo/gris en la ficha nativa del pedido;
 - rectificativas basadas en `OrderSlip`, con perfil fiscal server-side separado;
@@ -18,24 +18,26 @@ Versión `0.3.0` validada con flujo manual seguro para factura y rectificativa, 
 - persistencia separada `pvf_order_slip_sync` para múltiples abonos del mismo pedido;
 - extracción del tipo histórico mediante `OrderDetail::getTaxCalculator()->getTotalRate()` y bloqueo si la cuota observada no reconcilia;
 - líneas y totales rectificativos con signo negativo;
-- gate determinista adicional con IVA 21 %, 10 % y 4 %, redondeo y rechazo de incoherencias;
-- smoke real que crea un `OrderSlip` nativo dentro de PrestaShop 1.7.8.11, 8.1.7 y 8.2.7;
+- automatización independiente para facturas y abonos, **desactivada por defecto**;
+- reconciliación en lugar de reemisión cuando ya existe `recordId`;
+- gate determinista con IVA 21 %, 10 % y 4 %, redondeo y rechazo de incoherencias;
+- smoke real en PrestaShop 1.7.8.11, 8.1.7 y 8.2.7;
 - ZIP reproducible con allowlist de runtime, SHA-256 y layout compatible con instaladores legacy;
-- upgrade real `0.2.0 → 0.3.0` preservando el estado de la factura original y creando el almacenamiento de rectificativas.
+- upgrade real `0.3.0 → 0.4.0` que preserva estado existente, registra los hooks automáticos y mantiene ambos switches en OFF.
 
-Todavía **no** activa envíos automáticos por eventos. El siguiente incremento funcional es la automatización opt-in, manteniendo siempre disponible el modo manual seguro.
+La automatización no sustituye el modo manual: simplemente reutiliza los mismos invariantes de preflight, idempotencia y estado local cuando el comercio decide activarla.
 
 ## Compatibilidad validada
 
-La matriz de CI instala el **ZIP reproducible de distribución** dentro de tiendas efímeras PrestaShop Flashlight. Las combinaciones validadas el **15 de septiembre de 2026** son:
+La matriz de CI instala el **ZIP reproducible de distribución** dentro de tiendas efímeras PrestaShop Flashlight. Combinaciones validadas:
 
 - PrestaShop **1.7.8.11** / PHP **7.4**;
 - PrestaShop **8.1.7** / PHP **8.1**;
 - PrestaShop **8.2.7** / PHP **8.1**.
 
-Cada job comprueba arranque real, instalación y activación del módulo `0.3.0`, tablas de sincronización, hook `displayAdminOrderMainBottom`, factura nativa, payload principal, semáforo operativo y creación de un `OrderSlip` real mediante `OrderSlip::create()`. Después construye el payload rectificativo, verifica la referencia a la factura original, signos, tipo histórico y estado local de la rectificativa. Esta matriz no implica soporte para PrestaShop 9.
+Cada job comprueba arranque real, instalación y activación del módulo `0.4.0`, tablas de sincronización, hooks nativos, factura, payload principal, semáforo operativo y creación de un `OrderSlip` real. También demuestra que los hooks automáticos registrados **no crean estado ni intentan procesar operaciones mientras sus switches permanecen desactivados**. Esta matriz no implica soporte para PrestaShop 9.
 
-Los datasets Flashlight usados por la prueba runtime tienen una línea al 0 %. Para que esa limitación del dataset no deje sin probar el cálculo con IVA positivo, CI ejecuta además `npm run prestashop:rectification-fixtures`, que usa la misma función de validación del runtime con 21 %, 10 %, 4 %, redondeos admisibles y desajustes que deben bloquearse.
+Los datasets Flashlight usados por la prueba runtime tienen una línea al 0 %. Para que esa limitación no deje sin probar IVA positivo, CI ejecuta además `npm run prestashop:rectification-fixtures`, que usa la misma validación del runtime con 21 %, 10 %, 4 %, redondeos admisibles y desajustes que deben bloquearse.
 
 ## Principio de seguridad
 
@@ -43,11 +45,11 @@ PrestaShop nunca recibe el certificado AEAT. El certificado y la clave privada p
 
 El módulo tampoco decide `invoiceType`, `R1–R5`, tipo de rectificación `S/I`, `taxCode`, `regimeKey`, `operationClass`, datos del emisor ni criterios de conversión fiscal. Todo ello pertenece al `MappingProfile` y a la configuración server-side.
 
-Las tarjetas de estado son **local-only**: al abrir la ficha de un pedido consultan exclusivamente `pvf_order_sync` y `pvf_order_slip_sync`. No ejecutan peticiones remotas a Puente VeriFactu ni a AEAT. La reconciliación sigue siendo una acción explícita.
+Las tarjetas de estado son **local-only**: al abrir la ficha de un pedido consultan exclusivamente `pvf_order_sync` y `pvf_order_slip_sync`. No ejecutan peticiones remotas a Puente VeriFactu ni a AEAT.
 
 ## Factura original
 
-El extractor de factura usa las APIs nativas que PrestaShop emplea para su propia `OrderInvoice`:
+El extractor usa las APIs nativas que PrestaShop emplea para su propia `OrderInvoice`:
 
 - `OrderInvoice::getProductTaxesBreakdown()` para productos y reparto de descuentos;
 - `OrderInvoice::getShippingTaxesBreakdown()` para portes;
@@ -58,29 +60,17 @@ El resultado se agrupa por tipo y se reconcilia al céntimo antes del preflight.
 
 ## Abonos / rectificativas
 
-PrestaShop representa los abonos mediante `OrderSlip`. La versión `0.3.0` trata cada `OrderSlip` como una operación rectificativa independiente.
+PrestaShop representa los abonos mediante `OrderSlip`. Cada `OrderSlip` se trata como una operación rectificativa independiente.
 
-El payload incluye:
+El payload incluye identidad estable, número y fecha nativos del abono, destinatario y moneda del pedido original, referencia a la factura original, totales negativos y desglose por el tipo histórico de cada `OrderDetail`.
 
-- identidad estable `prestashop:{shopId}:order-slip:{id}`;
-- número de abono basado en `PS_CREDIT_SLIP_PREFIX` + ID nativo de seis dígitos;
-- fecha nativa del abono;
-- destinatario y moneda del pedido original;
-- referencia al número y fecha de la factura original;
-- total, base y cuota con signo negativo;
-- desglose fiscal por el tipo histórico de cada `OrderDetail`.
+El conector **no infiere el IVA dividiendo cuota/base**. Recupera el `TaxCalculator` histórico de la línea original y compara la cuota observada con ese tipo. Se toleran únicamente pequeñas diferencias de redondeo; una discrepancia material bloquea la operación.
 
-El conector **no infiere el IVA dividiendo cuota/base**. Recupera el `TaxCalculator` histórico de la línea original y compara la cuota observada con ese tipo. Se toleran únicamente diferencias de redondeo de hasta dos céntimos; una discrepancia material bloquea el preflight.
-
-Antes de procesar un abono se exige que la factura original tenga `recordId` local. Esto impide emitir una rectificativa huérfana respecto al flujo del bridge.
+Antes de procesar un abono se exige que la factura original tenga `recordId` local. Esto evita una rectificativa huérfana respecto al flujo del bridge.
 
 ### MappingProfile rectificativo
 
-La configuración dispone de un ID de perfil rectificativo separado. El ejemplo está en:
-
-`examples/refund-mapping-profile.json`
-
-Ese perfil deja explícitamente `R1–R5` y `S/I` como decisiones **server-side**. PrestaShop aporta el hecho comercial del abono, nunca la clasificación fiscal sensible.
+El ejemplo está en `examples/refund-mapping-profile.json`. Ese perfil deja explícitamente `R1–R5` y `S/I` como decisiones **server-side**. PrestaShop aporta el hecho comercial del abono, nunca la clasificación fiscal sensible.
 
 ### Flujo manual rectificativo
 
@@ -90,7 +80,46 @@ Para un `OrderSlip`:
 2. **Create corrective record**: repite preflight y crea el registro solo si pasa.
 3. **Refresh corrective status**: reconcilia un `recordId` ya existente.
 
-La clave de idempotencia es estable por tienda + `OrderSlip` + número rectificativo. Si ya existe `recordId`, el módulo bloquea otra creación y obliga a reconciliar.
+La clave de idempotencia es estable por tienda + `OrderSlip` + número rectificativo. Si ya existe `recordId`, el flujo reconcilia en lugar de crear otra operación.
+
+## Automatización opt-in
+
+La versión `0.4.0` registra dos eventos nativos, pero **registrar el hook no equivale a activar la automatización**:
+
+- `actionOrderStatusPostUpdate` para facturas;
+- `actionOrderSlipAdd` para abonos.
+
+En **Configurar** existen dos switches independientes por tienda:
+
+- **Automatic invoices**;
+- **Automatic corrective credit slips**.
+
+Ambos se instalan y se migran con valor `OFF`. Una actualización desde 0.3.0 no comienza a procesar operaciones por sí sola.
+
+### Facturas automáticas
+
+Cuando el switch de facturas está activo, un evento posterior al cambio de estado:
+
+1. carga el pedido de la tienda correcta;
+2. exige exactamente una `OrderInvoice`;
+3. si ya existe `recordId`, reconcilia su estado;
+4. si no existe, construye el mismo payload neutral del modo manual;
+5. ejecuta preflight;
+6. solo si el preflight pasa, crea el registro usando la misma clave de idempotencia estable.
+
+Pedidos sin factura o con varias facturas no se emiten automáticamente.
+
+### Rectificativas automáticas
+
+Cuando el switch de rectificativas está activo, la creación de un `OrderSlip`:
+
+1. identifica el abono nativo;
+2. exige que la factura original ya tenga `recordId`;
+3. exige el `MappingProfile` rectificativo separado;
+4. si el abono ya tiene `recordId`, reconcilia;
+5. en caso contrario ejecuta preflight y, si pasa, crea la operación con la idempotencia del `OrderSlip`.
+
+Si el bridge no está disponible o aparece un error, el conector captura la excepción y deja estado local revisable; no debe convertir un fallo del puente en una excepción no controlada del flujo comercial de PrestaShop.
 
 ## Persistencia local
 
@@ -105,7 +134,7 @@ Rectificativas:
 - única por `id_shop + id_order_slip`;
 - permite múltiples abonos independientes asociados al mismo pedido.
 
-Ambas tablas guardan solo el estado mínimo operativo: `record_id`, idempotencia, estado, último error y fecha de actualización. No almacenan certificados ni lógica fiscal AEAT.
+Ambas tablas guardan solo estado mínimo operativo: `record_id`, idempotencia, estado, último error y fecha de actualización. No almacenan certificados ni lógica fiscal AEAT.
 
 ## Semáforo en la ficha del pedido
 
@@ -129,13 +158,13 @@ El semáforo es únicamente operativo; no decide tratamiento fiscal.
 - token Bearer.
 - `MappingProfile` de factura configurado server-side.
 - `MappingProfile` rectificativo separado para procesar abonos.
-- una única `OrderInvoice` fiscal por pedido en el flujo actual.
+- una única `OrderInvoice` fiscal por pedido para el flujo automático actual.
 
 ## Instalación de desarrollo
 
 Copia `connectors/prestashop` como módulo `puenteverifactu` dentro de `modules/puenteverifactu/` y actívalo desde el gestor de módulos.
 
-En **Configurar** introduce endpoint HTTPS, MappingProfile de factura, MappingProfile rectificativo, token Bearer y timeout. El token no vuelve a mostrarse después de guardarlo.
+En **Configurar** introduce endpoint HTTPS, MappingProfile de factura, MappingProfile rectificativo, token Bearer y timeout. Los switches automáticos permanecen desactivados hasta que el comercio decida activarlos. El token no vuelve a mostrarse después de guardarlo.
 
 ## Paquete reproducible
 
@@ -144,41 +173,42 @@ npm run prestashop:package
 npm run prestashop:package:check
 ```
 
-El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, fixtures y tooling. CI lo construye dos veces y exige igualdad byte-a-byte antes de usarlo en las instalaciones reales.
+El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, fixtures y tooling. CI lo construye dos veces y exige igualdad byte-a-byte antes de usarlo en instalaciones reales.
 
 ## Upgrade validado
 
-`scripts/ci/prestashop-upgrade-smoke.sh` valida en PrestaShop 8.2.7 el salto **`0.2.0 → 0.3.0`**:
+`scripts/ci/prestashop-upgrade-smoke.sh` valida en PrestaShop 8.2.7 el salto **`0.3.0 → 0.4.0`**:
 
-1. instala baseline `0.2.0` con el semáforo ya existente;
-2. inserta una fila centinela en `pvf_order_sync`;
-3. establece explícitamente ausencia del almacenamiento rectificativo;
-4. despliega el ZIP `0.3.0`;
+1. instala una baseline 0.3.0 sin hooks automáticos;
+2. conserva una factura principal ya sincronizada;
+3. conserva una rectificativa ya sincronizada;
+4. despliega el ZIP 0.4.0;
 5. ejecuta `prestashop:module upgrade puenteverifactu`;
-6. exige que `pvf_order_slip_sync` quede creado y operativo;
-7. confirma que `record_id`, idempotencia y estado de la factura original permanecen intactos.
+6. exige registro de ambos hooks automáticos;
+7. confirma que factura y rectificativa conservan `recordId`, idempotencia y estado;
+8. exige que ambos switches automáticos continúen en `OFF`.
 
 ## Gates CI
 
-- `npm run prestashop:contract`: arquitectura, seguridad e invariantes del conector.
+- `npm run prestashop:contract`: arquitectura, seguridad, opt-in e invariantes del conector.
 - `npm run prestashop:fixtures`: desglose/reconciliación de factura principal.
 - `npm run prestashop:rectification-fixtures`: IVA positivo 21/10/4, tolerancia de redondeo y rechazo de incoherencias rectificativas.
-- `npm run prestashop:package:check`: ZIP reproducible 0.3.0.
-- `scripts/ci/prestashop-compatibility-smoke.sh`: instalación real + factura + `OrderSlip` real en las tres versiones.
-- `scripts/ci/prestashop-upgrade-smoke.sh`: migración 0.2.0 → 0.3.0.
+- `npm run prestashop:package:check`: ZIP reproducible 0.4.0.
+- `scripts/ci/prestashop-compatibility-smoke.sh`: instalación real, hooks, defaults OFF, factura y `OrderSlip` real en las tres versiones.
+- `scripts/ci/prestashop-upgrade-smoke.sh`: migración 0.3.0 → 0.4.0 preservando estado y manteniendo la automatización desactivada.
 
 ## Límites conocidos
 
-- no se fiscalizan automáticamente cambios de estado ni creación de abonos;
-- pedidos con varias facturas quedan bloqueados hasta añadir selección explícita por `OrderInvoice`;
+- la automatización actual se ejecuta desde los eventos nativos; una cola durable/reintento desacoplado específico del conector se evaluará como hardening posterior si hace falta;
+- pedidos con varias facturas quedan fuera de la automatización hasta añadir selección explícita por `OrderInvoice`;
 - ecotasa queda bloqueada hasta disponer de mapping fiscal específico;
 - el smoke runtime de Flashlight usa datos al 0 %, complementados por fixtures deterministas de IVA positivo;
 - PrestaShop 9 no está declarado compatible y se evaluará explícitamente antes de incorporarlo.
 
 ## Siguiente incremento
 
-1. automatización **opt-in** de eventos, preservando el flujo manual y la idempotencia;
-2. aceptación transversal de reconciliación/fallback común entre conectores;
-3. Connector Contract Suite específica de las extensiones nativas.
+1. aceptación transversal de reconciliación/fallback común entre conectores;
+2. Connector Contract Suite específica para extensiones nativas;
+3. hardening de operación/reintentos cuando el contrato transversal esté cerrado.
 
 El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real o release.
