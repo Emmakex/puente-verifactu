@@ -1,0 +1,46 @@
+{
+  "profileVersion": 1,
+  "id": "prestashop-order-slip-v1",
+  "name": "PrestaShop corrective credit slip v1",
+  "sourceType": "native",
+  "locale": "es-ES",
+  "fields": {
+    "source_invoice_id": "sourceInvoiceId",
+    "refund_invoice_number": "number",
+    "refund_date": "issueDate",
+    "description": "description",
+    "currency": "currency",
+    "customer_name": "recipients.0.name",
+    "customer_tax_id": "recipients.0.taxId",
+    "tax_lines": "taxBreakdown",
+    "total_amount": "totals.totalAmount",
+    "original_invoice_number": "rectification.originalInvoices.0.number",
+    "original_invoice_date": "rectification.originalInvoices.0.issueDate"
+  },
+  "transforms": {
+    "refund_invoice_number": ["trim"],
+    "refund_date": ["trim"],
+    "currency": ["trim", "upper"],
+    "customer_name": ["trim"],
+    "customer_tax_id": ["trim", "upper"],
+    "original_invoice_number": ["trim"],
+    "original_invoice_date": ["trim"],
+    "total_amount": ["trim"]
+  },
+  "taxLineDefaults": {
+    "taxCode": "01",
+    "regimeKey": "01",
+    "operationClass": "S1"
+  },
+  "constants": {
+    "invoiceType": "CONFIGURE_R1_R5_SERVER_SIDE",
+    "rectification": {
+      "type": "CONFIGURE_S_OR_I_SERVER_SIDE"
+    },
+    "issuer": {
+      "name": "CONFIGURE SERVER-SIDE",
+      "taxId": "CONFIGURE_SERVER_SIDE"
+    }
+  },
+  "defaults": {}
+}

@@ -135,7 +135,10 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Matriz real de CI con instalación del módulo y payload desde factura nativa en PrestaShop 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1.
 - [x] Paquete ZIP reproducible con allowlist de runtime, SHA-256, layout legacy compatible y gate real de instalación/upgrade preservando estado local.
 - [x] Estado/semáforo integrado en la ficha nativa del pedido mediante `displayAdminOrderMainBottom`, validado en 1.7.8.11/8.1.7/8.2.7.
-- [ ] Abonos/rectificativas idempotentes con perfil fiscal separado.
+- [x] Abonos/rectificativas idempotentes basados en `OrderSlip`, con perfil fiscal separado y `R1–R5`/`S/I` exclusivamente server-side.
+- [x] Persistencia rectificativa separada por tienda + `OrderSlip`, relación obligatoria con factura original y estado visible en la ficha del pedido.
+- [x] Gate real de `OrderSlip::create()` en 1.7.8.11/8.1.7/8.2.7 más fixtures deterministas de IVA 21/10/4 y redondeo.
+- [x] Upgrade `0.2.0 → 0.3.0` preservando sincronización de factura y creando almacenamiento de rectificativas.
 - [ ] Automatización opt-in de eventos solo después de validar el flujo manual.
 
 ### Aceptación transversal
@@ -143,7 +146,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [ ] Reconciliación/fallback end-to-end común entre conectores.
 - [ ] Tests de compatibilidad y Connector Contract Suite para cada extensión.
 
-**Estado:** WooCommerce queda técnicamente cerrado dentro de Fase 5. PrestaShop dispone de foundation, extractor fiscal reforzado, fixtures deterministas, matriz real, ZIP reproducible y semáforo operativo nativo en la ficha del pedido. La versión `0.2.0` se valida en 1.7.8.11, 8.1.7 y 8.2.7; el upgrade real `0.1.0 → 0.2.0` conserva `recordId`, idempotencia y estado local y registra el nuevo hook. El siguiente bloque es abonos/rectificativas idempotentes con perfil fiscal separado. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
+**Estado:** WooCommerce queda técnicamente cerrado dentro de Fase 5. PrestaShop alcanza `0.3.0` con factura principal, semáforo operativo y rectificativas nativas `OrderSlip` idempotentes. La matriz real valida instalación, factura y creación de abono en 1.7.8.11, 8.1.7 y 8.2.7; los fixtures complementarios cubren IVA positivo 21/10/4 y bloqueos por incoherencia. El upgrade `0.2.0 → 0.3.0` conserva el estado de la factura original. El siguiente bloque funcional es automatización opt-in de eventos, sin eliminar el modo manual seguro. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
 
 **Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre previo del gate AEAT #6 antes de cualquier piloto fiscal real.
 

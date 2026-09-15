@@ -6,6 +6,10 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- PrestaShop `0.3.0`: abonos/rectificativas nativas basadas en `OrderSlip`, con referencia obligatoria a la factura original, signos negativos e idempotencia independiente por abono.
+- MappingProfile rectificativo PrestaShop separado: `R1–R5` y tipo `S/I` permanecen exclusivamente server-side y nunca los decide el ecommerce.
+- Persistencia `pvf_order_slip_sync`, migración real `0.2.0 → 0.3.0` y estado de múltiples rectificativas integrado en la ficha nativa del pedido.
+- Gate real de `OrderSlip::create()` en PrestaShop 1.7.8.11/8.1.7/8.2.7 más fixtures deterministas de IVA rectificativo 21/10/4, redondeo y bloqueo de incoherencias.
 - Matriz real de compatibilidad PrestaShop con PrestaShop Flashlight: instalación/activación del módulo, creación de factura nativa y construcción de payload validadas en 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1.
 - Extractor fiscal PrestaShop reforzado a nivel `OrderInvoice`, reutilizando los breakdowns nativos de productos, portes y wrapping en lugar de reconstruir impuestos desde `order_detail`.
 - Matriz ejecutable de fixtures PrestaShop para IVA simple/múltiple, descuentos ya repartidos por PrestaShop, portes, wrapping, envío gratuito, base residual al 0 % y reconciliación de redondeo de un céntimo.

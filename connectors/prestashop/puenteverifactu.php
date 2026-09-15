@@ -8,10 +8,11 @@ require_once __DIR__ . '/classes/PVFPrestaShopSecretStore.php';
 require_once __DIR__ . '/classes/PVFPrestaShopClient.php';
 require_once __DIR__ . '/classes/PVFPrestaShopOrderPayload.php';
 require_once __DIR__ . '/classes/PVFPrestaShopAdminStatus.php';
+require_once __DIR__ . '/classes/PVFPrestaShopRectifications.php';
 
 class PuenteVerifactu extends Module
 {
-    const VERSION = '0.2.0';
+    const VERSION = '0.3.0';
     const CONFIG_ENDPOINT = 'PVF_ENDPOINT';
     const CONFIG_PROFILE_ID = 'PVF_PROFILE_ID';
     const CONFIG_TIMEOUT = 'PVF_TIMEOUT';
@@ -37,6 +38,7 @@ class PuenteVerifactu extends Module
     {
         return parent::install()
             && $this->installSchema()
+            && PVFPrestaShopRectifications::installSchema()
             && Configuration::updateValue(self::CONFIG_TIMEOUT, 15, false, null, (int) $this->context->shop->id)
             && $this->registerHook('displayAdminOrderMainBottom');
     }
@@ -48,7 +50,9 @@ class PuenteVerifactu extends Module
         Configuration::deleteByName(self::CONFIG_TIMEOUT);
         Configuration::deleteByName(PVFPrestaShopSecretStore::CONFIG_KEY);
 
-        return $this->uninstallSchema() && parent::uninstall();
+        return PVFPrestaShopRectifications::uninstall()
+            && $this->uninstallSchema()
+            && parent::uninstall();
     }
 
     public function getContent()
@@ -67,7 +71,12 @@ class PuenteVerifactu extends Module
             $output .= $this->runManualAction('reconcile');
         }
 
-        return $output . $this->renderSettingsForm() . $this->renderManualPanel();
+        $output .= PVFPrestaShopRectifications::handleSubmissions($this);
+
+        return $output
+            . $this->renderSettingsForm()
+            . $this->renderManualPanel()
+            . PVFPrestaShopRectifications::renderPanel($this);
     }
 
     public function hookDisplayAdminOrderMainBottom($params)
@@ -135,7 +144,7 @@ class PuenteVerifactu extends Module
             . $this->l('Open VeriFactu controls') . '</a></p>'
             . '</div></div>';
 
-        return $html;
+        return $html . PVFPrestaShopRectifications::renderOrderStatus($this, $orderId);
     }
 
     private function saveSettings()
