@@ -6,6 +6,7 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Harness seguro `npm run aeat:gate` para dry-run y cierre del gate real de pruebas AEAT con doble confirmación de envío y salida sanitizada.
 - Adaptador server-side AEAT VERI*FACTU con SOAP 1.1/XML y endpoints oficiales versionados.
 - Transporte HTTPS mTLS con guard de producción y credenciales cargadas en runtime.
 - Normalización de respuestas, `AceptadoConErrores`, rechazos, duplicados y SOAP Faults.

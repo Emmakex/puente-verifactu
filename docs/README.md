@@ -11,6 +11,7 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `canonical-core-v1.md` | Contrato ejecutable InvoiceIntent/MappingProfile/preflight v1 |
 | `fiscal-records-v1.md` | Registros alta/anulación, hash AEAT, encadenamiento e idempotencia |
 | `aeat-test-adapter-v1.md` | SOAP/XML, mTLS, respuestas, reintentos y gate externo de pruebas AEAT |
+| `aeat-live-gate.md` | Runbook y comando seguro para cerrar la prueba real de Fase 3 |
 | `compliance.md` | Marco normativo, obligaciones y checklist de release |
 | `api-contract.md` | Modelo canónico, idempotencia y contratos |
 | `connectors.md` | Contrato de adaptadores y estrategia por plataforma |

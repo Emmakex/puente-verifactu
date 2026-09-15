@@ -10,6 +10,7 @@
   "scripts": {
     "check": "node scripts/ci/repo-check.mjs",
     "test": "node --test",
-    "preflight:demo": "node connectors/file-import/src/cli.mjs --csv examples/file-import/facturas.csv --profile examples/file-import/mapping.json"
+    "preflight:demo": "node connectors/file-import/src/cli.mjs --csv examples/file-import/facturas.csv --profile examples/file-import/mapping.json",
+    "aeat:gate": "node scripts/aeat/live-gate.mjs"
   }
 }

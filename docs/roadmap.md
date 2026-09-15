@@ -61,12 +61,13 @@ Regla: **finish before advancing**.
 - [x] `TiempoEsperaEnvio` y control de flujo.
 - [x] Outbox/reintentos técnicos de referencia.
 - [x] Tests contractuales sin secretos.
+- [x] Harness `npm run aeat:gate` con dry-run, doble guard y salida sanitizada.
 - [ ] Provisionar certificado válido exclusivamente en entorno seguro.
 - [ ] Remisión real controlada al endpoint AEAT de pruebas.
 - [ ] Confirmar caso aceptado + rechazo controlado + reconciliación.
 - [ ] Documentar evidencia no sensible de la prueba externa.
 
-**Estado:** implementación preparada, pero la fase **no está cerrada** hasta superar la prueba externa oficial. Según `finish before advancing`, Fase 4 permanece bloqueada mientras este gate esté pendiente.
+**Estado:** implementación y harness preparados, pero la fase **no está cerrada** hasta superar la prueba externa oficial. Según `finish before advancing`, Fase 4 permanece bloqueada mientras este gate esté pendiente.
 
 ## Fase 4 — Universal Integration Kit
 
