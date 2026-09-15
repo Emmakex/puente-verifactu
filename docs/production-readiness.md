@@ -14,6 +14,7 @@ No sustituye el gate externo AEAT de Fase 3. **No puede existir release ni pilot
 6. Single-node y HA/multi-réplica se tratan como perfiles distintos; no se atribuyen garantías distribuidas a SQLite.
 7. La evidencia de release no contiene certificados, claves privadas, tokens ni datos fiscales innecesarios.
 8. La observabilidad global nunca se expone a una credencial tenant/integración por defecto; requiere autoridad operacional explícita.
+9. Una política de backup implementada en código no acredita un entorno real hasta que ese entorno produzca evidencia válida de copia remota cifrada y restore drill.
 
 ## Gates
 
@@ -43,7 +44,35 @@ npm run sqlite:restore -- --backup <backup.sqlite> --db <target.sqlite>
 npm run sqlite:backup:smoke
 ```
 
-El almacenamiento remoto, cifrado del repositorio de backups, retención y agenda del ejercicio periódico dependen del entorno de despliegue y se configuran operacionalmente; no se incrustan credenciales de storage en este repositorio.
+### 6.1b Ciclo de vida, copia remota y restore drill
+
+Estado: **política y tooling v1 implementados; conformidad de cada deployment depende de su evidencia real**.
+
+Contrato del gate:
+
+- política versionada y proveedor-neutral en `config/backup-policy.example.json`;
+- backup local más reciente con antigüedad máxima configurable (26 h por defecto);
+- copia remota obligatoria por checksum para cada artefacto retenido;
+- cifrado en reposo remoto obligatorio por defecto;
+- retención 7 diarios / 5 semanales / 12 mensuales por defecto;
+- cálculo de candidatos a poda sin borrado automático;
+- restore drill real a directorio temporal, con checksum, `integrity_check` y `foreign_key_check`;
+- evidencia del restore drill con antigüedad máxima configurable (90 días por defecto);
+- el check falla cerrado ante backup vencido, copia remota ausente/no cifrada o drill ausente/vencido.
+
+Comandos:
+
+```bash
+npm run backup:restore-drill -- --backup <backup.sqlite> --evidence <drill.json>
+npm run backup:lifecycle:check -- \
+  --dir <backup-dir> \
+  --policy <backup-policy.json> \
+  --remote-evidence <remote-copies.json> \
+  --restore-drill-evidence <drill.json>
+npm run backup:lifecycle:smoke
+```
+
+La evidencia remota contiene únicamente checksum, timestamp, flag de cifrado y referencia opaca; nunca secretos del proveedor. El uploader/scheduler externo sigue siendo responsabilidad del entorno de despliegue y puede ser S3-compatible, B2, Azure, GCS, storage gestionado u otro sistema equivalente. Ver `docs/backup-lifecycle-policy.md`.
 
 ### 6.2 Outbox durable de producción
 
@@ -178,6 +207,7 @@ El piloto debe empezar con alcance controlado, rollback definido y métricas/ale
 Fase 6 solo puede marcarse completa cuando:
 
 - todos los gates internos aplicables estén cerrados con evidencia ejecutable;
-- el gate AEAT #6 de Fase 3 esté cerrado;
-- exista runbook de operación/recuperación;
-- se haya validado el perfil de despliegue que realmente se vaya a usar.
+- el deployment seleccionado satisface su política de backup con evidencia real;
+- el gate AEAT #6 de Fase 3 está cerrado;
+- existe runbook de operación/recuperación;
+- se ha validado el perfil de despliegue que realmente se vaya a usar.
