@@ -120,13 +120,28 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Paquete ZIP reproducible del plugin con allowlist de runtime y SHA-256.
 - [x] Contrato server-side auditable de conversión EUR para operaciones en moneda extranjera, con redondeo exacto, reconciliación e idempotencia.
 
-### PrestaShop y aceptación transversal
+### PrestaShop 🚧
 
-- [ ] Conector PrestaShop.
+- [x] Foundation v1 como módulo fino para PrestaShop 1.7.8.x/8.x.
+- [x] Configuración por tienda: endpoint HTTPS, `MappingProfile`, timeout y Bearer token cifrado con AES-256-GCM.
+- [x] Payload neutral con número fiscal de factura, fecha, moneda, destinatario, totales y desglose por tipos.
+- [x] Flujo manual seguro `preflight -> issue -> reconcile` antes de cualquier automatización.
+- [x] Idempotencia estable por tienda + pedido + número fiscal y bloqueo local de duplicados mediante `recordId`.
+- [x] Persistencia mínima de estado/sincronización aislada por tienda.
+- [x] Gate contractual CI y sintaxis PHP 7.4.
+- [ ] Fixtures de descuentos complejos, portes, wrapping y múltiples tipos de IVA.
+- [ ] Matriz real de CI PrestaShop 1.7.8.x / 8.x con instalación del módulo.
+- [ ] Estado/semáforo integrado en la ficha nativa del pedido.
+- [ ] Abonos/rectificativas idempotentes con perfil fiscal separado.
+- [ ] Automatización opt-in de eventos solo después de validar el flujo manual.
+- [ ] Paquete ZIP reproducible y gate de instalación/upgrade.
+
+### Aceptación transversal
+
 - [ ] Reconciliación/fallback end-to-end común entre conectores.
 - [ ] Tests de compatibilidad y Connector Contract Suite para cada extensión.
 
-**Estado:** WooCommerce queda técnicamente cerrado dentro de Fase 5: facturas ordinarias, refunds rectificativos, UX operativa, compatibilidad empaquetada y conversión fiscal EUR server-side están validados. El siguiente bloque es PrestaShop y la aceptación transversal entre conectores.
+**Estado:** WooCommerce queda técnicamente cerrado dentro de Fase 5. PrestaShop ya tiene su foundation v1 segura y entra ahora en el bloque de compatibilidad real, casuística fiscal del extractor y rectificativas. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
 
 **Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre previo del gate AEAT #6 antes de cualquier piloto fiscal real.
 
