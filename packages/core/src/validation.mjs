@@ -112,8 +112,16 @@ export function validateInvoiceIntent(intent) {
   }
   for (const [index, recipient] of (intent?.recipients ?? []).entries()) validateParty(recipient, `recipients.${index}`, errors);
 
-  if (!/^[A-Z]{3}$/.test(intent?.currency ?? '')) errors.push(issue('VF_VALIDATION_CURRENCY', 'currency', 'La moneda debe indicarse como código ISO de tres letras.', 'Currency must be a three-letter ISO code.'));
-  else if (intent.currency !== 'EUR') warnings.push(issue('VF_WARNING_NON_EUR', 'currency', 'Moneda no EUR: el motor fiscal deberá aplicar la política de conversión correspondiente antes del envío.', 'Non-EUR currency: the fiscal engine must apply the relevant conversion policy before submission.', 'warning'));
+  if (!/^[A-Z]{3}$/.test(intent?.currency ?? '')) {
+    errors.push(issue('VF_VALIDATION_CURRENCY', 'currency', 'La moneda debe indicarse como código ISO de tres letras.', 'Currency must be a three-letter ISO code.'));
+  } else if (intent.currency !== 'EUR') {
+    errors.push(issue(
+      'VF_VALIDATION_NON_EUR_CONVERSION_REQUIRED',
+      'currency',
+      'La moneda no es EUR. Antes de fiscalizar debe configurarse una conversión explícita a importes fiscales en EUR; el puente no inventa tipos de cambio.',
+      'Currency is not EUR. An explicit conversion to fiscal EUR amounts must be configured before fiscalization; the bridge never invents exchange rates.',
+    ));
+  }
 
   if (!Array.isArray(intent?.taxBreakdown) || intent.taxBreakdown.length === 0) errors.push(issue('VF_VALIDATION_TAX_BREAKDOWN', 'taxBreakdown', 'Debe existir al menos una línea de desglose fiscal.', 'At least one tax breakdown line is required.'));
   if ((intent?.taxBreakdown?.length ?? 0) > 12) errors.push(issue('VF_VALIDATION_TAX_BREAKDOWN_LIMIT', 'taxBreakdown', 'AEAT admite como máximo 12 líneas de desglose fiscal por registro.', 'AEAT allows at most 12 tax breakdown lines per record.'));
