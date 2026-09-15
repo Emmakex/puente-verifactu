@@ -32,6 +32,8 @@ add_action(
 add_action(
     'plugins_loaded',
     static function () {
+        load_plugin_textdomain( 'puente-verifactu-woocommerce', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+
         if ( ! class_exists( 'WooCommerce' ) ) {
             add_action(
                 'admin_notices',
@@ -62,5 +64,7 @@ register_deactivation_hook(
             as_unschedule_all_actions( 'pv_woo_process_order', array(), 'puente-verifactu' );
             as_unschedule_all_actions( 'pv_woo_reconcile_order', array(), 'puente-verifactu' );
         }
+        wp_clear_scheduled_hook( 'pv_woo_process_order' );
+        wp_clear_scheduled_hook( 'pv_woo_reconcile_order' );
     }
 );
