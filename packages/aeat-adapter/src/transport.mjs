@@ -9,6 +9,9 @@ export function assertServerSideTls(tls) {
   if (typeof tls.key === 'string') {
     throw Object.assign(new Error('Private key material must be supplied as Buffer, never as a serializable string'), { code: 'VF_AEAT_SECRET_SERIALIZATION_BLOCKED' });
   }
+  if (tls.rejectUnauthorized === false) {
+    throw Object.assign(new Error('TLS server certificate verification cannot be disabled for AEAT'), { code: 'VF_AEAT_TLS_VERIFICATION_REQUIRED' });
+  }
   return tls;
 }
 
@@ -44,7 +47,7 @@ export function createHttpsMtlsTransport({ tls, timeoutMs = 15000 } = {}) {
         key: tls.key,
         passphrase: tls.passphrase,
         ca: tls.ca,
-        rejectUnauthorized: tls.rejectUnauthorized !== false,
+        rejectUnauthorized: true,
         minVersion: 'TLSv1.2',
         timeout: timeoutMs,
       }, (response) => {
