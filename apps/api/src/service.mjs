@@ -143,12 +143,11 @@ export class UniversalBridgeService {
         installationId: context.installationId,
         sourceInvoiceId: intent.sourceInvoiceId,
         status,
-        duplicate: fiscalized.duplicate,
         fiscalRecord: fiscalized.record,
         delivery,
       });
       this.store.complete(requestKey, intent, recordId);
-      return resource;
+      return { ...resource, duplicate: fiscalized.duplicate };
     } catch (error) {
       this.store.release(requestKey, intent);
       throw error;

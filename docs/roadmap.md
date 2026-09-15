@@ -44,7 +44,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Trazabilidad mínima de origen.
 - [x] Documentación normativa/técnica.
 
-**Salida cumplida:** cadena reproducible y verificada contra los tres vectores oficiales AEAT de hash. El store en memoria sigue siendo una referencia; la persistencia durable/productiva es un gate obligatorio antes del piloto real.
+**Salida cumplida:** cadena reproducible y verificada contra los tres vectores oficiales AEAT de hash. La persistencia durable de esa cadena se incorpora posteriormente en Fase 4 sin alterar el contrato de core.
 
 ## Fase 3 — AEAT Test Adapter ⚠️ gate externo diferido
 
@@ -67,9 +67,9 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [ ] Confirmar caso aceptado + rechazo controlado + reconciliación.
 - [ ] Documentar evidencia no sensible de la prueba externa.
 
-**Estado:** implementación y harness preparados. El gate externo se difiere bajo ADR-0003 y permanece registrado en #6. Se permite continuar desarrollo de Fase 4, pero **release, piloto fiscal real y production readiness siguen bloqueados** hasta cerrar este gate.
+**Estado:** implementación y harness preparados. El gate externo se difiere bajo ADR-0003 y permanece registrado en #6. Se permite continuar desarrollo, pero **release, piloto fiscal real y production readiness siguen bloqueados** hasta cerrar este gate.
 
-## Fase 4 — Universal Integration Kit 🚧
+## Fase 4 — Universal Integration Kit ✅
 
 - [x] API framework-neutral v1: preflight, creación y consulta.
 - [x] Identidad/tenant resueltos server-side.
@@ -88,12 +88,14 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Sesiones temporales de importación aisladas por tenant/instalación.
 - [x] Allowlist de mappings/configuración y protección prototype-pollution.
 - [x] Suite contractual empaquetada para terceros con CLI y gate CI de referencia.
-- [ ] Adaptador HTTP/deployment concreto con autenticación real y rate limits.
-- [ ] Persistencia durable del estado API y store temporal compartido.
+- [x] Adaptador HTTP concreto single-node con Basic/Bearer auth, rate limits, health/readiness y seguridad web.
+- [x] Persistencia durable SQLite para cadena fiscal, estado/idempotencia API y sesiones de importación.
+- [x] Recuperación de reservas HTTP pendientes tras reinicio.
+- [x] Gate CI específico del runtime durable.
 
-**Estado:** las vías cero-código, low-code, API/SDK y el contrato de conectores ya están cubiertos. La fase continúa abierta únicamente por deployment real y persistencia durable/compartida.
+**Salida cumplida:** cualquier sistema puede integrarse mediante archivo, webhook, API/SDK o conector sin tocar el motor fiscal. Existe además un deployment single-node ejecutable y durable adecuado para desarrollo, staging y pilotos técnicos no fiscales.
 
-**Salida:** sistema nuevo integrable sin tocar el motor fiscal.
+**Límite explícito:** SQLite/rate limit local son un perfil de una sola instancia. Multi-réplica/HA, backups/restauración automatizados y outbox durable de producción se endurecen en Fase 6. El gate AEAT #6 sigue bloqueando piloto fiscal real/release.
 
 ## Fase 5 — Kairoseth Extensions
 
@@ -101,16 +103,16 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - PrestaShop;
 - UX ES/EN;
 - reconciliación y fallback;
-- tests de compatibilidad.
+- tests de compatibilidad y Connector Contract Suite.
 
-**Salida:** pilotos end-to-end controlados, sujetos al cierre previo del gate AEAT #6.
+**Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre previo del gate AEAT #6 antes de cualquier piloto fiscal real.
 
 ## Fase 6 — Production Readiness
 
-Hardening, persistencia durable, outbox durable, backups/restauración, observabilidad/alertas, runbooks, verificación regulatoria final, declaración responsable por versión y piloto progresivo.
+Hardening HA/multi-réplica cuando aplique, outbox durable, backups/restauración, observabilidad/alertas, runbooks, verificación regulatoria final, declaración responsable por versión y piloto progresivo.
 
 **Gate de entrada a release/piloto:** Fase 3 externa cerrada, además de todos los gates propios de Fase 6.
 
 ## Posterior
 
-Conectores ERP/CRM, portal multiempresa, herramientas para asesorías y evaluación separada de NO VERI*FACTU.
+Conectores ERP/CRM adicionales, portal multiempresa, herramientas para asesorías y evaluación separada de NO VERI*FACTU.
