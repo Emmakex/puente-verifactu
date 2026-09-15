@@ -99,7 +99,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 
 ## Fase 5 — Kairoseth Extensions 🚧
 
-### WooCommerce
+### WooCommerce ✅
 
 - [x] Plugin/conector nativo v1 HPOS-safe basado exclusivamente en WooCommerce CRUD.
 - [x] Configuración HTTPS + `MappingProfile` + token Bearer cifrado.
@@ -118,7 +118,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Semáforo verde/ámbar/rojo agregado para factura + refunds, compatible con HPOS/legacy.
 - [x] Matriz automatizada WordPress/WooCommerce/PHP con instalación real, HPOS y smoke CRUD.
 - [x] Paquete ZIP reproducible del plugin con allowlist de runtime y SHA-256.
-- [ ] Contrato explícito de conversión EUR para operaciones en moneda extranjera.
+- [x] Contrato server-side auditable de conversión EUR para operaciones en moneda extranjera, con redondeo exacto, reconciliación e idempotencia.
 
 ### PrestaShop y aceptación transversal
 
@@ -126,7 +126,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [ ] Reconciliación/fallback end-to-end común entre conectores.
 - [ ] Tests de compatibilidad y Connector Contract Suite para cada extensión.
 
-**Estado:** WooCommerce cubre facturas ordinarias, refunds rectificativos, UX operativa y compatibilidad empaquetada verificada en CI. Fase 5 continúa abierta por conversión no-EUR y PrestaShop.
+**Estado:** WooCommerce queda técnicamente cerrado dentro de Fase 5: facturas ordinarias, refunds rectificativos, UX operativa, compatibilidad empaquetada y conversión fiscal EUR server-side están validados. El siguiente bloque es PrestaShop y la aceptación transversal entre conectores.
 
 **Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre previo del gate AEAT #6 antes de cualquier piloto fiscal real.
 
