@@ -6,6 +6,7 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- CLI operativo `npm run aeat:reconcile` para consultar un job durable `reconciliation_required` contra AEAT usando el PFX local: inspección SQLite read-only por defecto, `--apply` protegido además por `AEAT_RECONCILIATION_APPLY=YES`, entorno `test` fijo y evidencia sanitizada `0600` sin NIF, factura, `RefExterna`, job ID, ruta SQLite, certificado, passphrase, XML ni SOAP crudo.
 - Reconciliación oficial AEAT mediante `ConsultaFactuSistemaFacturacion`: consulta por `PeriodoImputacion` + `RefExterna`, comparación exacta de NIF/número/fecha/huella y resolución `reconciliation_required -> completed` únicamente cuando todas las entradas quedan confirmadas; `SinDatos`, mismatch, paginación o fallo de consulta nunca provocan reemisión ni `retry` automático.
 - Verificador `npm run aeat:evidence:verify` para el bundle sanitizado de remisión aceptada + rechazo controlado: exige mismo commit candidato, versiones AEAT vigentes, hashes válidos, CSV fingerprint en aceptación, diagnóstico de rechazo y `TiempoEsperaEnvio`; devuelve `partial` y mantiene `releaseUnblocked: false` mientras falte reconciliación externa.
 - Preflight local `npm run aeat:cert:check` para validar PFX/passphrase mediante el mismo parser TLS usado por el gate real, sin crear transporte ni abrir red; salida limitada a metadatos no sensibles y fingerprint SHA-256 del contenedor.
