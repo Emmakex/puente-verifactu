@@ -15,6 +15,7 @@ No sustituye el gate externo AEAT de Fase 3. **No puede existir release ni pilot
 7. La evidencia de release no contiene certificados, claves privadas, tokens ni datos fiscales innecesarios.
 8. La observabilidad global nunca se expone a una credencial tenant/integración por defecto; requiere autoridad operacional explícita.
 9. Una política de backup implementada en código no acredita un entorno real hasta que ese entorno produzca evidencia válida de copia remota cifrada y restore drill.
+10. Un CI verde no equivale a autorización de release: el estado de blockers regulatorios se evalúa de forma separada y explícita.
 
 ## Gates
 
@@ -186,19 +187,44 @@ El gate forma parte de `npm run check`, por lo que CI falla si desaparece un pro
 
 ### 6.5 Perfil HA / multi-réplica
 
-Pendiente y separado del perfil SQLite single-node.
+Estado para el perfil actual `sqlite-single-node`: **no aplicable**.
 
-Antes de ejecutar múltiples réplicas que escriban estado fiscal se requiere store transaccional compartido, locking/serialización distribuida y rate limiting compartido. SQLite no se promociona como solución HA.
+No se añade complejidad distribuida únicamente para cerrar una casilla. Si un deployment futuro ejecuta múltiples réplicas escritoras de estado fiscal, entonces se convierte en gate obligatorio y deberá incorporar store transaccional compartido, locking/serialización distribuida, claims/leases y rate limiting compartidos. SQLite no se promociona como coordinación entre nodos.
 
-### 6.6 Evidencia de release y verificación regulatoria final
+La decisión queda fijada en `config/release-gates.json` como `HA_MULTI_REPLICA = not_applicable` para el perfil actual.
 
-Pendiente.
+### 6.6 Evidencia de release y verificación regulatoria
 
-Debe fijar versiones de artefactos oficiales, WSDL/esquemas/FAQ aplicables, resultados de gates, checksums de artefactos y declaración responsable por versión sin secretos.
+Estado: **tooling/evidencia interna v1 implementados; cierre regulatorio final pendiente del gate externo #6 y de la declaración responsable definitiva de la versión candidata**.
+
+Contrato interno:
+
+- `config/regulatory-sources.json` registra la fecha de revisión y las fuentes oficiales mínimas AEAT/BOE;
+- las versiones WSDL/documento de validaciones/esquema/registro deben coincidir exactamente con `AEAT_ARTIFACTS` del adaptador;
+- la revisión regulatoria caduca a los 90 días y el gate falla si no se vuelve a validar;
+- `config/release-gates.json` mantiene AEAT #6 como blocker explícito de `release` y `real_fiscal_pilot`;
+- mientras exista cualquier blocker abierto, el único estado válido es `release_blocked`;
+- el generador exige el commit fuente explícito y no inspecciona variables de entorno de forma implícita;
+- construye en memoria los ZIP reproducibles WooCommerce y PrestaShop y registra versión + SHA-256;
+- los fingerprints deben ser idénticos entre ejecuciones sobre el mismo código;
+- la evidencia referencia el checklist previo a la declaración responsable, pero no lo presenta como documento firmado ni como certificación AEAT.
+
+Comandos:
+
+```bash
+npm run release:evidence:check
+npm run release:evidence -- --commit <SHA40> --expect release_blocked
+```
+
+Opcionalmente puede escribirse `--output dist/release-evidence.json`; el fichero no se sobrescribe si ya existe.
+
+Ver `docs/release-evidence.md` y `docs/release/declaracion-responsable-template.md`.
+
+**Cierre regulatorio final:** requiere cerrar AEAT #6 con prueba externa controlada y evidencia no sensible, revalidar fuentes regulatorias para el commit candidato, ejecutar CI completo para ese mismo commit, generar una evidencia nueva y preparar/aprobar la declaración responsable definitiva de la versión. Hasta entonces `release_blocked` es obligatorio.
 
 ### 6.7 Piloto progresivo
 
-Bloqueado por Fase 3 externa y por los gates anteriores.
+Bloqueado por Fase 3 externa y por el cierre regulatorio final.
 
 El piloto debe empezar con alcance controlado, rollback definido y métricas/alertas activas. No se habilita únicamente porque CI esté verde.
 
@@ -206,8 +232,11 @@ El piloto debe empezar con alcance controlado, rollback definido y métricas/ale
 
 Fase 6 solo puede marcarse completa cuando:
 
-- todos los gates internos aplicables estén cerrados con evidencia ejecutable;
+- todos los gates internos aplicables al perfil elegido están cerrados con evidencia ejecutable;
 - el deployment seleccionado satisface su política de backup con evidencia real;
 - el gate AEAT #6 de Fase 3 está cerrado;
+- existe evidencia de release para el commit exacto candidato;
+- la revisión regulatoria está vigente;
+- la declaración responsable definitiva de esa versión ha sido preparada y aprobada;
 - existe runbook de operación/recuperación;
 - se ha validado el perfil de despliegue que realmente se vaya a usar.
