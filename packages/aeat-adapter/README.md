@@ -17,6 +17,7 @@ No utilizar contra producción todavía.
 - normalizar respuesta global, líneas, errores y SOAP Faults;
 - respetar `TiempoEsperaEnvio`;
 - separar respuestas retryable conocidas de resultados de transporte inciertos;
+- consultar registros presentados mediante la operación oficial `ConsultaFactuSistemaFacturacion` para reconciliar resultados inciertos sin reemitir;
 - proteger contra DTD/entidades en XML de respuesta;
 - mantener certificado/clave fuera de browser, modelos, logs y repositorio.
 
@@ -75,6 +76,37 @@ Gate específico:
 npm run aeat:outbox:smoke
 ```
 
+## Reconciliación oficial por consulta
+
+`AeatOfficialReconciler` utiliza la operación oficial `ConsultaFactuSistemaFacturacion` del mismo servicio VERI*FACTU y el mismo transporte mTLS. La consulta se limita mediante `PeriodoImputacion` y `RefExterna`; no genera un nuevo registro ni llama a `submit()`.
+
+Para cada entrada en `reconciliation_required` se compara contra la respuesta almacenada por AEAT:
+
+- NIF emisor;
+- número/serie fiscal;
+- fecha de expedición, normalizada entre formato AEAT e ISO;
+- `RefExterna`;
+- huella del registro.
+
+El job pasa automáticamente a `completed` **solo** cuando cada entrada del lote produce una única coincidencia exacta y el estado almacenado es reconocido. Todos los resultados no concluyentes permanecen en `reconciliation_required`:
+
+- `SinDatos`;
+- respuesta paginada;
+- múltiples coincidencias;
+- mismatch de identidad o huella;
+- estado almacenado desconocido;
+- fallo HTTP, transporte o SOAP.
+
+`SinDatos` no se interpreta como prueba de que sea seguro reenviar. El reconciliador expone siempre `shouldReissue: false` y nunca transforma por sí mismo el job a `pending`.
+
+Gate específico:
+
+```bash
+npm run aeat:reconciliation:smoke
+```
+
+El contrato CI adicional impide introducir una llamada a `submit()` o una acción automática `retry` dentro del reconciliador.
+
 ## Gate externo pendiente
 
-Para cerrar Fase 3 falta ejecutar una remisión controlada al endpoint oficial de pruebas con certificado válido, verificar la respuesta y documentar el resultado sin guardar secretos ni datos fiscales reales en el repositorio.
+Para cerrar Fase 3 falta ejecutar una remisión controlada al endpoint oficial de pruebas con certificado válido, verificar aceptación/rechazo y demostrar una reconciliación real mediante la consulta oficial. Hasta entonces el issue #6 y el bloqueo de release/piloto fiscal real siguen abiertos.

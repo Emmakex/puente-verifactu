@@ -174,6 +174,44 @@ La salida del verificador es deliberadamente reducida: commit, versiones AEAT, h
 
 Aunque todas estas comprobaciones pasen, el resultado es **`status: partial`**, mantiene `releaseUnblocked: false` y declara `remainingExternalEvidence: ["reconciliation"]`. Este comando acredita el bundle de transmisión; **no sustituye la comprobación externa de reconciliación ni puede cerrar el issue #6**.
 
+## Reconciliación oficial sin reemisión
+
+El adaptador implementa la operación oficial `ConsultaFactuSistemaFacturacion` para resolver resultados inciertos sin volver a remitir una factura a ciegas. Usa el mismo transporte mTLS y endpoint VERI*FACTU, pero construye una petición de consulta en lugar de `RegFactuSistemaFacturacion`.
+
+La consulta se acota por:
+
+- `PeriodoImputacion`, derivado de la fecha de la operación/factura;
+- `RefExterna`, que Puente VeriFactu ya remite con el identificador estable del sistema origen.
+
+`AeatOfficialReconciler` solo considera reconciliada una entrada si AEAT devuelve una única coincidencia exacta en:
+
+- NIF emisor;
+- número/serie fiscal;
+- fecha de expedición;
+- `RefExterna`;
+- huella del registro.
+
+Para un lote, **todas** las entradas deben quedar confirmadas. Solo entonces el outbox puede pasar de `reconciliation_required` a `completed`.
+
+Estos resultados permanecen en `reconciliation_required` y no habilitan reemisión automática:
+
+- `SinDatos`;
+- mismatch de identidad o huella;
+- más de un resultado;
+- paginación;
+- estado AEAT no reconocido;
+- error HTTP/SOAP/transporte de la consulta.
+
+Especialmente, `SinDatos` significa únicamente que esa consulta no localizó el registro; **no prueba que sea seguro reenviar**. El reconciliador siempre conserva `shouldReissue: false` y no contiene ninguna llamada a `submit()` ni transición automática `retry`.
+
+Gate de contrato y smoke:
+
+```bash
+npm run aeat:reconciliation:smoke
+```
+
+Para cerrar el issue #6 con este mecanismo se debe provocar/controlar un escenario de resultado incierto en pruebas o documentar uno real, ejecutar la consulta oficial y conservar evidencia sanitizada de que la identidad/huella retornadas por AEAT corresponden al registro enviado. El repositorio no almacena el XML de consulta ni la respuesta SOAP cruda.
+
 ## Cadena de prueba
 
 Por defecto cada ejecución usa un `NumeroInstalacion` temporal nuevo y genera `PrimerRegistro=S`. Esto evita que dos ejecuciones independientes dependan de un estado previo desconocido.
@@ -187,7 +225,7 @@ El issue #6 solo puede cerrarse cuando exista evidencia no sensible de:
 - remisión aceptada;
 - rechazo funcional controlado con diagnóstico esperado;
 - `TiempoEsperaEnvio`/comportamiento de control de flujo observado;
-- reconciliación comprobada para el escenario elegido;
+- reconciliación comprobada mediante `ConsultaFactuSistemaFacturacion` para el escenario elegido;
 - fecha/hora y commit exacto;
 - versiones WSDL/XSD/validaciones usadas;
 - hashes de XML/evidencia, sin payload fiscal;

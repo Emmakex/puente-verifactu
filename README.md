@@ -2,7 +2,7 @@
 
 **Puente VeriFactu** es la capa de integración fiscal de Kairoseth Extensions para conectar sistemas de facturación, ERP, CRM, ecommerce, hojas de cálculo y software propio con **VERI*FACTU / AEAT** sin obligar al negocio a sustituir lo que ya utiliza.
 
-> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 técnicamente cerrada con WooCommerce y PrestaShop `0.4.0` validados bajo Connector Contract Suite v2. Fase 6 está en curso y ya incorpora backup/restore SQLite verificable y outbox AEAT durable single-node con leases, recuperación tras reinicio y cuarentena `reconciliation_required` para resultados inciertos. No usar todavía en producción: el gate externo AEAT #6 y los gates restantes de Production Readiness siguen bloqueando release/piloto fiscal real. Este repositorio no constituye asesoramiento fiscal o jurídico.
+> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 técnicamente cerrada con WooCommerce y PrestaShop `0.4.0` validados bajo Connector Contract Suite v2. Fase 6 está en curso y ya incorpora backup/restore SQLite verificable, outbox AEAT durable single-node con leases, cuarentena `reconciliation_required` y reconciliación oficial por `ConsultaFactuSistemaFacturacion` sin reemisión ciega. No usar todavía en producción: el gate externo AEAT #6 y los gates restantes de Production Readiness siguen bloqueando release/piloto fiscal real. Este repositorio no constituye asesoramiento fiscal o jurídico.
 
 ## Principio Camaleón
 
@@ -35,7 +35,7 @@ La primera etapa será **solo VERI*FACTU**. El modo NO VERI*FACTU queda fuera de
 - Credenciales/certificados AEAT exclusivamente server-side y fuera del repositorio.
 - Automatizaciones nativas opt-in y desactivadas por defecto cuando puedan crear operaciones fiscales.
 - Backup sin restore probado no cuenta como capacidad de recuperación.
-- Un resultado AEAT incierto nunca se reenvía automáticamente: requiere reconciliación explícita.
+- Un resultado AEAT incierto nunca se reenvía automáticamente: se consulta el estado oficial y, si no hay confirmación exacta, permanece en `reconciliation_required`.
 - ES/EN juntos en interfaces de cliente.
 - Todo fallo de CI, build, test, deploy o runtime genera diagnóstico estructurado accionable.
 - `finish before advancing`, salvo gate exclusivamente externo diferido mediante ADR y manteniendo bloqueo de release/piloto.
@@ -48,7 +48,7 @@ apps/onboarding/                   Wizard cero-código responsive ES/EN
 apps/server/                       Runtime HTTP single-node
 packages/contracts/                Contrato canónico público
 packages/core/                     Motor fiscal + registros/hash + mapping assistant
-packages/aeat-adapter/             SOAP/XML, mTLS, respuestas y worker outbox AEAT
+packages/aeat-adapter/             SOAP/XML, mTLS, remisión, consulta oficial y reconciliación AEAT
 packages/sdk/                      SDK server-side para integradores
 packages/sqlite-store/             Persistencia durable + backup/restore + outbox single-node
 packages/connector-contract-suite/ Gate de compatibilidad para conectores terceros
@@ -65,7 +65,7 @@ scripts/release/                   Empaquetado reproducible de extensiones
 
 ## Documentación
 
-Consulta [docs/README.md](docs/README.md). Para integrar un sistema, empieza por [universal-integration-kit-v1.md](docs/universal-integration-kit-v1.md), [mapping-assistant-v1.md](docs/mapping-assistant-v1.md), [integration-strategy.md](docs/integration-strategy.md) y [onboarding-integration.md](docs/onboarding-integration.md). El wizard visual está documentado en `apps/onboarding/README.md`, el runtime en `apps/server/README.md`, backup/restore y outbox durable en `packages/sqlite-store/README.md`, los gates de producción en `docs/production-readiness.md`, la validación de conectores en `packages/connector-contract-suite/README.md`, WooCommerce en `connectors/woocommerce/README.md` y PrestaShop en `connectors/prestashop/README.md`.
+Consulta [docs/README.md](docs/README.md). Para integrar un sistema, empieza por [universal-integration-kit-v1.md](docs/universal-integration-kit-v1.md), [mapping-assistant-v1.md](docs/mapping-assistant-v1.md), [integration-strategy.md](docs/integration-strategy.md) y [onboarding-integration.md](docs/onboarding-integration.md). El wizard visual está documentado en `apps/onboarding/README.md`, el runtime en `apps/server/README.md`, backup/restore y outbox durable en `packages/sqlite-store/README.md`, los gates de producción en `docs/production-readiness.md`, el gate AEAT en `docs/aeat-live-gate.md`, la validación de conectores en `packages/connector-contract-suite/README.md`, WooCommerce en `connectors/woocommerce/README.md` y PrestaShop en `connectors/prestashop/README.md`.
 
 ## Estado normativo de referencia
 
@@ -73,7 +73,7 @@ Documentación revisada el **15 de septiembre de 2026**. Antes de cada release c
 
 ## Desarrollo
 
-Requiere Node.js 22.13+ para las herramientas actuales del repositorio. Los gates de conectores validan además sintaxis PHP 7.4. WooCommerce dispone de matriz real WordPress/WooCommerce y ZIP reproducible. PrestaShop dispone de contrato estático, fixtures de factura y rectificativa, ZIP reproducible, upgrade smoke y matriz real en PrestaShop 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1. Connector Contract Suite v2 añade un gate nativo común de seis escenarios para factura y rectificativa. El perfil SQLite single-node dispone además de backup/restore verificado y outbox AEAT durable: snapshot consistente, SHA-256 + manifest, chequeo de integridad/foreign keys, restore con staging, persistencia de backoff/intentos y leases de dispatch. Los resultados remotos ambiguos quedan en `reconciliation_required` hasta resolución explícita.
+Requiere Node.js 22.13+ para las herramientas actuales del repositorio. Los gates de conectores validan además sintaxis PHP 7.4. WooCommerce dispone de matriz real WordPress/WooCommerce y ZIP reproducible. PrestaShop dispone de contrato estático, fixtures de factura y rectificativa, ZIP reproducible, upgrade smoke y matriz real en PrestaShop 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1. Connector Contract Suite v2 añade un gate nativo común de seis escenarios para factura y rectificativa. El perfil SQLite single-node dispone además de backup/restore verificado y outbox AEAT durable: snapshot consistente, SHA-256 + manifest, chequeo de integridad/foreign keys, restore con staging, persistencia de backoff/intentos y leases de dispatch. Los resultados remotos ambiguos quedan en `reconciliation_required`; el reconciliador oficial consulta AEAT por `PeriodoImputacion` + `RefExterna` y solo completa ante coincidencia exacta de identidad y huella.
 
 ```bash
 npm run check
@@ -88,6 +88,9 @@ npm run sqlite:backup:smoke
 npm run sqlite:backup -- --db <source.sqlite> --out <backup.sqlite>
 npm run sqlite:verify-backup -- --backup <backup.sqlite>
 npm run sqlite:restore -- --backup <backup.sqlite> --db <target.sqlite>
+npm run aeat:cert:check
+npm run aeat:evidence:verify -- --accepted <accepted.json> --rejected <rejected.json> --source-commit <SHA40>
+npm run aeat:reconciliation:smoke
 npm run aeat:outbox:smoke
 npm run woo:contract
 npm run woo:package:check
