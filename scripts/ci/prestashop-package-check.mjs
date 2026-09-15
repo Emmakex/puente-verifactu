@@ -23,6 +23,9 @@ assert.deepEqual(first.buffer, second.buffer, 'PrestaShop ZIP must be byte-for-b
 
 const names = listLocalEntries(first.buffer);
 assert.deepEqual(names, first.entries.map((entry) => entry.name));
+assert.equal(names[0], 'puenteverifactu/', 'Legacy PrestaShop installers require the module root directory as the first ZIP entry');
+assert.ok(names.includes('puenteverifactu/classes/'));
+assert.ok(names.includes('puenteverifactu/upgrade/'));
 assert.ok(names.includes('puenteverifactu/puenteverifactu.php'));
 assert.ok(names.includes('puenteverifactu/README.md'));
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopClient.php'));
@@ -40,6 +43,6 @@ console.log(JSON.stringify({
   status: 'ok',
   check: 'prestashop-release-package',
   version: first.version,
-  files: names.length,
+  entries: names.length,
   sha256: createHash('sha256').update(first.buffer).digest('hex'),
 }, null, 2));
