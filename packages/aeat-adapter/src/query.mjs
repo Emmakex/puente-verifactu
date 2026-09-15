@@ -1,3 +1,4 @@
+import { formatAeatDate } from '../../core/src/hash.mjs';
 import { AEAT_ARTIFACTS, AEAT_NAMESPACES } from './constants.mjs';
 import { element, firstLocalText, localBlocks, rejectUnsafeXml } from './xml.mjs';
 
@@ -15,6 +16,12 @@ function normalizeStoredState(value) {
   if (value === 'AceptadoConErrores') return 'accepted_with_errors';
   if (value === 'Anulado' || value === 'Anulada') return 'cancelled';
   return 'unknown';
+}
+
+function normalizeAeatDate(value) {
+  const text = String(value ?? '').trim();
+  const match = text.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : text || null;
 }
 
 function queryFault(xml) {
@@ -57,7 +64,10 @@ export function serializeAeatQueryRequest({ issuer, period, refExternal, pageKey
   }
 
   const header = `<con:Cabecera>${element('sf', 'IDVersion', AEAT_ARTIFACTS.recordVersion)}<sf:ObligadoEmision>${element('sf', 'NombreRazon', issuerName)}${element('sf', 'NIF', issuerTaxId)}</sf:ObligadoEmision></con:Cabecera>`;
-  const filter = `<con:FiltroConsulta><con:PeriodoImputacion>${element('sf', 'Ejercicio', year)}${element('sf', 'Periodo', month)}</con:PeriodoImputacion>${element('con', 'RefExterna', reference)}${pageKey ? `<con:ClavePaginacion>${element('sf', 'IDEmisorFactura', requiredText(pageKey.issuerTaxId, 'pageKey.issuerTaxId', 20))}${element('sf', 'NumSerieFactura', requiredText(pageKey.fiscalNumber, 'pageKey.fiscalNumber', 60))}${element('sf', 'FechaExpedicionFactura', requiredText(pageKey.issueDate, 'pageKey.issueDate', 10))}</con:ClavePaginacion>` : ''}</con:FiltroConsulta>`;
+  const page = pageKey
+    ? `<con:ClavePaginacion>${element('sf', 'IDEmisorFactura', requiredText(pageKey.issuerTaxId, 'pageKey.issuerTaxId', 20))}${element('sf', 'NumSerieFactura', requiredText(pageKey.fiscalNumber, 'pageKey.fiscalNumber', 60))}${element('sf', 'FechaExpedicionFactura', formatAeatDate(requiredText(pageKey.issueDate, 'pageKey.issueDate', 10)))}</con:ClavePaginacion>`
+    : '';
+  const filter = `<con:FiltroConsulta><con:PeriodoImputacion>${element('sf', 'Ejercicio', year)}${element('sf', 'Periodo', month)}</con:PeriodoImputacion>${element('con', 'RefExterna', reference)}${page}</con:FiltroConsulta>`;
   return `<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="${AEAT_NAMESPACES.soap}" xmlns:con="${AEAT_NAMESPACES.query}" xmlns:sf="${AEAT_NAMESPACES.info}"><soapenv:Header/><soapenv:Body><con:ConsultaFactuSistemaFacturacion>${header}${filter}</con:ConsultaFactuSistemaFacturacion></soapenv:Body></soapenv:Envelope>`;
 }
 
@@ -72,7 +82,7 @@ function parseRecord(block) {
   return {
     issuerTaxId: firstLocalText(invoiceBlock, 'IDEmisorFactura'),
     fiscalNumber: firstLocalText(invoiceBlock, 'NumSerieFactura'),
-    issueDate: firstLocalText(invoiceBlock, 'FechaExpedicionFactura'),
+    issueDate: normalizeAeatDate(firstLocalText(invoiceBlock, 'FechaExpedicionFactura')),
     refExternal: firstLocalText(dataBlock, 'RefExterna'),
     invoiceType: firstLocalText(dataBlock, 'TipoFactura'),
     hashType: firstLocalText(dataBlock, 'TipoHuella'),
@@ -105,7 +115,7 @@ export function parseAeatQueryResponse(xml) {
   const pageKey = pageKeyBlock ? {
     issuerTaxId: firstLocalText(pageKeyBlock, 'IDEmisorFactura'),
     fiscalNumber: firstLocalText(pageKeyBlock, 'NumSerieFactura'),
-    issueDate: firstLocalText(pageKeyBlock, 'FechaExpedicionFactura'),
+    issueDate: normalizeAeatDate(firstLocalText(pageKeyBlock, 'FechaExpedicionFactura')),
   } : null;
   const records = localBlocks(safe, 'RegistroRespuestaConsultaFactuSistemaFacturacion').map(parseRecord);
   if (records.length > AEAT_ARTIFACTS.maxQueryRecordsPerResponse) {
