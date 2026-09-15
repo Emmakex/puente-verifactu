@@ -6,7 +6,7 @@
   "type": "module",
   "engines": { "node": ">=22.13.0" },
   "scripts": {
-    "check": "node scripts/ci/repo-check.mjs && node scripts/ci/runbooks-check.mjs && node scripts/ci/backup-lifecycle-contract.mjs",
+    "check": "node scripts/ci/repo-check.mjs && node scripts/ci/runbooks-check.mjs && node scripts/ci/backup-lifecycle-contract.mjs && node scripts/ci/release-evidence-check.mjs",
     "test": "node --test",
     "preflight:demo": "node connectors/file-import/src/cli.mjs --csv examples/file-import/facturas.csv --profile examples/file-import/mapping.json",
     "mapping:demo": "node connectors/file-import/src/cli.mjs --file examples/file-import/facturas.csv --infer",
@@ -32,6 +32,8 @@
     "prestashop:rectification-fixtures": "php scripts/ci/prestashop-rectification-fixtures.php",
     "prestashop:package": "node scripts/release/package-prestashop.mjs",
     "prestashop:package:check": "node scripts/ci/prestashop-package-check.mjs",
+    "release:evidence": "node scripts/release/release-evidence.mjs",
+    "release:evidence:check": "node scripts/ci/release-evidence-check.mjs",
     "server": "node apps/server/src/main.mjs",
     "auth:hash": "node scripts/auth/hash-credential.mjs",
     "aeat:gate": "node scripts/aeat/live-gate.mjs"
