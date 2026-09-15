@@ -57,6 +57,13 @@ function validateAmounts(intent, errors) {
     if (!ADJUSTMENT_TYPES.includes(adjustment?.type)) errors.push(issue('VF_VALIDATION_ADJUSTMENT_TYPE', `adjustments.${index}.type`, 'Tipo de ajuste no soportado.', 'Unsupported adjustment type.'));
     if (!isAmount(adjustment?.amount)) errors.push(issue('VF_VALIDATION_AMOUNT', `adjustments.${index}.amount`, 'El ajuste debe usar formato decimal exacto.', 'Adjustment must use exact decimal format.'));
   }
+
+  for (const field of ['correctedBaseAmount', 'correctedTaxAmount', 'correctedSurchargeAmount']) {
+    const value = intent.rectification?.[field];
+    if (value !== undefined && !isAmount(value)) {
+      errors.push(issue('VF_VALIDATION_AMOUNT', `rectification.${field}`, 'El importe de rectificación debe usar formato decimal exacto.', 'Rectification amount must use exact decimal format.'));
+    }
+  }
 }
 
 function validateTotals(intent, errors) {
@@ -119,6 +126,9 @@ export function validateInvoiceIntent(intent) {
   const rectifying = /^R[1-5]$/.test(intent?.invoiceType ?? '');
   if (rectifying && !RECTIFICATION_TYPES.includes(intent?.rectification?.type)) errors.push(issue('VF_VALIDATION_RECTIFICATION_TYPE', 'rectification.type', 'Una factura rectificativa debe indicar S (sustitución) o I (diferencias).', 'A corrective invoice must specify S (substitution) or I (differences).'));
   if (!rectifying && intent?.rectification) warnings.push(issue('VF_WARNING_UNUSED_RECTIFICATION', 'rectification', 'Se ignorarán datos de rectificación en un tipo de factura no rectificativo.', 'Rectification data will be ignored for a non-corrective invoice type.', 'warning'));
+  if (intent?.rectification?.type === 'S' && (!isAmount(intent.rectification.correctedBaseAmount) || !isAmount(intent.rectification.correctedTaxAmount))) {
+    errors.push(issue('VF_VALIDATION_RECTIFICATION_AMOUNTS', 'rectification', 'Una rectificación por sustitución debe informar base y cuota rectificadas.', 'A substitution rectification must provide corrected base and tax amounts.'));
+  }
 
   validateAmounts(intent, errors);
   validateTotals(intent, errors);
