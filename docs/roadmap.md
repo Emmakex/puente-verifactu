@@ -1,76 +1,75 @@
 # Roadmap
 
-La regla es **finish before advancing**: no se abre la siguiente fase si la anterior no tiene implementación, gates, aceptación, bloqueos y documentación cerrados.
+Regla: **finish before advancing**.
 
 ## Fase 0 — Foundation
 
-- Documentación base.
-- Decisiones arquitectónicas iniciales.
-- Estructura de repositorio.
-- CI mínimo y diagnóstico estructurado.
-- Política de ramas/PR.
+- [x] Documentación base.
+- [x] Decisiones arquitectónicas iniciales.
+- [x] Principio Camaleón y ADR.
+- [x] Estructura de repositorio inicial.
+- [x] CI mínimo con diagnóstico estructurado.
+- [x] Política de ramas/PR.
 
 **Salida:** repositorio preparado para desarrollar sin decisiones fundamentales implícitas.
 
 ## Fase 1 — Canonical Core
 
-- Modelo canónico v1.
-- Validaciones básicas.
-- Decimal exacto.
-- Máquina de estados.
-- Idempotencia.
-- Persistencia append-only lógica.
+- modelo canónico v1;
+- schema y validaciones;
+- `MappingProfile` v1;
+- preflight sin efectos;
+- decimal exacto;
+- máquina de estados;
+- idempotencia;
+- persistencia append-only lógica;
+- fixtures comunes a todos los canales.
 
-**Salida:** una factura puede convertirse determinísticamente en una intención fiscal estable sin AEAT.
+**Salida:** una misma factura produce la misma intención fiscal independientemente de si llega por archivo, webhook, API o conector.
 
 ## Fase 2 — Hash & Fiscal Records
 
-- Registros de alta/anulación necesarios para MVP.
-- Encadenamiento y hash con fixtures oficiales.
-- Concurrencia/serialización por SIF/tenant.
-- Auditoría.
+- registros necesarios para MVP;
+- encadenamiento/hash con fixtures oficiales;
+- concurrencia/serialización;
+- auditoría.
 
 **Salida:** cadena reproducible y verificada.
 
 ## Fase 3 — AEAT Test Adapter
 
-- Artefactos oficiales versionados.
-- Certificado de pruebas.
-- Transporte y normalización de respuestas.
-- Reintentos/outbox.
-- Pruebas externas.
+- artefactos oficiales versionados;
+- certificado de pruebas;
+- transporte/normalización;
+- reintentos/outbox;
+- pruebas externas.
 
-**Salida:** aceptación real en entorno de pruebas AEAT y rechazos correctamente interpretados.
+**Salida:** aceptación real en entorno de pruebas AEAT.
 
-## Fase 4 — Connector SDK
+## Fase 4 — Universal Integration Kit
 
-- SDK/API estable.
-- Webhooks/polling.
-- Suite contractual para terceros.
-- Conector de referencia.
+- API/SDK estable;
+- webhook low-code;
+- importador CSV y mapping UI/contract;
+- suite contractual;
+- conector de referencia.
 
-**Salida:** integrar una plataforma nueva sin tocar el motor fiscal.
+**Salida:** sistema nuevo integrable sin tocar el motor fiscal.
 
-## Fase 5 — Kairoseth Extension WordPress/WooCommerce
+## Fase 5 — Kairoseth Extensions
 
-- Mapping WooCommerce.
-- Ciclo de expedición y estados.
-- UX ES/EN.
-- Reconciliación y soporte.
-- Tests de compatibilidad.
+- WordPress/WooCommerce;
+- PrestaShop;
+- UX ES/EN;
+- reconciliación y fallback;
+- tests de compatibilidad.
 
-**Salida:** piloto end-to-end controlado.
+**Salida:** pilotos end-to-end controlados.
 
 ## Fase 6 — Production Readiness
 
-- Hardening seguridad.
-- backups/restauración;
-- observabilidad/alertas;
-- runbooks;
-- verificación regulatoria final;
-- declaración responsable por versión;
-- piloto real progresivo.
+Hardening, backups/restauración, observabilidad/alertas, runbooks, verificación regulatoria final, declaración responsable por versión y piloto progresivo.
 
 ## Posterior
 
-PrestaShop, conectores ERP/CRM, API comercial, portal multiempresa, herramientas para asesores y, solo como iniciativa separada, evaluación de modo NO VERI*FACTU.
+Conectores ERP/CRM, portal multiempresa, herramientas para asesorías y evaluación separada de NO VERI*FACTU.

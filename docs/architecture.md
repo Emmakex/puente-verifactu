@@ -2,89 +2,95 @@
 
 ## Enfoque
 
-Puente VeriFactu se diseña como **núcleo fiscal + puertos/adaptadores**. La plataforma de origen solo conoce el contrato público; la lógica AEAT permanece centralizada.
+Puente VeriFactu se diseña como **núcleo fiscal + puertos/adaptadores + capa camaleónica de ingestión**. La plataforma de origen solo conoce el contrato apropiado a sus capacidades; la lógica AEAT permanece centralizada.
 
 ```text
-[Woo/ERP/CRM/App]
-      |
-      v
-[Adapter / Connector]
-      |
-      v
-[Ingress API / SDK]
-      |
-      v
-[Canonical validation]
-      |
-      v
-[Fiscal Engine] ---> [Hash Chain]
-      |                    |
-      +------> [Immutable Fiscal Store]
-      |
-      v
-[Outbox / Delivery Queue]
-      |
-      v
-[AEAT VERI*FACTU Adapter]
-      |
-      v
-[AEAT test / production]
-      |
-      v
-[Response Normalizer] -> [Status / webhook / polling]
+[Manual] [CSV/XLSX] [Webhook] [REST/SDK] [Native connector]
+    \         |          |          |            /
+     +--------+----------+----------+-----------+
+                         |
+                         v
+              [Mapping / Preflight]
+                         |
+                         v
+                 [Canonical Contract]
+                         |
+                         v
+                   [Fiscal Engine] ---> [Hash Chain]
+                         |                    |
+                         +------> [Immutable Fiscal Store]
+                         |
+                         v
+                  [Outbox / Delivery]
+                         |
+                         v
+               [AEAT VERI*FACTU Adapter]
+                         |
+                         v
+               [Response Normalizer]
+                         |
+                         v
+               [Status / webhook / UI]
 ```
 
-## Componentes
+## Capas
 
-### 1. Connector adapter
+### 1. Ingestion adapters
 
-Extrae facturas del sistema origen, asigna identificadores estables, transforma al contrato canónico y nunca contiene credenciales AEAT de larga duración en frontend.
+Aceptan entradas heterogéneas. Su responsabilidad termina cuando producen un candidato al contrato canónico. No contienen lógica regulatoria.
 
-### 2. Ingress
+### 2. Mapping & Preflight
 
-Autentica organización y conector, valida esquema, controla rate limit y exige `Idempotency-Key` o identificador fiscal equivalente.
+Transforma nombres/formatos del origen mediante `MappingProfile`, valida sin efectos y devuelve errores accionables. Es obligatorio antes de activar mappings nuevos o modificados.
 
-### 3. Fiscal engine
+### 3. Ingress
 
-Responsable de reglas canónicas, clasificación del tipo de operación, normalización de fechas/importes, generación de registros y protección de invariantes.
+Autentica organización e instalación, valida esquema, controla límites y exige idempotencia.
 
-### 4. Hash chain
+### 4. Canonical contract
 
-Construye el material de huella exactamente como indique la especificación AEAT vigente. El algoritmo y orden de campos deben vivir en un módulo versionado y cubierto por fixtures oficiales.
+Frontera estable entre cualquier integración y el motor. Todo canal debe poder representar el mismo caso fiscal de forma equivalente.
 
-### 5. Fiscal store
+### 5. Fiscal engine
 
-Append-only para registros fiscales finalizados. Las correcciones no sobrescriben: generan anulación, subsanación, sustitución o nuevo alta según proceda.
+Responsable de reglas canónicas, normalización, clasificación, generación de registros y protección de invariantes.
 
-### 6. Outbox / delivery
+### 6. Hash chain
 
-Separa la transacción local de la comunicación externa. Cada registro pasa por estados explícitos y reintentos idempotentes.
+Construye el material de huella conforme a la especificación oficial versionada y comprobada mediante fixtures.
 
-### 7. AEAT adapter
+### 7. Fiscal store
 
-Encapsula WSDL/XSD, transporte, certificado, endpoints de prueba/producción, timeouts y normalización de errores. Ningún conector llama directamente a AEAT.
+Append-only para registros finalizados. Las correcciones nunca reescriben historial.
 
-### 8. Status API
+### 8. Outbox / delivery
 
-Expone estado interno sin filtrar secretos, XML sensible ni detalles de otros tenants.
+Separa transacción local y comunicación externa; mantiene estados explícitos y reintentos idempotentes.
+
+### 9. AEAT adapter
+
+Único componente que encapsula XML/XSD/WSDL, certificados, transporte, endpoints y normalización de respuestas AEAT.
+
+### 10. Status surface
+
+API/UI/webhooks presentan un estado normalizado sin exponer secretos o datos cross-tenant.
 
 ## Estados sugeridos
 
-`received -> validated -> fiscalized -> queued -> sending -> accepted | accepted_with_errors | rejected | retry_scheduled | blocked`
-
-Los estados fiscales históricos se conservan; no se modelan mediante mutaciones destructivas.
+`received -> preflight_valid -> fiscalized -> queued -> sending -> accepted | accepted_with_errors | rejected | retry_scheduled | blocked`
 
 ## Multi-tenant
 
-Toda entidad persistida incluye `organization_id`. Claves, certificados, secuencias, cadenas de hash e idempotencia se particionan por organización y, cuando proceda, por instalación/SIF. Nunca se puede encadenar un registro de una organización con otra.
+Toda entidad persistida incluye `organization_id`. Claves, certificados, secuencias, cadenas de hash e idempotencia se particionan por organización y, cuando proceda, por instalación/SIF. Nunca se encadena un registro de una organización con otra.
 
 ## Consistencia
 
-- Escritura fiscal + outbox en una misma transacción cuando la tecnología lo permita.
-- Bloqueo/serialización del tramo que calcule la cadena para evitar carreras.
-- Reintento de entrega no vuelve a fiscalizar el registro.
+- Escritura fiscal + outbox en la misma transacción cuando sea posible.
+- Serialización del tramo que calcule la cadena para evitar carreras.
+- Reintentar entrega no vuelve a fiscalizar.
 - Un callback duplicado no altera dos veces el estado.
+- Cambiar `MappingProfile` crea una versión; no reinterpreta registros históricos.
 
 ## Versionado
 
-Los contratos públicos se versionan. Los cambios incompatibles requieren versión mayor o estrategia de migración. Los artefactos AEAT (XSD/WSDL/reglas) se versionan internamente con su fecha de verificación.
+Contratos públicos, mappings y artefactos AEAT se versionan. Cambios incompatibles requieren versión mayor o migración explícita.
