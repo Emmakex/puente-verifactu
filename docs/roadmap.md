@@ -156,7 +156,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 ## Fase 6 — Production Readiness 🚧
 
 - [x] Backup/restore SQLite verificable: snapshot WAL consistente, SHA-256 + manifest, `integrity_check`, `foreign_key_check`, restore staging y reemplazo offline protegido.
-- [ ] Política operacional de almacenamiento remoto, cifrado, retención, antigüedad y ejercicio periódico de restore.
+- [x] Política operacional de backups v1: copia remota por checksum, cifrado en reposo, retención 7 diarios/5 semanales/12 mensuales, control de antigüedad y restore drill periódico; proveedor-neutral y sin borrado automático.
 - [x] Outbox durable AEAT para el perfil single-node: persistencia de estado/backoff/intentos, leases, recuperación tras reinicio y `reconciliation_required` para resultados inciertos sin reemisión ciega.
 - [x] Observabilidad y alertas operativas v1: endpoint agregado protegido por `ops:read`, métricas de outbox/backup y códigos `VF_OBS_*` estables sin datos fiscales.
 - [x] Runbooks operativos single-node: deploy/rollback, incidente AEAT y `reconciliation_required`, backup/restore y rotación de credenciales; protegidos por gate CI.
@@ -164,9 +164,9 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [ ] Verificación regulatoria final y evidencia de release por versión.
 - [ ] Piloto progresivo con rollback y monitorización activa.
 
-**Estado:** Fase 6 en curso con cuatro gates internos cubiertos para el perfil single-node: backup/restore SQLite, outbox AEAT durable, observabilidad/alertas v1 y runbooks operativos verificables. Los resultados remotos ambiguos quedan en `reconciliation_required` hasta resolución explícita; el estado operativo global requiere una credencial separada con `ops:read` y expone solo agregados. Los runbooks están en `docs/runbooks/` y forman parte de `npm run check`. Esto **no** convierte SQLite en HA ni resuelve por sí solo retención/storage remoto u operación multi-réplica.
+**Estado:** Fase 6 en curso con cinco gates internos implementados para el perfil single-node: backup/restore SQLite, política de ciclo de vida de backups, outbox AEAT durable, observabilidad/alertas v1 y runbooks operativos verificables. La política de backup define evidencia proveedor-neutral y un restore drill real, pero cada entorno debe aportar su propia evidencia de copia remota cifrada para considerarse conforme. Los resultados remotos ambiguos siguen en `reconciliation_required` hasta resolución explícita. Esto **no** convierte SQLite en HA ni acredita por sí solo un entorno multi-réplica.
 
-**Gate de entrada a release/piloto:** Fase 3 externa cerrada (#6), además de todos los gates propios de Fase 6 aplicables al perfil de despliegue.
+**Gate de entrada a release/piloto:** Fase 3 externa cerrada (#6), además de todos los gates propios de Fase 6 aplicables al perfil de despliegue y evidencia real del entorno seleccionado.
 
 ## Posterior
 
