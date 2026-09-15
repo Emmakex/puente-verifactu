@@ -58,6 +58,9 @@ jobs:
       - name: SQLite backup and restore smoke
         run: npm run sqlite:backup:smoke
 
+      - name: AEAT certificate preflight smoke
+        run: npm run aeat:cert:smoke
+
       - name: Durable AEAT outbox smoke
         run: npm run aeat:outbox:smoke
 
