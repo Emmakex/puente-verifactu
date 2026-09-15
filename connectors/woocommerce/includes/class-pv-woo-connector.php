@@ -237,7 +237,7 @@ final class PV_Woo_Connector {
         $this->reconcile_object( $refund, $settings );
     }
 
-    private function reconcile_object( WC_Order $order, array $settings ) {
+    private function reconcile_object( WC_Abstract_Order $order, array $settings ) {
         $record_id = (string) $order->get_meta( self::META_RECORD_ID, true );
         if ( '' === $record_id ) {
             return;
@@ -292,7 +292,7 @@ final class PV_Woo_Connector {
         }
     }
 
-    private function record_error( WC_Order $order, WP_Error $error ) {
+    private function record_error( WC_Abstract_Order $order, WP_Error $error ) {
         $order->update_meta_data( self::META_LAST_ERROR, sanitize_text_field( $error->get_error_code() . ': ' . $error->get_error_message() ) );
         if ( ! $order->get_meta( self::META_STATUS, true ) ) {
             $order->update_meta_data( self::META_STATUS, 'blocked' );
@@ -306,7 +306,7 @@ final class PV_Woo_Connector {
         $refund->save();
     }
 
-    private function store_success( WC_Order $order, array $payload, array $result ) {
+    private function store_success( WC_Abstract_Order $order, array $payload, array $result ) {
         $order->update_meta_data( self::META_RECORD_ID, sanitize_text_field( $result['recordId'] ) );
         $order->update_meta_data( self::META_STATUS, sanitize_key( isset( $result['status'] ) ? $result['status'] : 'fiscalized' ) );
         $order->update_meta_data( self::META_SYNCED_AT, gmdate( 'c' ) );
