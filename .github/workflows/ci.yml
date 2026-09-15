@@ -39,3 +39,6 @@ jobs:
 
       - name: Third-party connector contract smoke
         run: npm run contract:reference
+
+      - name: Durable HTTP runtime smoke
+        run: npm run runtime:smoke
