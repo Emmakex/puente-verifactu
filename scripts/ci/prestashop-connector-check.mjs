@@ -6,11 +6,15 @@ const paths = {
   secret: 'connectors/prestashop/classes/PVFPrestaShopSecretStore.php',
   client: 'connectors/prestashop/classes/PVFPrestaShopClient.php',
   payload: 'connectors/prestashop/classes/PVFPrestaShopOrderPayload.php',
+  slipPayload: 'connectors/prestashop/classes/PVFPrestaShopOrderSlipPayload.php',
+  rectifications: 'connectors/prestashop/classes/PVFPrestaShopRectifications.php',
   breakdown: 'connectors/prestashop/classes/PVFPrestaShopTaxBreakdown.php',
   adminStatus: 'connectors/prestashop/classes/PVFPrestaShopAdminStatus.php',
   mapping: 'connectors/prestashop/examples/mapping-profile.json',
+  refundMapping: 'connectors/prestashop/examples/refund-mapping-profile.json',
   fixtures: 'connectors/prestashop/fixtures/tax-breakdown-v1.json',
   upgradeStatus: 'connectors/prestashop/upgrade/install-0.2.0.php',
+  upgradeRectifications: 'connectors/prestashop/upgrade/install-0.3.0.php',
   taxFixtureScript: 'scripts/ci/prestashop-tax-fixtures.php'
 };
 
@@ -28,14 +32,17 @@ const moduleFile = read(paths.module);
 const clientFile = read(paths.client);
 const secretFile = read(paths.secret);
 const payloadFile = read(paths.payload);
+const slipPayloadFile = read(paths.slipPayload);
+const rectificationsFile = read(paths.rectifications);
 const breakdownFile = read(paths.breakdown);
 const statusFile = read(paths.adminStatus);
 const upgradeStatusFile = read(paths.upgradeStatus);
+const upgradeRectificationsFile = read(paths.upgradeRectifications);
 const readme = read(paths.readme);
 
 const expectations = [
   [moduleFile.includes('class PuenteVerifactu extends Module'), 'PRESTA_MODULE_CLASS_MISSING'],
-  [moduleFile.includes("const VERSION = '0.2.0'"), 'PRESTA_MODULE_VERSION_INVALID'],
+  [moduleFile.includes("const VERSION = '0.3.0'"), 'PRESTA_MODULE_VERSION_INVALID'],
   [moduleFile.includes("'min' => '1.7.8.0'") && moduleFile.includes("'max' => '8.99.99'"), 'PRESTA_VERSION_RANGE_MISSING'],
   [moduleFile.includes("runManualAction('preflight')") && moduleFile.includes("runManualAction('send')") && moduleFile.includes("runManualAction('reconcile')"), 'PRESTA_MANUAL_SAFE_FLOW_MISSING'],
   [moduleFile.includes('idempotencyKey') && moduleFile.includes("':invoice:'"), 'PRESTA_IDEMPOTENCY_MISSING'],
@@ -43,6 +50,7 @@ const expectations = [
   [moduleFile.includes("registerHook('displayAdminOrderMainBottom')") && moduleFile.includes('hookDisplayAdminOrderMainBottom'), 'PRESTA_NATIVE_ORDER_STATUS_HOOK_MISSING'],
   [moduleFile.includes('PVFPrestaShopAdminStatus::summarize') && moduleFile.includes('getSyncRow($orderId)'), 'PRESTA_NATIVE_ORDER_STATUS_LOCAL_READ_MISSING'],
   [moduleFile.includes("'green' => $this->l('Synced')") && moduleFile.includes("'amber' => $this->l('Pending / review')") && moduleFile.includes("'red' => $this->l('Action required')") && moduleFile.includes("'gray' => $this->l('Not sent')"), 'PRESTA_NATIVE_ORDER_STATUS_LABELS_MISSING'],
+  [moduleFile.includes('PVFPrestaShopRectifications::installSchema()') && moduleFile.includes('PVFPrestaShopRectifications::handleSubmissions($this)') && moduleFile.includes('PVFPrestaShopRectifications::renderOrderStatus($this, $orderId)'), 'PRESTA_RECTIFICATION_WIRING_MISSING'],
   [clientFile.includes("strpos($this->endpoint, 'https://') === 0"), 'PRESTA_HTTPS_GUARD_MISSING'],
   [clientFile.includes('CURLOPT_SSL_VERIFYPEER => true') && clientFile.includes('CURLOPT_SSL_VERIFYHOST => 2'), 'PRESTA_TLS_VERIFY_MISSING'],
   [clientFile.includes("'Idempotency-Key: '"), 'PRESTA_IDEMPOTENCY_HEADER_MISSING'],
@@ -55,12 +63,22 @@ const expectations = [
   [!payloadFile.includes("FROM `' . _DB_PREFIX_ . 'order_detail`"), 'PRESTA_RAW_ORDER_DETAIL_TAX_QUERY_FORBIDDEN'],
   [payloadFile.includes('Ecotax requires an explicit fiscal mapping'), 'PRESTA_ECOTAX_SAFE_BLOCK_MISSING'],
   [payloadFile.includes("'currency' => strtoupper"), 'PRESTA_CURRENCY_MISSING'],
+  [slipPayloadFile.includes('final class PVFPrestaShopOrderSlipPayload') && slipPayloadFile.includes('OrderSlip::getOrdersSlipDetail'), 'PRESTA_ORDER_SLIP_PAYLOAD_MISSING'],
+  [slipPayloadFile.includes("':order-slip:'") && slipPayloadFile.includes("'original_invoice_number'") && slipPayloadFile.includes("'original_invoice_date'"), 'PRESTA_RECTIFICATION_ORIGINAL_LINK_MISSING'],
+  [slipPayloadFile.includes('getTaxCalculator()') && slipPayloadFile.includes('getTotalRate') && slipPayloadFile.includes('assertObservedTaxMatchesRate'), 'PRESTA_RECTIFICATION_NATIVE_RATE_GUARD_MISSING'],
+  [!slipPayloadFile.includes('rateFromCents'), 'PRESTA_RECTIFICATION_INFERRED_RATE_FORBIDDEN'],
+  [slipPayloadFile.includes("'baseAmount' => self::negativeMoney") && slipPayloadFile.includes("'taxAmount' => self::negativeMoney"), 'PRESTA_RECTIFICATION_NEGATIVE_LINES_MISSING'],
+  [rectificationsFile.includes("const CONFIG_PROFILE_ID = 'PVF_RECTIFICATION_PROFILE_ID'"), 'PRESTA_RECTIFICATION_PROFILE_MISSING'],
+  [rectificationsFile.includes('pvf_order_slip_sync') && rectificationsFile.includes('UNIQUE KEY `pvf_shop_slip`'), 'PRESTA_RECTIFICATION_LOCAL_STATE_MISSING'],
+  [rectificationsFile.includes('The original invoice must have a Puente VeriFactu record') && rectificationsFile.includes("':order-slip:'") && rectificationsFile.includes("':number:'"), 'PRESTA_RECTIFICATION_IDEMPOTENCY_GUARD_MISSING'],
+  [rectificationsFile.includes("runManualAction($module, 'preflight')") && rectificationsFile.includes("runManualAction($module, 'send')") && rectificationsFile.includes("runManualAction($module, 'reconcile')"), 'PRESTA_RECTIFICATION_MANUAL_FLOW_MISSING'],
   [breakdownFile.includes('final class PVFPrestaShopTaxBreakdown') && breakdownFile.includes('public static function reconcile'), 'PRESTA_BREAKDOWN_RECONCILIATION_MISSING'],
   [breakdownFile.includes("mergeScaledLine($lines, '0'"), 'PRESTA_ZERO_RATE_RESIDUAL_MISSING'],
   [statusFile.includes('final class PVFPrestaShopAdminStatus') && statusFile.includes('public static function summarize'), 'PRESTA_ADMIN_STATUS_CLASS_INVALID'],
   [statusFile.includes("$status === 'accepted'") && statusFile.includes("array('blocked', 'rejected', 'aeat_rejected', 'failed')"), 'PRESTA_ADMIN_STATUS_MAPPING_MISSING'],
   [statusFile.includes("return 'gray'") && statusFile.includes("return 'green'") && statusFile.includes("return 'red'") && statusFile.includes("return 'amber'"), 'PRESTA_ADMIN_STATUS_LEVELS_MISSING'],
   [upgradeStatusFile.includes('upgrade_module_0_2_0') && upgradeStatusFile.includes("registerHook('displayAdminOrderMainBottom')"), 'PRESTA_STATUS_UPGRADE_HOOK_MISSING'],
+  [upgradeRectificationsFile.includes('upgrade_module_0_3_0') && upgradeRectificationsFile.includes('pvf_order_slip_sync') && upgradeRectificationsFile.includes('UNIQUE KEY `pvf_shop_slip`'), 'PRESTA_RECTIFICATION_UPGRADE_MISSING'],
   [readme.includes('No contiene reglas AEAT'), 'PRESTA_THIN_CONNECTOR_DOC_MISSING']
 ];
 
@@ -72,8 +90,11 @@ for (const [path, content] of [
   [paths.module, moduleFile],
   [paths.client, clientFile],
   [paths.payload, payloadFile],
+  [paths.slipPayload, slipPayloadFile],
+  [paths.rectifications, rectificationsFile],
   [paths.adminStatus, statusFile],
-  [paths.upgradeStatus, upgradeStatusFile]
+  [paths.upgradeStatus, upgradeStatusFile],
+  [paths.upgradeRectifications, upgradeRectificationsFile]
 ]) {
   if (/certificado|certificate|SOAP|RegistroAlta|RegistroAnulacion/i.test(content)) {
     failures.push({ code: 'PRESTA_FISCAL_LOGIC_LEAK', path });
@@ -90,6 +111,23 @@ try {
   }
 } catch (error) {
   failures.push({ code: 'PRESTA_MAPPING_PROFILE_INVALID_JSON', message: error.message });
+}
+
+try {
+  const profile = JSON.parse(readFileSync(paths.refundMapping, 'utf8'));
+  if (profile?.sourceType !== 'native'
+      || profile?.fields?.refund_invoice_number !== 'number'
+      || profile?.fields?.tax_lines !== 'taxBreakdown'
+      || profile?.fields?.original_invoice_number !== 'rectification.originalInvoices.0.number'
+      || profile?.fields?.original_invoice_date !== 'rectification.originalInvoices.0.issueDate') {
+    failures.push({ code: 'PRESTA_RECTIFICATION_MAPPING_PROFILE_INVALID' });
+  }
+  if (profile?.constants?.invoiceType !== 'CONFIGURE_R1_R5_SERVER_SIDE'
+      || profile?.constants?.rectification?.type !== 'CONFIGURE_S_OR_I_SERVER_SIDE') {
+    failures.push({ code: 'PRESTA_RECTIFICATION_CLASSIFICATION_NOT_SERVER_SIDE' });
+  }
+} catch (error) {
+  failures.push({ code: 'PRESTA_RECTIFICATION_MAPPING_PROFILE_INVALID_JSON', message: error.message });
 }
 
 try {
@@ -126,5 +164,6 @@ console.log(JSON.stringify({
   status: 'ok',
   check: 'prestashop-connector-v1',
   required_paths: required.length,
-  native_order_status: true
+  native_order_status: true,
+  corrective_credit_slips: true
 }, null, 2));
