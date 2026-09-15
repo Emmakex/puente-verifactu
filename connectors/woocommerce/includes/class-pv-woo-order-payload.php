@@ -19,11 +19,14 @@ final class PV_Woo_Order_Payload {
         }
         $tax_id = (string) apply_filters( 'pv_woo_customer_tax_id', $tax_id, $order );
 
+        $invoice_number = self::invoice_number( $order, $settings );
+
         $payload = array(
             'connector_schema' => 1,
             'source_invoice_id'=> 'woo:' . get_current_blog_id() . ':order:' . $order->get_id(),
             'order_id'         => (string) $order->get_id(),
             'order_number'     => (string) $order->get_order_number(),
+            'invoice_number'   => $invoice_number,
             'order_date'       => $date ? $date->date( 'Y-m-d' ) : gmdate( 'Y-m-d' ),
             'description'      => sprintf( 'WooCommerce order %s', $order->get_order_number() ),
             'currency'         => (string) $order->get_currency(),
@@ -37,6 +40,19 @@ final class PV_Woo_Order_Payload {
         );
 
         return apply_filters( 'pv_woo_order_source_payload', $payload, $order, $settings );
+    }
+
+    private static function invoice_number( WC_Order $order, array $settings ) {
+        $source = isset( $settings['invoice_number_source'] ) ? (string) $settings['invoice_number_source'] : '';
+        $number = '';
+
+        if ( 'order_number' === $source ) {
+            $number = (string) $order->get_order_number();
+        } elseif ( 'meta' === $source && ! empty( $settings['invoice_number_meta_key'] ) ) {
+            $number = trim( (string) $order->get_meta( $settings['invoice_number_meta_key'], true ) );
+        }
+
+        return trim( (string) apply_filters( 'pv_woo_invoice_number', $number, $order, $settings ) );
     }
 
     private static function tax_lines( WC_Order $order ) {
