@@ -30,3 +30,6 @@ jobs:
 
       - name: Zero-code CSV preflight smoke
         run: npm run preflight:demo
+
+      - name: Assisted mapping smoke
+        run: npm run mapping:demo

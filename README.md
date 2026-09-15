@@ -2,7 +2,7 @@
 
 **Puente VeriFactu** es la capa de integración fiscal de Kairoseth Extensions para conectar sistemas de facturación, ERP, CRM, ecommerce, hojas de cálculo y software propio con **VERI*FACTU / AEAT** sin obligar al negocio a sustituir lo que ya utiliza.
 
-> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 en desarrollo con API/SDK/webhook universal ya implementados. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
+> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 en desarrollo con API/SDK/webhook, CSV/XLSX y mapping asistido ya implementados. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
 
 ## Principio Camaleón
 
@@ -10,7 +10,7 @@
 
 Un autónomo o pyme debe poder empezar desde el nivel técnico que ya tenga:
 
-1. **Cero código:** carga guiada de CSV/Excel y entrada manual asistida.
+1. **Cero código:** carga guiada de CSV/Excel, mapping asistido y entrada manual asistida.
 2. **Low-code:** webhook configurable y perfiles de mapeo.
 3. **API universal:** REST con contrato canónico versionado.
 4. **SDK:** integración para desarrolladores sin conocer XML AEAT.
@@ -42,19 +42,19 @@ La primera etapa será **solo VERI*FACTU**. El modo NO VERI*FACTU queda fuera de
 ```text
 apps/api/                 API/ingress universal del puente
 packages/contracts/       Contrato canónico público
-packages/core/            Motor fiscal + registros/hash
+packages/core/            Motor fiscal + registros/hash + mapping assistant
 packages/aeat-adapter/    SOAP/XML, mTLS, respuestas y reintentos AEAT
 packages/sdk/             SDK server-side para integradores
 packages/diagnostics/     Diagnóstico estructurado
 connectors/reference/     Conector de referencia
-connectors/file-import/   Entrada cero-código CSV/Excel
+connectors/file-import/   Entrada cero-código CSV/XLSX
 scripts/aeat/             Gate seguro de pruebas AEAT
 scripts/ci/               Gates y diagnóstico CI
 ```
 
 ## Documentación
 
-Consulta [docs/README.md](docs/README.md). Para integrar un sistema, empieza por [universal-integration-kit-v1.md](docs/universal-integration-kit-v1.md), [integration-strategy.md](docs/integration-strategy.md) y [onboarding-integration.md](docs/onboarding-integration.md).
+Consulta [docs/README.md](docs/README.md). Para integrar un sistema, empieza por [universal-integration-kit-v1.md](docs/universal-integration-kit-v1.md), [mapping-assistant-v1.md](docs/mapping-assistant-v1.md), [integration-strategy.md](docs/integration-strategy.md) y [onboarding-integration.md](docs/onboarding-integration.md).
 
 ## Estado normativo de referencia
 
@@ -68,6 +68,7 @@ Requiere Node.js 22+ para las herramientas del repositorio.
 npm run check
 npm test
 npm run preflight:demo
+npm run mapping:demo
 npm run aeat:gate
 ```
 

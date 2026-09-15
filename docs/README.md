@@ -9,6 +9,7 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `integration-strategy.md` | Principio Camaleón y cinco niveles de integración |
 | `onboarding-integration.md` | Onboarding universal orientado a autónomos y pymes |
 | `canonical-core-v1.md` | Contrato ejecutable InvoiceIntent/MappingProfile/preflight v1 |
+| `mapping-assistant-v1.md` | XLSX/CSV, confianza de mapeo y wizard de configuración |
 | `fiscal-records-v1.md` | Registros alta/anulación, hash AEAT, encadenamiento e idempotencia |
 | `aeat-test-adapter-v1.md` | SOAP/XML, mTLS, respuestas, reintentos y gate externo de pruebas AEAT |
 | `aeat-live-gate.md` | Runbook y comando seguro para cerrar la prueba real de Fase 3 |
