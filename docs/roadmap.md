@@ -84,12 +84,14 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Inspección unificada CSV/XLSX.
 - [x] Asistente de mapping con confianza y confirmación explícita.
 - [x] Contrato UX del wizard de mapping.
-- [ ] UI visual ES/EN del wizard.
+- [x] Wizard visual responsive ES/EN de upload → mapping → configuración → preflight.
+- [x] Sesiones temporales de importación aisladas por tenant/instalación.
+- [x] Allowlist de mappings/configuración y protección prototype-pollution.
 - [ ] Suite contractual empaquetada para terceros.
 - [ ] Adaptador HTTP/deployment concreto con autenticación real y rate limits.
-- [ ] Persistencia durable del estado API.
+- [ ] Persistencia durable del estado API y store temporal compartido.
 
-**Estado:** entrada universal por API, webhook, CSV y XLSX ya implementada. El siguiente bloque customer-facing es la UI visual del wizard; la fase continúa abierta.
+**Estado:** onboarding cero-código ya está implementado de extremo a extremo hasta preflight. La fase continúa abierta por deployment, suite contractual y persistencia durable.
 
 **Salida:** sistema nuevo integrable sin tocar el motor fiscal.
 
