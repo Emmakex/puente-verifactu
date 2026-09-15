@@ -6,6 +6,7 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Reconciliación oficial AEAT mediante `ConsultaFactuSistemaFacturacion`: consulta por `PeriodoImputacion` + `RefExterna`, comparación exacta de NIF/número/fecha/huella y resolución `reconciliation_required -> completed` únicamente cuando todas las entradas quedan confirmadas; `SinDatos`, mismatch, paginación o fallo de consulta nunca provocan reemisión ni `retry` automático.
 - Verificador `npm run aeat:evidence:verify` para el bundle sanitizado de remisión aceptada + rechazo controlado: exige mismo commit candidato, versiones AEAT vigentes, hashes válidos, CSV fingerprint en aceptación, diagnóstico de rechazo y `TiempoEsperaEnvio`; devuelve `partial` y mantiene `releaseUnblocked: false` mientras falte reconciliación externa.
 - Preflight local `npm run aeat:cert:check` para validar PFX/passphrase mediante el mismo parser TLS usado por el gate real, sin crear transporte ni abrir red; salida limitada a metadatos no sensibles y fingerprint SHA-256 del contenedor.
 - Gate AEAT externo endurecido: `--expect` para aceptación/rechazo controlado, evidencia sanitizada ligada a commit, CSV/descripciones conservados solo por SHA-256, `--show-xml` restringido a dry-run y validación local del PFX antes de abrir red.
