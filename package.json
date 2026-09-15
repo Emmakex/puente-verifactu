@@ -36,6 +36,7 @@
     "release:evidence:check": "node scripts/ci/release-evidence-check.mjs",
     "server": "node apps/server/src/main.mjs",
     "auth:hash": "node scripts/auth/hash-credential.mjs",
+    "aeat:cert:check": "node scripts/aeat/certificate-check.mjs",
     "aeat:gate": "node scripts/aeat/live-gate.mjs"
   }
 }
