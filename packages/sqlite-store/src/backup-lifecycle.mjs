@@ -78,12 +78,12 @@ export function buildBackupRetentionPlan(backups, retention) {
       const key = bucketKey(kind, backup.createdAt);
       if (seen.has(key)) continue;
       seen.add(key);
-      if (seen.size <= retention[kind]) keep.add(backup.sha256);
+      if (seen.size <= retention[kind]) keep.add(backup);
     }
   }
   return Object.freeze({
-    keep: Object.freeze(ordered.filter((backup) => keep.has(backup.sha256))),
-    pruneCandidates: Object.freeze(ordered.filter((backup) => !keep.has(backup.sha256))),
+    keep: Object.freeze(ordered.filter((backup) => keep.has(backup))),
+    pruneCandidates: Object.freeze(ordered.filter((backup) => !keep.has(backup))),
   });
 }
 
