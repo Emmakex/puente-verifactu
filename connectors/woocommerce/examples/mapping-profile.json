@@ -1,0 +1,38 @@
+{
+  "profileVersion": 1,
+  "id": "woocommerce-v1",
+  "name": "WooCommerce v1",
+  "sourceType": "native",
+  "locale": "es-ES",
+  "fields": {
+    "source_invoice_id": "sourceInvoiceId",
+    "order_number": "number",
+    "order_date": "issueDate",
+    "description": "description",
+    "customer_name": "recipients.0.name",
+    "customer_tax_id": "recipients.0.taxId",
+    "tax_lines": "taxBreakdown",
+    "total_amount": "totals.totalAmount"
+  },
+  "transforms": {
+    "order_number": ["trim"],
+    "order_date": ["trim"],
+    "customer_name": ["trim"],
+    "customer_tax_id": ["trim", "upper"],
+    "total_amount": ["trim"]
+  },
+  "taxLineDefaults": {
+    "taxCode": "01",
+    "regimeKey": "01",
+    "operationClass": "S1"
+  },
+  "constants": {
+    "invoiceType": "F1",
+    "issuer": {
+      "name": "CONFIGURE SERVER-SIDE",
+      "taxId": "CONFIGURE_SERVER_SIDE"
+    },
+    "currency": "EUR"
+  },
+  "defaults": {}
+}
