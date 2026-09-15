@@ -67,6 +67,7 @@
         "type": { "enum": ["S", "I"] },
         "correctedBaseAmount": { "$ref": "#/$defs/amount" },
         "correctedTaxAmount": { "$ref": "#/$defs/amount" },
+        "correctedSurchargeAmount": { "$ref": "#/$defs/amount" },
         "originalInvoices": {
           "type": "array",
           "items": { "$ref": "#/$defs/invoiceReference" }
