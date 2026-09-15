@@ -1,6 +1,6 @@
 # Roadmap
 
-Regla: **finish before advancing**.
+Regla: **finish before advancing**, con la excepción controlada de ADR-0003 para gates exclusivamente externos que sigan bloqueando releases/pilotos.
 
 ## Fase 0 — Foundation ✅
 
@@ -46,7 +46,7 @@ Regla: **finish before advancing**.
 
 **Salida cumplida:** cadena reproducible y verificada contra los tres vectores oficiales AEAT de hash. El store en memoria sigue siendo una referencia; la persistencia durable/productiva es un gate obligatorio antes del piloto real.
 
-## Fase 3 — AEAT Test Adapter ⚠️ gate externo pendiente
+## Fase 3 — AEAT Test Adapter ⚠️ gate externo diferido
 
 - [x] Manifest de artefactos oficiales/versiones verificadas.
 - [x] Endpoints oficiales de pruebas/producción y certificado/sello.
@@ -67,9 +67,9 @@ Regla: **finish before advancing**.
 - [ ] Confirmar caso aceptado + rechazo controlado + reconciliación.
 - [ ] Documentar evidencia no sensible de la prueba externa.
 
-**Estado:** implementación y harness preparados, pero la fase **no está cerrada** hasta superar la prueba externa oficial. Según `finish before advancing`, Fase 4 permanece bloqueada mientras este gate esté pendiente.
+**Estado:** implementación y harness preparados. El gate externo se difiere bajo ADR-0003 y permanece registrado en #6. Se permite continuar desarrollo de Fase 4, pero **release, piloto fiscal real y production readiness siguen bloqueados** hasta cerrar este gate.
 
-## Fase 4 — Universal Integration Kit
+## Fase 4 — Universal Integration Kit 🚧 desarrollo permitido
 
 - API/SDK estable;
 - webhook low-code;
@@ -88,11 +88,13 @@ Regla: **finish before advancing**.
 - reconciliación y fallback;
 - tests de compatibilidad.
 
-**Salida:** pilotos end-to-end controlados.
+**Salida:** pilotos end-to-end controlados, sujetos al cierre previo del gate AEAT #6.
 
 ## Fase 6 — Production Readiness
 
 Hardening, persistencia durable, outbox durable, backups/restauración, observabilidad/alertas, runbooks, verificación regulatoria final, declaración responsable por versión y piloto progresivo.
+
+**Gate de entrada a release/piloto:** Fase 3 externa cerrada, además de todos los gates propios de Fase 6.
 
 ## Posterior
 
