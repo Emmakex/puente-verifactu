@@ -1,9 +1,9 @@
-import { createSecureContext } from 'node:tls';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { AeatVerifactuAdapter } from '../../packages/aeat-adapter/src/adapter.mjs';
 import { serializeAeatSoapRequest } from '../../packages/aeat-adapter/src/serialize.mjs';
 import { createHttpsMtlsTransport } from '../../packages/aeat-adapter/src/transport.mjs';
+import { loadPfxCredentials } from './certificate-preflight-lib.mjs';
 import {
   buildLiveGateEvidence,
   buildLiveGateFixture,
@@ -11,19 +11,6 @@ import {
   parseLiveGateOptions,
   sanitizeLiveGateResult,
 } from './live-gate-lib.mjs';
-
-async function resolvePfxPassphrase(env) {
-  const direct = env.AEAT_TEST_PFX_PASSPHRASE;
-  const secretPath = String(env.AEAT_TEST_PFX_PASSPHRASE_FILE ?? '').trim();
-  if (direct != null && secretPath) {
-    const error = new Error('Configure only one PFX passphrase source');
-    error.code = 'VF_AEAT_GATE_PFX_PASSPHRASE_AMBIGUOUS';
-    throw error;
-  }
-  if (!secretPath) return direct;
-  const secret = await readFile(secretPath, 'utf8');
-  return secret.replace(/\r?\n$/, '');
-}
 
 async function writeEvidence(path, evidence) {
   const target = resolve(path);
@@ -67,23 +54,7 @@ async function main() {
     return;
   }
 
-  const pfxPath = String(process.env.AEAT_TEST_PFX_PATH ?? '').trim();
-  if (!pfxPath) {
-    const error = new Error('AEAT_TEST_PFX_PATH is required for live submission');
-    error.code = 'VF_AEAT_GATE_PFX_PATH_REQUIRED';
-    throw error;
-  }
-
-  const pfx = await readFile(pfxPath);
-  const passphrase = await resolvePfxPassphrase(process.env);
-  try {
-    createSecureContext({ pfx, passphrase });
-  } catch {
-    const error = new Error('The configured PFX cannot be opened with the supplied passphrase');
-    error.code = 'VF_AEAT_GATE_PFX_INVALID';
-    throw error;
-  }
-
+  const { pfx, passphrase } = await loadPfxCredentials(process.env);
   const transport = createHttpsMtlsTransport({
     tls: { pfx, passphrase },
   });
