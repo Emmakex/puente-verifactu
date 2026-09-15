@@ -86,6 +86,21 @@ Una petición no puede mezclar obligados distintos.
 
 El recargo de equivalencia debe estar disponible a nivel de línea antes de la serialización AEAT. El formato agregado antiguo puede mantenerse para compatibilidad de ingestión, pero no sustituye el detalle requerido para remitir.
 
+## Facturas rectificativas
+
+El serializador respeta el `xs:sequence` oficial de `RegistroFacturacionAltaType`. Cuando existan esos bloques, el orden es:
+
+1. `TipoRectificativa`;
+2. `FacturasRectificadas`;
+3. `FacturasSustituidas`;
+4. `ImporteRectificacion`;
+5. `FechaOperacion` cuando se implemente;
+6. `DescripcionOperacion`.
+
+Para rectificación por sustitución (`S`), `ImporteRectificacion` incluye `BaseRectificada` y `CuotaRectificada`, y puede incluir `CuotaRecargoRectificado`. El contrato canónico expone esta última como `rectification.correctedSurchargeAmount`.
+
+Este orden está protegido por una prueba de regresión porque un XML semánticamente correcto pero fuera del `xs:sequence` puede ser rechazado por AEAT.
+
 ## Respuestas
 
 Normalización global:
