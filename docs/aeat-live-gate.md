@@ -75,7 +75,26 @@ export AEAT_TEST_PFX_PATH='/run/secrets/aeat-test.pfx'
 export AEAT_TEST_PFX_PASSPHRASE='...'
 ```
 
-No configures simultáneamente ambas fuentes de passphrase. El harness valida que el PFX puede abrirse **antes** de iniciar la conexión de red. Nunca guardes el PFX o la passphrase en Git, `.env` versionado, CI público, issue, ticket o chat.
+No configures simultáneamente ambas fuentes de passphrase. Nunca guardes el PFX o la passphrase en Git, `.env` versionado, CI público, issue, ticket o chat.
+
+### Preflight local del PFX — sin red
+
+Antes de cualquier prueba real ejecuta:
+
+```bash
+npm run aeat:cert:check
+```
+
+Este comando comparte exactamente el mismo cargador/validador de PFX que `aeat:gate -- --send`, pero **no importa ni crea transporte HTTP/mTLS y no abre ninguna conexión de red**. Comprueba que:
+
+- `AEAT_TEST_PFX_PATH` existe y puede leerse;
+- solo hay una fuente de passphrase;
+- Node/OpenSSL puede abrir el contenedor PKCS#12/PFX con la passphrase suministrada;
+- el resumen público no contiene la ruta local ni la passphrase.
+
+La salida incluye únicamente tamaño, SHA-256 del PFX, origen de la passphrase (`file`, `environment` o `none`) y `networkUsed: false`.
+
+Un resultado `ok` **no demuestra** por sí solo que el certificado esté vigente, autorizado por AEAT, corresponda al obligado o sea aceptado por el endpoint. Es deliberadamente un preflight local del contenedor y la passphrase; la validación externa sigue siendo el issue #6.
 
 ## Caso aceptado
 
