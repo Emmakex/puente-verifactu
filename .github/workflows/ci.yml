@@ -64,6 +64,9 @@ jobs:
       - name: AEAT evidence bundle smoke
         run: npm run aeat:evidence:smoke
 
+      - name: AEAT official reconciliation smoke
+        run: npm run aeat:reconciliation:smoke
+
       - name: Durable AEAT outbox smoke
         run: npm run aeat:outbox:smoke
 
