@@ -138,7 +138,7 @@ docker run -d \
   -e MYSQL_USER=prestashop \
   -e MYSQL_PASSWORD=prestashop \
   -e MYSQL_ROOT_PASSWORD=prestashop \
-  mariadb:10.6 \
+  mariadb:lts \
   --character-set-server=utf8mb4 \
   --collation-server=utf8mb4_unicode_ci >/dev/null
 
