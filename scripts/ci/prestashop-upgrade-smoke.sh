@@ -43,7 +43,13 @@ sed -i "s/const VERSION = '0.4.0';/const VERSION = '0.3.0';/" "$BASELINE_TREE/pu
 sed -i "/PVFPrestaShopAutomation::installDefaults(\$shopId)/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
 sed -i "/registerHook('actionOrderStatusPostUpdate')/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
 sed -i "/registerHook('actionOrderSlipAdd')/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
+sed -i "/registerHook('displayAdminOrderMainBottom')/ s/$/;/" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
 rm -f "$BASELINE_TREE/puenteverifactu/upgrade/install-0.4.0.php"
+
+if ! php -l "$BASELINE_TREE/puenteverifactu/puenteverifactu.php" >/dev/null; then
+  fail "PRESTA_UPGRADE_BASELINE_SYNTAX_INVALID" "Synthetic 0.3.0 baseline is not valid PHP after removing 0.4.0 wiring."
+fi
+
 (
   cd "$BASELINE_TREE"
   zip -qr "$BASELINE_MODULES/puenteverifactu.zip" puenteverifactu
