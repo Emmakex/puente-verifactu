@@ -5,6 +5,13 @@ import { assertFiscalAppend } from '../../core/src/fiscal-record-store.mjs';
 import { fiscalOperationFingerprint } from '../../core/src/fiscal-records.mjs';
 import { sha256, stableStringify } from '../../core/src/idempotency.mjs';
 
+export {
+  createSqliteBackup,
+  inspectSqliteFile,
+  restoreSqliteBackup,
+  verifySqliteBackup,
+} from './backup.mjs';
+
 function parseJson(text) {
   return text == null ? null : JSON.parse(text);
 }

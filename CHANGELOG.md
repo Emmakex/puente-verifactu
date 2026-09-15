@@ -6,6 +6,10 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Fase 6: backup/restore verificable del store SQLite single-node mediante snapshot consistente `VACUUM INTO`, SHA-256, manifest versionado, `integrity_check` y `foreign_key_check`.
+- CLI operacional `sqlite:backup`, `sqlite:verify-backup` y `sqlite:restore`, con reemplazo in-place protegido por confirmación offline y rechazo de sidecars WAL/SHM activos.
+- Gate CI `sqlite:backup:smoke` que restaura cadena fiscal, estado/idempotencia API y sesiones de importación, demuestra snapshot point-in-time con WAL abierto y bloquea backups corruptos antes de tocar el target.
+- Documento `production-readiness.md` con gates explícitos de recuperación, outbox durable, observabilidad, runbooks, HA/multi-réplica, evidencia regulatoria y piloto.
 - Connector Contract Suite v2 aplicado como gate nativo común a WooCommerce y PrestaShop: seis escenarios equivalentes para factura y rectificativa validan reconciliación sin reemisión con `recordId`, clasificación retryable y estabilidad de idempotencia.
 - Matrices reales de aceptación transversal: WooCommerce en WP 6.5/WC 8.2/PHP 7.4, WP 7.0.4/WC 11.0.1/PHP 8.2 y WP 7.1/WC 11.1/PHP 8.3; PrestaShop en 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1.
 - Excepción API tipada PrestaShop que conserva código, HTTP status, correlation ID y `retryable`, permitiendo estado local `retry_pending` sin perder `recordId` ni clave idempotente.
