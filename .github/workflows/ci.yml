@@ -55,6 +55,9 @@ jobs:
       - name: SQLite backup and restore smoke
         run: npm run sqlite:backup:smoke
 
+      - name: Durable AEAT outbox smoke
+        run: npm run aeat:outbox:smoke
+
       - name: WooCommerce connector contract
         run: npm run woo:contract
 
