@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kairoseth.com/schemas/puente-verifactu/mapping-profile.v1.schema.json",
+  "title": "Puente VeriFactu MappingProfile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["profileVersion", "id", "name", "sourceType", "fields"],
+  "properties": {
+    "profileVersion": { "const": 1 },
+    "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "sourceType": { "enum": ["csv", "xlsx", "json", "webhook", "api", "native"] },
+    "locale": { "type": "string", "maxLength": 16 },
+    "fields": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "transforms": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "enum": ["trim", "upper", "lower", "decimal_comma", "date_dmy"]
+        }
+      }
+    },
+    "constants": { "type": "object" },
+    "defaults": { "type": "object" }
+  }
+}

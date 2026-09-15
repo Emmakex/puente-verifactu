@@ -1,0 +1,53 @@
+{
+  "profileVersion": 1,
+  "id": "demo-csv-es",
+  "name": "CSV español de demostración",
+  "sourceType": "csv",
+  "locale": "es-ES",
+  "fields": {
+    "Factura": "number",
+    "Serie": "series",
+    "Fecha factura": "issueDate",
+    "Tipo factura": "invoiceType",
+    "NIF Cliente": "recipients.0.taxId",
+    "Cliente": "recipients.0.name",
+    "Descripcion": "description",
+    "Base imponible": "taxBreakdown.0.baseAmount",
+    "IVA %": "taxBreakdown.0.rate",
+    "Cuota IVA": "taxBreakdown.0.taxAmount",
+    "Total": "totals.totalAmount"
+  },
+  "transforms": {
+    "Factura": ["trim"],
+    "Serie": ["trim"],
+    "Fecha factura": ["trim", "date_dmy"],
+    "Tipo factura": ["trim", "upper"],
+    "NIF Cliente": ["trim", "upper"],
+    "Cliente": ["trim"],
+    "Descripcion": ["trim"],
+    "Base imponible": ["trim", "decimal_comma"],
+    "IVA %": ["trim", "decimal_comma"],
+    "Cuota IVA": ["trim", "decimal_comma"],
+    "Total": ["trim", "decimal_comma"]
+  },
+  "constants": {
+    "schemaVersion": 1,
+    "operation": "issue",
+    "organizationId": "org_demo",
+    "installationId": "install_demo_csv",
+    "sourceSystem": "generic-csv",
+    "issuer": {
+      "name": "Empresa Demo SL",
+      "taxId": "B00000000"
+    },
+    "currency": "EUR",
+    "taxBreakdown": [
+      {
+        "taxCode": "01",
+        "regimeKey": "01",
+        "operationClass": "S1"
+      }
+    ]
+  },
+  "defaults": {}
+}

@@ -2,7 +2,7 @@
 
 Regla: **finish before advancing**.
 
-## Fase 0 — Foundation
+## Fase 0 — Foundation ✅
 
 - [x] Documentación base.
 - [x] Decisiones arquitectónicas iniciales.
@@ -11,21 +11,25 @@ Regla: **finish before advancing**.
 - [x] CI mínimo con diagnóstico estructurado.
 - [x] Política de ramas/PR.
 
-**Salida:** repositorio preparado para desarrollar sin decisiones fundamentales implícitas.
+**Salida cumplida:** repositorio preparado para desarrollar sin decisiones fundamentales implícitas.
 
 ## Fase 1 — Canonical Core
 
-- modelo canónico v1;
-- schema y validaciones;
-- `MappingProfile` v1;
-- preflight sin efectos;
-- decimal exacto;
-- máquina de estados;
-- idempotencia;
-- persistencia append-only lógica;
-- fixtures comunes a todos los canales.
+- [x] Modelo canónico `InvoiceIntent v1`.
+- [x] Schemas versionados.
+- [x] Validaciones estructurales y de consistencia.
+- [x] `MappingProfile v1`.
+- [x] Inferencia de cabeceras ES/EN.
+- [x] Preflight sin efectos.
+- [x] Decimal exacto.
+- [x] Máquina de estados.
+- [x] Idempotencia y conflicto por huella.
+- [x] Persistencia append-only de referencia en memoria.
+- [x] Fixture CSV común y smoke de CI.
 
-**Salida:** una misma factura produce la misma intención fiscal independientemente de si llega por archivo, webhook, API o conector.
+**Criterio de salida:** tests + preflight CSV + CI deben estar verdes antes de marcar esta fase cerrada en `main`.
+
+**Salida funcional:** una misma factura puede producir la misma intención canónica independientemente del canal de entrada.
 
 ## Fase 2 — Hash & Fiscal Records
 
@@ -51,6 +55,7 @@ Regla: **finish before advancing**.
 - API/SDK estable;
 - webhook low-code;
 - importador CSV y mapping UI/contract;
+- XLSX;
 - suite contractual;
 - conector de referencia.
 

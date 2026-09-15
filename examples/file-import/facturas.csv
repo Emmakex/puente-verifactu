@@ -1,0 +1,3 @@
+Factura;Serie;Fecha factura;Tipo factura;NIF Cliente;Cliente;Descripcion;Base imponible;IVA %;Cuota IVA;Total
+1001;A;15/09/2026;F1;B12345678;Cliente Demo SL;Servicio de prueba;100,00;21;21,00;121,00
+1002;A;15/09/2026;F1;B87654321;Otra Empresa SL;Mantenimiento mensual;200,00;21;42,00;242,00
