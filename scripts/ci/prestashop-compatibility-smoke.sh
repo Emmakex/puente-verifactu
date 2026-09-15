@@ -82,14 +82,16 @@ if (!class_exists('PVFPrestaShopOrderPayload') || !class_exists('PVFPrestaShopTa
 }
 
 $table = _DB_PREFIX_ . 'pvf_order_sync';
-$tableExists = Db::getInstance()->getValue("SHOW TABLES LIKE '" . pSQL($table) . "'");
-if (!$tableExists) {
+$tableExists = (int) Db::getInstance()->getValue(
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '" . pSQL($table) . "'"
+);
+if ($tableExists !== 1) {
     pvfFail('PRESTA_SYNC_TABLE_MISSING', 'Connector sync table was not created.');
 }
 
 $orderId = (int) Db::getInstance()->getValue(
     'SELECT `id_order` FROM `' . _DB_PREFIX_ . 'order_invoice` '
-    . 'WHERE `number` > 0 GROUP BY `id_order` HAVING COUNT(*) = 1 ORDER BY `id_order` ASC LIMIT 1'
+    . 'WHERE `number` > 0 GROUP BY `id_order` HAVING COUNT(*) = 1 ORDER BY `id_order` ASC'
 );
 if ($orderId <= 0) {
     pvfFail('PRESTA_SEED_INVOICE_MISSING', 'Flashlight seed contains no single-invoice order for the smoke test.');
