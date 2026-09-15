@@ -5,7 +5,7 @@
   "description": "Chameleon integration bridge for VERI*FACTU / AEAT",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "check": "node scripts/ci/repo-check.mjs",
@@ -14,6 +14,9 @@
     "mapping:demo": "node connectors/file-import/src/cli.mjs --file examples/file-import/facturas.csv --infer",
     "onboarding:smoke": "node scripts/ci/onboarding-smoke.mjs",
     "contract:reference": "node packages/connector-contract-suite/src/cli.mjs --module ./connectors/reference/contract.mjs",
+    "runtime:smoke": "node --test apps/server/test/*.test.mjs packages/sqlite-store/test/*.test.mjs",
+    "server": "node apps/server/src/main.mjs",
+    "auth:hash": "node scripts/auth/hash-credential.mjs",
     "aeat:gate": "node scripts/aeat/live-gate.mjs"
   }
 }
