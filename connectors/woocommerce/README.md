@@ -21,14 +21,14 @@ XML AEAT, certificados, hash, cadena, `invoiceType`, `R1–R5`, `S/I`, régimen 
 - WordPress 6.5+;
 - PHP 7.4+;
 - WooCommerce 8.2+;
-- validado inicialmente contra WooCommerce 11.1;
+- validado contra WooCommerce 8.2, 11.0 y 11.1 en la matriz real;
 - HPOS declarado compatible;
 - columnas de estado compatibles con HPOS y tabla legacy;
 - no usa `get_post_meta`, `update_post_meta` ni acceso directo a tablas de pedidos.
 
-WooCommerce recomienda CRUD para mantener compatibilidad con HPOS; el conector sigue esa regla en pedidos y `WC_Order_Refund`.
+WooCommerce recomienda CRUD para mantener compatibilidad con HPOS; el conector sigue esa regla en pedidos y `WC_Order_Refund`. Los helpers compartidos de reconciliación/persistencia trabajan sobre `WC_Abstract_Order`, de modo que funcionan tanto con pedidos como con las implementaciones HPOS de refunds.
 
-La matriz CI completa y las versiones vigentes se documentan en `docs/woocommerce-compatibility.md`. El gate instala el ZIP real sobre WordPress + WooCommerce, activa HPOS y ejecuta un smoke de pedido CRUD.
+La matriz CI completa y las versiones vigentes se documentan en `docs/woocommerce-compatibility.md`. El gate instala el ZIP real sobre WordPress + WooCommerce, activa HPOS, ejecuta un smoke CRUD y aplica Connector Contract Suite v2 sobre factura y refund.
 
 ## Configuración
 
@@ -135,6 +135,18 @@ store status on WC_Order_Refund
 
 Action Scheduler se usa cuando está inicializado; existe fallback a WP-Cron para no ejecutar HTTP dentro del evento síncrono de WooCommerce.
 
+## Reconciliación y Contract Suite v2
+
+Para pedido y refund se aplica la misma regla transversal:
+
+- si ya existe `recordId`, solo se hace `GET /v1/fiscal-records/{recordId}`;
+- un fallo de reconciliación, incluso `retryable`, **nunca** cae en una nueva emisión;
+- un fallo no retryable conserva la identidad existente y deja estado revisable;
+- una operación nueva siempre pasa por preflight;
+- los reintentos de una operación nueva reutilizan exactamente la misma clave de idempotencia.
+
+El gate nativo ejecuta seis escenarios comunes de factura/refund dentro de cada instalación real de la matriz. La cobertura validada es WordPress 6.5/WooCommerce 8.2/PHP 7.4, WordPress 7.0.4/WooCommerce 11.0.1/PHP 8.2 y WordPress 7.1/WooCommerce 11.1/PHP 8.3.
+
 ## Semáforo operativo
 
 El listado de pedidos añade una columna `VeriFactu` tanto en HPOS como en la tabla legacy:
@@ -193,6 +205,8 @@ La moneda comercial viene del objeto Woo. Si no es EUR, Puente busca una convers
 
 Los fallos técnicos marcados `retryable` se reintentan hasta cinco intentos con backoff. Los errores de validación/preflight quedan bloqueados para intervención humana. Al agotar reintentos, el estado pasa a `blocked`.
 
+Los reintentos nunca cambian la identidad de una operación ya iniciada. Si existe `recordId`, se reconcilia; si aún no existe, se conserva la misma clave idempotente.
+
 ## Metadata WooCommerce
 
 En pedido y refund se usa exclusivamente CRUD:
@@ -223,4 +237,6 @@ Si una actualización de WooCommerce rompe temporalmente el conector, el negocio
 
 ## Estado dentro de Fase 5
 
-El bloque WooCommerce queda técnicamente cerrado: facturas ordinarias, rectificativas por refund, semáforo operativo, compatibilidad empaquetada y conversión fiscal EUR server-side están cubiertos. El siguiente conector nativo es PrestaShop.
+El bloque WooCommerce está técnicamente cerrado y su aceptación transversal también: factura ordinaria, refunds rectificativos, semáforo, packaging, conversión EUR server-side y Connector Contract Suite v2 están cubiertos en la matriz real. Fase 5 queda cerrada junto con PrestaShop `0.4.0`.
+
+El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real o release.

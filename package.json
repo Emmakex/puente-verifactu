@@ -14,6 +14,7 @@
     "mapping:demo": "node connectors/file-import/src/cli.mjs --file examples/file-import/facturas.csv --infer",
     "onboarding:smoke": "node scripts/ci/onboarding-smoke.mjs",
     "contract:reference": "node packages/connector-contract-suite/src/cli.mjs --module ./connectors/reference/contract.mjs",
+    "native:contract:v2": "node scripts/ci/native-connector-contract-v2-check.mjs",
     "runtime:smoke": "node --test apps/server/test/*.test.mjs packages/sqlite-store/test/*.test.mjs",
     "woo:contract": "node scripts/ci/woocommerce-connector-check.mjs",
     "woo:package": "node scripts/release/package-woocommerce.mjs",

@@ -106,26 +106,47 @@ final class PVFPrestaShopAutomation
         $client = new PVFPrestaShopClient($settings);
         $payload = PVFPrestaShopOrderPayload::build($order, $settings);
         $idempotencyKey = self::orderIdempotencyKey($order, $payload);
-        $preflight = $client->preflight($payload);
-        if (empty($preflight['ok'])) {
-            self::saveOrderSync($order, '', $idempotencyKey, 'blocked', 'Automatic preflight blocked');
-            return;
-        }
 
-        $result = $client->issue($payload, $idempotencyKey);
-        if (empty($result['recordId'])) {
-            throw new RuntimeException('Puente VeriFactu did not return a record ID.');
+        try {
+            $preflight = $client->preflight($payload);
+            if (empty($preflight['ok'])) {
+                self::saveOrderSync($order, '', $idempotencyKey, 'blocked', 'Automatic preflight blocked');
+                return;
+            }
+
+            $result = $client->issue($payload, $idempotencyKey);
+            if (empty($result['recordId'])) {
+                throw new RuntimeException('Puente VeriFactu did not return a record ID.');
+            }
+            $status = isset($result['status']) ? (string) $result['status'] : 'created';
+            self::saveOrderSync($order, (string) $result['recordId'], $idempotencyKey, $status, '');
+        } catch (PVFPrestaShopApiException $exception) {
+            self::saveOrderSync(
+                $order,
+                '',
+                $idempotencyKey,
+                self::apiFailureStatus($exception),
+                self::safeMessage($exception)
+            );
         }
-        $status = isset($result['status']) ? (string) $result['status'] : 'created';
-        self::saveOrderSync($order, (string) $result['recordId'], $idempotencyKey, $status, '');
     }
 
     private static function reconcileOrder(Module $module, Order $order, array $existing)
     {
         $client = new PVFPrestaShopClient(self::invoiceSettings($module, (int) $order->id_shop));
-        $result = $client->status((string) $existing['record_id']);
-        $status = isset($result['status']) ? (string) $result['status'] : 'unknown';
-        self::saveOrderSync($order, (string) $existing['record_id'], (string) $existing['idempotency_key'], $status, '');
+        try {
+            $result = $client->status((string) $existing['record_id']);
+            $status = isset($result['status']) ? (string) $result['status'] : 'unknown';
+            self::saveOrderSync($order, (string) $existing['record_id'], (string) $existing['idempotency_key'], $status, '');
+        } catch (PVFPrestaShopApiException $exception) {
+            self::saveOrderSync(
+                $order,
+                (string) $existing['record_id'],
+                (string) $existing['idempotency_key'],
+                self::apiFailureStatus($exception),
+                self::safeMessage($exception)
+            );
+        }
     }
 
     private static function issueSlip(Module $module, Order $order, OrderSlip $slip)
@@ -143,18 +164,31 @@ final class PVFPrestaShopAutomation
         $client = new PVFPrestaShopClient($settings);
         $payload = PVFPrestaShopOrderSlipPayload::build($slip, $order, array('shop_id' => $shopId));
         $idempotencyKey = self::slipIdempotencyKey($shopId, $slip, $payload);
-        $preflight = $client->preflight($payload);
-        if (empty($preflight['ok'])) {
-            self::saveSlipSync($shopId, (int) $order->id, (int) $slip->id, '', $idempotencyKey, 'blocked', 'Automatic corrective preflight blocked');
-            return;
-        }
 
-        $result = $client->issue($payload, $idempotencyKey);
-        if (empty($result['recordId'])) {
-            throw new RuntimeException('Puente VeriFactu did not return a corrective record ID.');
+        try {
+            $preflight = $client->preflight($payload);
+            if (empty($preflight['ok'])) {
+                self::saveSlipSync($shopId, (int) $order->id, (int) $slip->id, '', $idempotencyKey, 'blocked', 'Automatic corrective preflight blocked');
+                return;
+            }
+
+            $result = $client->issue($payload, $idempotencyKey);
+            if (empty($result['recordId'])) {
+                throw new RuntimeException('Puente VeriFactu did not return a corrective record ID.');
+            }
+            $status = isset($result['status']) ? (string) $result['status'] : 'created';
+            self::saveSlipSync($shopId, (int) $order->id, (int) $slip->id, (string) $result['recordId'], $idempotencyKey, $status, '');
+        } catch (PVFPrestaShopApiException $exception) {
+            self::saveSlipSync(
+                $shopId,
+                (int) $order->id,
+                (int) $slip->id,
+                '',
+                $idempotencyKey,
+                self::apiFailureStatus($exception),
+                self::safeMessage($exception)
+            );
         }
-        $status = isset($result['status']) ? (string) $result['status'] : 'created';
-        self::saveSlipSync($shopId, (int) $order->id, (int) $slip->id, (string) $result['recordId'], $idempotencyKey, $status, '');
     }
 
     private static function reconcileSlip(Module $module, Order $order, OrderSlip $slip, array $existing)
@@ -164,17 +198,34 @@ final class PVFPrestaShopAutomation
             return;
         }
         $client = new PVFPrestaShopClient($settings);
-        $result = $client->status((string) $existing['record_id']);
-        $status = isset($result['status']) ? (string) $result['status'] : 'unknown';
-        self::saveSlipSync(
-            (int) $order->id_shop,
-            (int) $order->id,
-            (int) $slip->id,
-            (string) $existing['record_id'],
-            (string) $existing['idempotency_key'],
-            $status,
-            ''
-        );
+        try {
+            $result = $client->status((string) $existing['record_id']);
+            $status = isset($result['status']) ? (string) $result['status'] : 'unknown';
+            self::saveSlipSync(
+                (int) $order->id_shop,
+                (int) $order->id,
+                (int) $slip->id,
+                (string) $existing['record_id'],
+                (string) $existing['idempotency_key'],
+                $status,
+                ''
+            );
+        } catch (PVFPrestaShopApiException $exception) {
+            self::saveSlipSync(
+                (int) $order->id_shop,
+                (int) $order->id,
+                (int) $slip->id,
+                (string) $existing['record_id'],
+                (string) $existing['idempotency_key'],
+                self::apiFailureStatus($exception),
+                self::safeMessage($exception)
+            );
+        }
+    }
+
+    private static function apiFailureStatus(PVFPrestaShopApiException $exception)
+    {
+        return $exception->isRetryable() ? 'retry_pending' : 'blocked';
     }
 
     private static function enabled($key, $shopId)

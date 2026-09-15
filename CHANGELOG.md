@@ -6,6 +6,10 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Connector Contract Suite v2 aplicado como gate nativo común a WooCommerce y PrestaShop: seis escenarios equivalentes para factura y rectificativa validan reconciliación sin reemisión con `recordId`, clasificación retryable y estabilidad de idempotencia.
+- Matrices reales de aceptación transversal: WooCommerce en WP 6.5/WC 8.2/PHP 7.4, WP 7.0.4/WC 11.0.1/PHP 8.2 y WP 7.1/WC 11.1/PHP 8.3; PrestaShop en 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1.
+- Excepción API tipada PrestaShop que conserva código, HTTP status, correlation ID y `retryable`, permitiendo estado local `retry_pending` sin perder `recordId` ni clave idempotente.
+- Corrección WooCommerce/HPOS para reconciliación y persistencia compartida de pedidos y refunds mediante `WC_Abstract_Order`, detectada por el gate transversal v2.
 - PrestaShop `0.4.0`: automatización opt-in por tienda para facturas y abonos mediante `actionOrderStatusPostUpdate` y `actionOrderSlipAdd`, con ambos modos desactivados por defecto.
 - Flujo automático PrestaShop que reutiliza preflight, idempotencia y reconciliación; un `recordId` existente se reconcilia en vez de reemitirse y las rectificativas siguen exigiendo factura original + MappingProfile separado.
 - Upgrade real `0.3.0 → 0.4.0` preservando estado principal/rectificativo, registrando ambos hooks y manteniendo los switches en OFF; la matriz real verifica además ausencia de efectos laterales mientras la automatización está desactivada.
