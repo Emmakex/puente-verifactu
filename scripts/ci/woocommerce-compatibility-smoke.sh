@@ -72,4 +72,6 @@ if ( "accepted" !== $reloaded->get_meta( PV_Woo_Connector::META_STATUS, true ) )
 echo "PV_WOO_COMPAT_OK\n";
 '
 
-printf '{"schema_version":1,"status":"ok","check":"woocommerce-compatibility","wordpress":"%s","woocommerce":"%s"}\n' "$WP_VERSION" "$WOO_VERSION"
+wp eval-file --path="$WP_PATH" "$ROOT/scripts/ci/woocommerce-native-reconciliation-v2.php"
+
+printf '{"schema_version":2,"status":"ok","check":"woocommerce-compatibility-and-native-reconciliation-v2","wordpress":"%s","woocommerce":"%s"}\n' "$WP_VERSION" "$WOO_VERSION"
