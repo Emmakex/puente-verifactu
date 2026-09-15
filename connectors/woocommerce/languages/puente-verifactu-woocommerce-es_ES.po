@@ -18,6 +18,9 @@ msgstr "No tienes permisos para cambiar estos ajustes."
 msgid "The Puente URL must use HTTPS."
 msgstr "La URL de Puente debe usar HTTPS."
 
+msgid "Invoice number meta key is required when that source is selected."
+msgstr "La meta-key del número de factura es obligatoria cuando se selecciona esa fuente."
+
 msgid "The API token could not be encrypted on this server."
 msgstr "No se pudo cifrar el token de API en este servidor."
 
@@ -44,6 +47,27 @@ msgstr "No configurado"
 
 msgid "Remove stored token"
 msgstr "Eliminar token guardado"
+
+msgid "Invoice number source"
+msgstr "Fuente del número de factura"
+
+msgid "Not configured — preflight will block"
+msgstr "Sin configurar — el preflight bloqueará el envío"
+
+msgid "Order meta key from an invoice plugin"
+msgstr "Meta-key del pedido de un plugin de facturación"
+
+msgid "WooCommerce order number (explicitly use as invoice number)"
+msgstr "Número de pedido de WooCommerce (usar explícitamente como número de factura)"
+
+msgid "WooCommerce orders are not automatically fiscal invoices. Choose the real invoice numbering source explicitly."
+msgstr "Los pedidos de WooCommerce no son automáticamente facturas fiscales. Elige explícitamente la fuente real de numeración de facturas."
+
+msgid "Invoice number meta key"
+msgstr "Meta-key del número de factura"
+
+msgid "Required only when using an existing invoice plugin/meta field."
+msgstr "Solo es obligatoria cuando se utiliza un plugin de facturación o campo meta existente."
 
 msgid "Automatic statuses"
 msgstr "Estados automáticos"
