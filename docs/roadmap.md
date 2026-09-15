@@ -132,7 +132,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Extracción fiscal a nivel `OrderInvoice` usando breakdowns nativos de productos, portes y wrapping.
 - [x] Reconciliación al céntimo y fallback explícito para base residual al 0 %, sin inventar cuotas.
 - [x] Fixtures de descuentos, portes, wrapping, múltiples tipos de IVA, envío gratuito y redondeo.
-- [ ] Matriz real de CI PrestaShop 1.7.8.x / 8.x con instalación del módulo.
+- [x] Matriz real de CI con instalación del módulo y payload desde factura nativa en PrestaShop 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1.
 - [ ] Estado/semáforo integrado en la ficha nativa del pedido.
 - [ ] Abonos/rectificativas idempotentes con perfil fiscal separado.
 - [ ] Automatización opt-in de eventos solo después de validar el flujo manual.
@@ -143,7 +143,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [ ] Reconciliación/fallback end-to-end común entre conectores.
 - [ ] Tests de compatibilidad y Connector Contract Suite para cada extensión.
 
-**Estado:** WooCommerce queda técnicamente cerrado dentro de Fase 5. PrestaShop tiene ya foundation, extractor fiscal reforzado y fixtures deterministas; el siguiente gate es la matriz real de instalación PrestaShop 1.7.8.x/8.x. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
+**Estado:** WooCommerce queda técnicamente cerrado dentro de Fase 5. PrestaShop tiene foundation, extractor fiscal reforzado, fixtures deterministas y matriz real de instalación validada en 1.7.8.11, 8.1.7 y 8.2.7. El siguiente gate es el paquete ZIP reproducible con instalación/upgrade smoke. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
 
 **Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre previo del gate AEAT #6 antes de cualquier piloto fiscal real.
 

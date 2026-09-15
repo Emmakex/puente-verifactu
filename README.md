@@ -2,7 +2,7 @@
 
 **Puente VeriFactu** es la capa de integración fiscal de Kairoseth Extensions para conectar sistemas de facturación, ERP, CRM, ecommerce, hojas de cálculo y software propio con **VERI*FACTU / AEAT** sin obligar al negocio a sustituir lo que ya utiliza.
 
-> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 en desarrollo con WooCommerce técnicamente cerrado y PrestaShop avanzando con foundation manual segura, extracción fiscal basada en `OrderInvoice`, fixtures de descuentos/portes/wrapping/multirate y gates CI. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
+> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 en desarrollo con WooCommerce técnicamente cerrado y PrestaShop avanzado hasta foundation manual segura, extracción fiscal basada en `OrderInvoice`, fixtures fiscales y matriz real de instalación validada en 1.7.8.11, 8.1.7 y 8.2.7. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
 
 ## Principio Camaleón
 
@@ -69,7 +69,7 @@ Documentación revisada el **15 de septiembre de 2026**. Antes de cada release c
 
 ## Desarrollo
 
-Requiere Node.js 22.13+ para las herramientas actuales del repositorio. Los gates de conectores validan además sintaxis PHP 7.4; WooCommerce dispone ya de matriz real WordPress/WooCommerce y ZIP reproducible, mientras PrestaShop dispone de contrato estático y fixtures fiscales antes de añadir su matriz de instalación real.
+Requiere Node.js 22.13+ para las herramientas actuales del repositorio. Los gates de conectores validan además sintaxis PHP 7.4. WooCommerce dispone de matriz real WordPress/WooCommerce y ZIP reproducible. PrestaShop dispone de contrato estático, fixtures fiscales y matriz real de instalación en PrestaShop 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1; su siguiente gate es el ZIP reproducible con instalación/upgrade smoke.
 
 ```bash
 npm run check

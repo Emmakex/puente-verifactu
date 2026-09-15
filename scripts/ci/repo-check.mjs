@@ -5,6 +5,7 @@ const requiredPaths = [
   'SECURITY.md',
   'CONTRIBUTING.md',
   '.env.example',
+  '.github/workflows/ci.yml',
   'docs/architecture.md',
   'docs/integration-strategy.md',
   'docs/onboarding-integration.md',
@@ -64,6 +65,7 @@ const requiredPaths = [
   'scripts/ci/woocommerce-compatibility-smoke.sh',
   'scripts/ci/prestashop-connector-check.mjs',
   'scripts/ci/prestashop-tax-fixtures.php',
+  'scripts/ci/prestashop-compatibility-smoke.sh',
   'scripts/release/package-woocommerce.mjs'
 ];
 
@@ -112,6 +114,19 @@ try {
 const readme = existsSync('README.md') ? readFileSync('README.md', 'utf8') : '';
 if (!readme.includes('Principio Camaleón')) {
   failures.push({ code: 'REPO_PRODUCT_PRINCIPLE_MISSING', expected: 'Principio Camaleón in README.md' });
+}
+
+const ci = existsSync('.github/workflows/ci.yml') ? readFileSync('.github/workflows/ci.yml', 'utf8') : '';
+for (const marker of [
+  'prestashop-compatibility:',
+  "prestashop: '1.7.8.11'",
+  "prestashop: '8.1.7'",
+  "prestashop: '8.2.7'",
+  'scripts/ci/prestashop-compatibility-smoke.sh'
+]) {
+  if (!ci.includes(marker)) {
+    failures.push({ code: 'REPO_PRESTASHOP_COMPATIBILITY_GATE_MISSING', marker });
+  }
 }
 
 if (failures.length > 0) {

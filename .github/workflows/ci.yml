@@ -122,3 +122,31 @@ jobs:
           WP_VERSION: ${{ matrix.wordpress }}
           WOO_VERSION: ${{ matrix.woocommerce }}
         run: bash scripts/ci/woocommerce-compatibility-smoke.sh
+
+  prestashop-compatibility:
+    name: PrestaShop compatibility / PS ${{ matrix.prestashop }} / PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - prestashop: '1.7.8.11'
+            php: '7.4'
+            image: 'prestashop/prestashop-flashlight:1.7.8.11-7.4'
+          - prestashop: '8.1.7'
+            php: '8.1'
+            image: 'prestashop/prestashop-flashlight:8.1.7-8.1'
+          - prestashop: '8.2.7'
+            php: '8.1'
+            image: 'prestashop/prestashop-flashlight:8.2.7-8.1-fpm-alpine3.21-nginx'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install module and build real invoice payload
+        env:
+          PRESTASHOP_IMAGE: ${{ matrix.image }}
+          PRESTASHOP_VERSION: ${{ matrix.prestashop }}
+          PRESTASHOP_PHP: ${{ matrix.php }}
+        run: bash scripts/ci/prestashop-compatibility-smoke.sh
