@@ -108,18 +108,28 @@ function normalizedApiResponse(response, rate) {
   return { status: response?.status ?? 500, headers, payload };
 }
 
+function rateHeaders(rate) {
+  return {
+    'x-ratelimit-limit': String(rate.limit),
+    'x-ratelimit-remaining': String(rate.remaining),
+    'x-ratelimit-reset': String(Math.ceil(rate.resetAt / 1000)),
+  };
+}
+
 export function createPuenteHttpServer({
   apiHandler,
   authenticateHttp,
   rateLimiter,
   onboardingDir,
   readiness = async () => ({ ok: true }),
+  operationalStatus = async () => ({ schemaVersion: 1, summary: { status: 'ok', critical: 0, warning: 0 } }),
   maxBodyBytes = 6 * 1024 * 1024,
 } = {}) {
   if (typeof apiHandler !== 'function') throw new TypeError('apiHandler is required');
   if (typeof authenticateHttp !== 'function') throw new TypeError('authenticateHttp is required');
   if (!rateLimiter || typeof rateLimiter.consume !== 'function') throw new TypeError('rateLimiter is required');
   if (!onboardingDir) throw new TypeError('onboardingDir is required');
+  if (typeof operationalStatus !== 'function') throw new TypeError('operationalStatus must be a function');
 
   return createServer(async (req, res) => {
     const path = pathname(req);
@@ -151,6 +161,19 @@ export function createPuenteHttpServer({
           'x-ratelimit-remaining': '0',
           'x-ratelimit-reset': String(Math.ceil(rate.resetAt / 1000)),
         });
+      }
+
+      if (path === '/v1/ops/status') {
+        if (!authContext.permissions?.includes('ops:read')) {
+          return sendJson(res, 403, errorEnvelope('VF_OPS_FORBIDDEN', 'Operational status requires ops:read permission'), rateHeaders(rate));
+        }
+        if (method !== 'GET') {
+          return sendJson(res, 405, errorEnvelope('VF_HTTP_METHOD_NOT_ALLOWED', 'Method not allowed'), {
+            allow: 'GET',
+            ...rateHeaders(rate),
+          });
+        }
+        return sendJson(res, 200, await operationalStatus(), rateHeaders(rate));
       }
 
       if ((method === 'GET' || method === 'HEAD') && await serveStatic(res, onboardingDir, path, method)) return;
