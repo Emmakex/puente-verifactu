@@ -133,7 +133,7 @@ export class AeatOfficialReconciler {
     this.clock = clock;
   }
 
-  async inspect(jobId) {
+  async inspect(jobId, { apply = true } = {}) {
     const job = this.outbox.get(jobId);
     if (!job) throw reconciliationError('VF_AEAT_OUTBOX_JOB_NOT_FOUND', 'Outbox job not found');
     if (job.state !== 'reconciliation_required') {
@@ -167,16 +167,18 @@ export class AeatOfficialReconciler {
       allReceived,
       shouldReissue: false,
       inspectedAt: this.clock(),
+      applied: false,
       entries: results,
     };
 
-    if (!allReceived) return { job: this.outbox.get(jobId), assessment };
+    if (!allReceived || !apply) return { job: this.outbox.get(jobId), assessment };
 
+    const appliedAssessment = { ...assessment, applied: true };
     const resolved = this.outbox.resolveReconciliation(jobId, {
       action: 'complete',
-      result: assessment,
+      result: appliedAssessment,
       now: this.clock(),
     });
-    return { job: resolved, assessment };
+    return { job: resolved, assessment: appliedAssessment };
   }
 }
