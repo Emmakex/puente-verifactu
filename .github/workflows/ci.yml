@@ -36,3 +36,6 @@ jobs:
 
       - name: Zero-code onboarding smoke
         run: npm run onboarding:smoke
+
+      - name: Third-party connector contract smoke
+        run: npm run contract:reference
