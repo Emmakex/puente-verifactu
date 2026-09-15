@@ -48,8 +48,11 @@ if (!$module || empty($module->active) || (string) $module->version !== '0.4.0')
 if (!$module->isRegisteredInHook('actionOrderSlipAdd')) {
     pvfRectFail('PRESTA_RECT_AUTO_HOOK_MISSING', 'actionOrderSlipAdd must be registered.');
 }
-if (!class_exists('PVFPrestaShopOrderSlipPayload') || !class_exists('PVFPrestaShopRectifications') || !class_exists('PVFPrestaShopAutomation')) {
-    pvfRectFail('PRESTA_RECT_RUNTIME_CLASSES_MISSING', 'Corrective runtime classes were not loaded.');
+if (!class_exists('PVFPrestaShopOrderSlipPayload')
+    || !class_exists('PVFPrestaShopRectifications')
+    || !class_exists('PVFPrestaShopAutomation')
+    || !class_exists('PVFPrestaShopApiException')) {
+    pvfRectFail('PRESTA_RECT_RUNTIME_CLASSES_MISSING', 'Corrective/native reconciliation runtime classes were not loaded.');
 }
 
 $table = _DB_PREFIX_ . 'pvf_order_slip_sync';
@@ -199,10 +202,146 @@ if (strpos($statusHtml, 'corrective-smoke-record') === false || strpos($statusHt
     pvfRectFail('PRESTA_RECT_STATUS_RENDER_FAILED', 'Corrective accepted state did not render in the native order page.');
 }
 
+// Connector Contract Suite v2 — native reconciliation/fallback scenarios.
+$nativeScenarios = array(
+    'invoice.existing-retryable-no-reissue',
+    'invoice.existing-nonretryable-no-reissue',
+    'invoice.new-retryable-idempotency-stable',
+    'corrective.existing-retryable-no-reissue',
+    'corrective.existing-nonretryable-no-reissue',
+    'corrective.new-retryable-idempotency-stable',
+);
+$nativePassed = array();
+$shopId = (int) $order->id_shop;
+
+$getOrderSync = function () use ($shopId, $order) {
+    $row = Db::getInstance()->getRow(
+        'SELECT * FROM `' . _DB_PREFIX_ . 'pvf_order_sync` WHERE `id_shop` = ' . $shopId
+        . ' AND `id_order` = ' . (int) $order->id
+    );
+    return is_array($row) ? $row : null;
+};
+$getSlipSync = function () use ($shopId, $slipId) {
+    $row = Db::getInstance()->getRow(
+        'SELECT * FROM `' . _DB_PREFIX_ . 'pvf_order_slip_sync` WHERE `id_shop` = ' . $shopId
+        . ' AND `id_order_slip` = ' . (int) $slipId
+    );
+    return is_array($row) ? $row : null;
+};
+$seedOrderSync = function ($recordId, $key, $status) use ($shopId, $order) {
+    return Db::getInstance()->execute(
+        'INSERT INTO `' . _DB_PREFIX_ . 'pvf_order_sync` '
+        . '(`id_shop`,`id_order`,`record_id`,`idempotency_key`,`status`,`last_error`,`date_upd`) VALUES ('
+        . $shopId . ',' . (int) $order->id . ',\'' . pSQL((string) $recordId) . '\',\''
+        . pSQL((string) $key) . '\',\'' . pSQL((string) $status) . '\',\'\',NOW()) '
+        . 'ON DUPLICATE KEY UPDATE `record_id`=VALUES(`record_id`),`idempotency_key`=VALUES(`idempotency_key`),'
+        . '`status`=VALUES(`status`),`last_error`=\'\',`date_upd`=NOW()'
+    );
+};
+$seedSlipSync = function ($recordId, $key, $status) use ($shopId, $order, $slipId) {
+    return Db::getInstance()->execute(
+        'INSERT INTO `' . _DB_PREFIX_ . 'pvf_order_slip_sync` '
+        . '(`id_shop`,`id_order`,`id_order_slip`,`record_id`,`idempotency_key`,`status`,`last_error`,`date_upd`) VALUES ('
+        . $shopId . ',' . (int) $order->id . ',' . (int) $slipId . ',\'' . pSQL((string) $recordId) . '\',\''
+        . pSQL((string) $key) . '\',\'' . pSQL((string) $status) . '\',\'\',NOW()) '
+        . 'ON DUPLICATE KEY UPDATE `id_order`=VALUES(`id_order`),`record_id`=VALUES(`record_id`),'
+        . '`idempotency_key`=VALUES(`idempotency_key`),`status`=VALUES(`status`),'
+        . '`last_error`=\'\',`date_upd`=NOW()'
+    );
+};
+$assertState = function ($row, $recordId, $key, $status, $scenario) {
+    if (!is_array($row)
+        || (string) $row['record_id'] !== (string) $recordId
+        || (string) $row['idempotency_key'] !== (string) $key
+        || (string) $row['status'] !== (string) $status) {
+        pvfRectFail('PRESTA_NATIVE_RECONCILIATION_FAILED', 'Native reconciliation v2 scenario failed: ' . $scenario);
+    }
+};
+
+Configuration::updateValue('PVF_ENDPOINT', 'https://127.0.0.1:1', false, null, $shopId);
+Configuration::updateValue('PVF_PROFILE_ID', 'native-contract-invoice', false, null, $shopId);
+Configuration::updateValue(PVFPrestaShopRectifications::CONFIG_PROFILE_ID, 'native-contract-corrective', false, null, $shopId);
+Configuration::updateValue('PVF_TIMEOUT', 5, false, null, $shopId);
+Configuration::updateValue(PVFPrestaShopAutomation::CONFIG_AUTO_INVOICES, 1, false, null, $shopId);
+Configuration::updateValue(PVFPrestaShopAutomation::CONFIG_AUTO_RECTIFICATIONS, 1, false, null, $shopId);
+PVFPrestaShopSecretStore::set('native-contract-token', $shopId);
+
+// New invoice + retryable transport failure: retry must keep the same deterministic idempotency key.
+Db::getInstance()->delete('pvf_order_sync', '`id_shop` = ' . $shopId . ' AND `id_order` = ' . (int) $order->id);
+PVFPrestaShopAutomation::handleOrderStatus($module, array('id_order' => (int) $order->id));
+$invoiceRetryOne = $getOrderSync();
+if (!is_array($invoiceRetryOne)
+    || (string) $invoiceRetryOne['status'] !== 'retry_pending'
+    || (string) $invoiceRetryOne['record_id'] !== ''
+    || (string) $invoiceRetryOne['idempotency_key'] === '') {
+    pvfRectFail('PRESTA_NATIVE_INVOICE_RETRY_STATE', 'New invoice retry state is invalid.');
+}
+$invoiceRetryKey = (string) $invoiceRetryOne['idempotency_key'];
+PVFPrestaShopAutomation::handleOrderStatus($module, array('id_order' => (int) $order->id));
+$invoiceRetryTwo = $getOrderSync();
+if (!is_array($invoiceRetryTwo) || (string) $invoiceRetryTwo['idempotency_key'] !== $invoiceRetryKey) {
+    pvfRectFail('PRESTA_NATIVE_INVOICE_RETRY_KEY', 'New invoice retry changed the idempotency key.');
+}
+$nativePassed[] = 'invoice.new-retryable-idempotency-stable';
+
+// Existing invoice + retryable status failure: identity must survive and no issue fallback may replace its key.
+$seedOrderSync('fr_abc123', 'invoice-existing-key', 'accepted');
+PVFPrestaShopAutomation::handleOrderStatus($module, array('id_order' => (int) $order->id));
+$assertState($getOrderSync(), 'fr_abc123', 'invoice-existing-key', 'retry_pending', 'invoice.existing-retryable-no-reissue');
+$nativePassed[] = 'invoice.existing-retryable-no-reissue';
+
+// Existing invoice + nonretryable invalid record: blocked, identity preserved, no issue fallback.
+$seedOrderSync('invalid-existing-record', 'invoice-nonretryable-key', 'accepted');
+PVFPrestaShopAutomation::handleOrderStatus($module, array('id_order' => (int) $order->id));
+$assertState($getOrderSync(), 'invalid-existing-record', 'invoice-nonretryable-key', 'blocked', 'invoice.existing-nonretryable-no-reissue');
+$nativePassed[] = 'invoice.existing-nonretryable-no-reissue';
+
+// Correctives need an original fiscal record before any new issue attempt.
+$seedOrderSync('fr_abcd01', 'original-invoice-key', 'accepted');
+
+// New corrective + retryable transport failure keeps one stable key.
+Db::getInstance()->delete('pvf_order_slip_sync', '`id_shop` = ' . $shopId . ' AND `id_order_slip` = ' . $slipId);
+PVFPrestaShopAutomation::handleOrderSlip($module, array('order' => $order, 'orderSlipCreated' => $slip));
+$slipRetryOne = $getSlipSync();
+if (!is_array($slipRetryOne)
+    || (string) $slipRetryOne['status'] !== 'retry_pending'
+    || (string) $slipRetryOne['record_id'] !== ''
+    || (string) $slipRetryOne['idempotency_key'] === '') {
+    pvfRectFail('PRESTA_NATIVE_CORRECTIVE_RETRY_STATE', 'New corrective retry state is invalid.');
+}
+$slipRetryKey = (string) $slipRetryOne['idempotency_key'];
+PVFPrestaShopAutomation::handleOrderSlip($module, array('order' => $order, 'orderSlipCreated' => $slip));
+$slipRetryTwo = $getSlipSync();
+if (!is_array($slipRetryTwo) || (string) $slipRetryTwo['idempotency_key'] !== $slipRetryKey) {
+    pvfRectFail('PRESTA_NATIVE_CORRECTIVE_RETRY_KEY', 'New corrective retry changed the idempotency key.');
+}
+$nativePassed[] = 'corrective.new-retryable-idempotency-stable';
+
+// Existing corrective + retryable status failure.
+$seedSlipSync('fr_abc456', 'corrective-existing-key', 'accepted');
+PVFPrestaShopAutomation::handleOrderSlip($module, array('order' => $order, 'orderSlipCreated' => $slip));
+$assertState($getSlipSync(), 'fr_abc456', 'corrective-existing-key', 'retry_pending', 'corrective.existing-retryable-no-reissue');
+$nativePassed[] = 'corrective.existing-retryable-no-reissue';
+
+// Existing corrective + nonretryable invalid record.
+$seedSlipSync('invalid-corrective-record', 'corrective-nonretryable-key', 'accepted');
+PVFPrestaShopAutomation::handleOrderSlip($module, array('order' => $order, 'orderSlipCreated' => $slip));
+$assertState($getSlipSync(), 'invalid-corrective-record', 'corrective-nonretryable-key', 'blocked', 'corrective.existing-nonretryable-no-reissue');
+$nativePassed[] = 'corrective.existing-nonretryable-no-reissue';
+
+sort($nativeScenarios);
+sort($nativePassed);
+if ($nativePassed !== $nativeScenarios) {
+    pvfRectFail('PRESTA_NATIVE_SCENARIOS_INCOMPLETE', 'PrestaShop did not pass every native reconciliation v2 scenario.');
+}
+
+Configuration::updateValue(PVFPrestaShopAutomation::CONFIG_AUTO_INVOICES, 0, false, null, $shopId);
+Configuration::updateValue(PVFPrestaShopAutomation::CONFIG_AUTO_RECTIFICATIONS, 0, false, null, $shopId);
+
 fwrite(STDOUT, json_encode(array(
-    'schema_version' => 1,
+    'schema_version' => 2,
     'status' => 'ok',
-    'check' => 'prestashop-real-corrective-credit-slip-smoke',
+    'check' => 'prestashop-real-corrective-and-native-reconciliation-v2',
     'prestashop' => (string) _PS_VERSION_,
     'php' => $actualPhp,
     'module' => (string) $module->version,
@@ -212,4 +351,5 @@ fwrite(STDOUT, json_encode(array(
     'tax_lines' => count($payload['tax_lines']),
     'corrective_status_card' => true,
     'automation_default_off' => true,
+    'native_reconciliation_v2' => $nativePassed,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
