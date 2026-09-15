@@ -1,9 +1,27 @@
 import https from 'node:https';
 import { AEAT_SOAP_ACTION } from './constants.mjs';
 
+export function assertServerSideTls(tls) {
+  if (!tls || typeof tls !== 'object') return tls;
+  if (typeof tls.pfx === 'string') {
+    throw Object.assign(new Error('PFX/P12 material must be supplied as Buffer, never as a serializable string'), { code: 'VF_AEAT_SECRET_SERIALIZATION_BLOCKED' });
+  }
+  if (typeof tls.key === 'string') {
+    throw Object.assign(new Error('Private key material must be supplied as Buffer, never as a serializable string'), { code: 'VF_AEAT_SECRET_SERIALIZATION_BLOCKED' });
+  }
+  return tls;
+}
+
 export function createHttpsMtlsTransport({ tls, timeoutMs = 15000 } = {}) {
+  assertServerSideTls(tls);
   if (!tls || (!tls.pfx && !(tls.cert && tls.key))) {
     throw Object.assign(new Error('AEAT mTLS transport requires pfx or cert+key credentials'), { code: 'VF_AEAT_CERTIFICATE_REQUIRED' });
+  }
+  if (tls.pfx && !Buffer.isBuffer(tls.pfx)) {
+    throw Object.assign(new Error('PFX/P12 credential must be a Buffer loaded at runtime'), { code: 'VF_AEAT_CERTIFICATE_FORMAT' });
+  }
+  if (tls.key && !Buffer.isBuffer(tls.key)) {
+    throw Object.assign(new Error('Private key must be a Buffer loaded at runtime'), { code: 'VF_AEAT_CERTIFICATE_FORMAT' });
   }
 
   return async function postXml({ url, body }) {
@@ -44,13 +62,4 @@ export function createHttpsMtlsTransport({ tls, timeoutMs = 15000 } = {}) {
       request.end(body, 'utf8');
     });
   };
-}
-
-export function assertServerSideTls(tls) {
-  for (const [key, value] of Object.entries(tls ?? {})) {
-    if (typeof value === 'string' && /BEGIN (?:RSA )?PRIVATE KEY/.test(value)) {
-      throw Object.assign(new Error(`Private key material must be supplied as Buffer, not serializable string (${key})`), { code: 'VF_AEAT_SECRET_SERIALIZATION_BLOCKED' });
-    }
-  }
-  return tls;
 }
