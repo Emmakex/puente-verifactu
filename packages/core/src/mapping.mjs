@@ -1,8 +1,8 @@
 import { MAPPING_PROFILE_VERSION } from '../../contracts/src/constants.mjs';
 import { isAmount, sumAmounts } from './decimal.mjs';
 
-const ALIASES = Object.freeze({
-  number: ['factura', 'numero factura', 'num factura', 'n factura', 'invoice number', 'invoice no', 'number'],
+export const MAPPING_ALIASES = Object.freeze({
+  number: ['factura', 'numero factura', 'num factura', 'n factura', 'nº factura', 'n° factura', 'invoice number', 'invoice no', 'number'],
   series: ['serie', 'series'],
   issueDate: ['fecha', 'fecha factura', 'fecha expedicion', 'invoice date', 'issue date'],
   invoiceType: ['tipo factura', 'tipo', 'invoice type'],
@@ -18,12 +18,13 @@ const ALIASES = Object.freeze({
   sourceInvoiceId: ['id factura', 'invoice id', 'external id'],
 });
 
-function normalizeHeader(value) {
+export function normalizeMappingHeader(value) {
   return String(value)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[º°#._-]+/g, ' ')
+    .replace(/[^a-z0-9%]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -45,9 +46,7 @@ export function setPath(target, path, value) {
     }
 
     const next = parts[index + 1];
-    if (cursor[part] === undefined) {
-      cursor[part] = typeof next === 'number' ? [] : {};
-    }
+    if (cursor[part] === undefined) cursor[part] = typeof next === 'number' ? [] : {};
     cursor = cursor[part];
   }
 
@@ -119,9 +118,7 @@ export function validateMappingProfile(profile) {
 
 export function applyMapping(row, profile) {
   const profileValidation = validateMappingProfile(profile);
-  if (!profileValidation.ok) {
-    throw new Error(`Invalid MappingProfile: ${profileValidation.errors.join('; ')}`);
-  }
+  if (!profileValidation.ok) throw new Error(`Invalid MappingProfile: ${profileValidation.errors.join('; ')}`);
 
   const result = structuredClone(profile.constants ?? {});
 
@@ -148,15 +145,15 @@ export function applyMapping(row, profile) {
 }
 
 export function inferMapping(headers) {
-  const normalizedHeaders = new Map(headers.map((header) => [normalizeHeader(header), header]));
+  const normalizedHeaders = new Map(headers.map((header) => [normalizeMappingHeader(header), header]));
   const fields = {};
   const transforms = {};
   const matchedTargets = [];
 
-  for (const [target, aliases] of Object.entries(ALIASES)) {
-    const alias = aliases.find((candidate) => normalizedHeaders.has(normalizeHeader(candidate)));
+  for (const [target, aliases] of Object.entries(MAPPING_ALIASES)) {
+    const alias = aliases.find((candidate) => normalizedHeaders.has(normalizeMappingHeader(candidate)));
     if (!alias) continue;
-    const source = normalizedHeaders.get(normalizeHeader(alias));
+    const source = normalizedHeaders.get(normalizeMappingHeader(alias));
     fields[source] = target;
     matchedTargets.push(target);
 
