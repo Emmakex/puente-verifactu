@@ -56,6 +56,27 @@ function rawBody(request) {
   return JSON.stringify(request.body ?? {});
 }
 
+function binaryBody(request) {
+  if (Buffer.isBuffer(request.rawBody)) return request.rawBody;
+  if (Buffer.isBuffer(request.body)) return request.body;
+  if (typeof request.rawBody === 'string') return Buffer.from(request.rawBody, 'binary');
+  if (typeof request.body === 'string') return Buffer.from(request.body, 'binary');
+  const error = new Error('Request body must contain raw file bytes');
+  error.code = 'VF_IMPORT_FILE_REQUIRED';
+  error.status = 400;
+  throw error;
+}
+
+function decodedHeader(headers, name, fallback = '') {
+  const value = header(headers, name);
+  if (value == null) return fallback;
+  try {
+    return decodeURIComponent(String(value));
+  } catch {
+    return String(value);
+  }
+}
+
 async function mappedProfile(resolveMappingProfile, context, profileId) {
   if (typeof resolveMappingProfile !== 'function') {
     throw Object.assign(new Error('Mapping profile resolver is unavailable'), { code: 'VF_API_MAPPING_RESOLVER_UNAVAILABLE', status: 500 });
@@ -65,7 +86,7 @@ async function mappedProfile(resolveMappingProfile, context, profileId) {
   return profile;
 }
 
-export function createApiHandler({ bridge, authenticate, resolveMappingProfile, resolveWebhookSecret } = {}) {
+export function createApiHandler({ bridge, authenticate, resolveMappingProfile, resolveWebhookSecret, imports } = {}) {
   if (!bridge) throw new TypeError('bridge is required');
   if (typeof authenticate !== 'function') throw new TypeError('authenticate is required');
 
@@ -75,6 +96,32 @@ export function createApiHandler({ bridge, authenticate, resolveMappingProfile, 
       const context = await authenticate(request);
       const method = String(request.method ?? 'GET').toUpperCase();
       const path = String(request.path ?? '/').split('?')[0];
+
+      if (method === 'POST' && path === '/v1/imports/inspect') {
+        if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
+        const headerRowRaw = header(request.headers, 'x-header-row');
+        const result = imports.inspect({
+          buffer: binaryBody(request),
+          filename: decodedHeader(request.headers, 'x-file-name', 'import'),
+          sheet: decodedHeader(request.headers, 'x-sheet', '') || undefined,
+          headerRow: headerRowRaw ? Number(headerRowRaw) : undefined,
+          locale: header(request.headers, 'accept-language')?.toLowerCase().startsWith('en') ? 'en-US' : 'es-ES',
+          context,
+        });
+        return json(201, result, correlationId);
+      }
+
+      const importMatch = path.match(/^\/v1\/imports\/(imp_[a-f0-9]{32})$/);
+      const importPreflightMatch = path.match(/^\/v1\/imports\/(imp_[a-f0-9]{32})\/preflight$/);
+      if (method === 'POST' && importPreflightMatch) {
+        if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
+        const result = imports.preflight(importPreflightMatch[1], context, parseJsonBody(request));
+        return json(200, result, correlationId);
+      }
+      if (method === 'DELETE' && importMatch) {
+        if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
+        return json(200, imports.remove(importMatch[1], context), correlationId);
+      }
 
       if (method === 'POST' && path === '/v1/preflight') {
         const body = parseJsonBody(request);
@@ -99,9 +146,7 @@ export function createApiHandler({ bridge, authenticate, resolveMappingProfile, 
       }
 
       const recordMatch = path.match(/^\/v1\/fiscal-records\/(fr_[a-f0-9]+)$/);
-      if (method === 'GET' && recordMatch) {
-        return json(200, bridge.get(recordMatch[1], context), correlationId);
-      }
+      if (method === 'GET' && recordMatch) return json(200, bridge.get(recordMatch[1], context), correlationId);
 
       const webhookMatch = path.match(/^\/v1\/webhooks\/([A-Za-z0-9._-]{1,128})$/);
       if (method === 'POST' && webhookMatch) {
