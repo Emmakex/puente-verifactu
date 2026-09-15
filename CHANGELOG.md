@@ -6,6 +6,12 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Registros fiscales internos de alta y anulación.
+- Huella AEAT SHA-256 (`TipoHuella=01`) con material exacto y salida hexadecimal en mayúsculas.
+- Fixtures oficiales AEAT para primer alta, alta encadenada y anulación encadenada.
+- Cadena única por obligado + SIF + instalación, con serialización de concurrencia.
+- Idempotencia de fiscalización y verificación de registros/cadenas.
+- Generación de timestamp con zona IANA y offset explícito.
 - `InvoiceIntent v1` y JSON Schema versionado.
 - `MappingProfile v1`, transforms limitados e inferencia de cabeceras ES/EN.
 - Preflight CSV sin efectos con reporte por fila.
