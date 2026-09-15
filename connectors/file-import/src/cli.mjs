@@ -41,7 +41,7 @@ const parseOptions = {
 if (options.infer) {
   const inspection = inspectImportFile(buffer, parseOptions);
   console.log(JSON.stringify(inspection, null, 2));
-  process.exit(inspection.assistant.safeToPreflight ? 0 : 3);
+  process.exit(0);
 }
 
 if (!options.profile) {
@@ -52,8 +52,9 @@ if (!options.profile) {
 
 const table = parseImportFile(buffer, parseOptions);
 const profileInput = JSON.parse(await readFile(options.profile, 'utf8'));
-const profile = profileInput.assistantVersion === 1
-  ? acceptMappingSuggestions(profileInput, profileInput.acceptedSources ?? [])
+const assistantReport = profileInput.assistantVersion === 1 ? profileInput : profileInput.assistant;
+const profile = assistantReport?.assistantVersion === 1
+  ? acceptMappingSuggestions(assistantReport, profileInput.acceptedSources ?? assistantReport.acceptedSources ?? [])
   : profileInput;
 const report = preflightRows(table.rows, profile);
 console.log(JSON.stringify({
