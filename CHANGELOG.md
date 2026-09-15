@@ -6,6 +6,9 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- PrestaShop `0.4.0`: automatización opt-in por tienda para facturas y abonos mediante `actionOrderStatusPostUpdate` y `actionOrderSlipAdd`, con ambos modos desactivados por defecto.
+- Flujo automático PrestaShop que reutiliza preflight, idempotencia y reconciliación; un `recordId` existente se reconcilia en vez de reemitirse y las rectificativas siguen exigiendo factura original + MappingProfile separado.
+- Upgrade real `0.3.0 → 0.4.0` preservando estado principal/rectificativo, registrando ambos hooks y manteniendo los switches en OFF; la matriz real verifica además ausencia de efectos laterales mientras la automatización está desactivada.
 - PrestaShop `0.3.0`: abonos/rectificativas nativas basadas en `OrderSlip`, con referencia obligatoria a la factura original, signos negativos e idempotencia independiente por abono.
 - MappingProfile rectificativo PrestaShop separado: `R1–R5` y tipo `S/I` permanecen exclusivamente server-side y nunca los decide el ecommerce.
 - Persistencia `pvf_order_slip_sync`, migración real `0.2.0 → 0.3.0` y estado de múltiples rectificativas integrado en la ficha nativa del pedido.
