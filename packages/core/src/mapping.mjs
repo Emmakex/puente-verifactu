@@ -12,6 +12,8 @@ const ALIASES = Object.freeze({
   'taxBreakdown.0.baseAmount': ['base imponible', 'base', 'tax base', 'net amount'],
   'taxBreakdown.0.rate': ['iva %', 'tipo iva', 'porcentaje iva', 'vat %', 'tax rate'],
   'taxBreakdown.0.taxAmount': ['cuota iva', 'iva', 'vat amount', 'tax amount'],
+  'taxBreakdown.0.surchargeRate': ['recargo equivalencia %', 'tipo recargo equivalencia', 'recargo %', 'surcharge rate'],
+  'taxBreakdown.0.surchargeAmount': ['cuota recargo equivalencia', 'recargo equivalencia', 'importe recargo', 'surcharge amount'],
   'totals.totalAmount': ['total', 'importe total', 'total factura', 'invoice total'],
   sourceInvoiceId: ['id factura', 'invoice id', 'external id'],
 });
@@ -161,7 +163,7 @@ export function inferMapping(headers) {
     const steps = ['trim'];
     if (target === 'issueDate') steps.push('date_dmy');
     if (target === 'invoiceType') steps.push('upper');
-    if (target.includes('Amount') || target.endsWith('.rate')) steps.push('decimal_comma');
+    if (target.includes('Amount') || target.endsWith('.rate') || target.endsWith('Rate')) steps.push('decimal_comma');
     transforms[source] = steps;
   }
 
