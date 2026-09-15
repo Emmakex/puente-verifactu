@@ -53,7 +53,9 @@ const requiredPaths = [
   'connectors/prestashop/classes/PVFPrestaShopSecretStore.php',
   'connectors/prestashop/classes/PVFPrestaShopClient.php',
   'connectors/prestashop/classes/PVFPrestaShopOrderPayload.php',
+  'connectors/prestashop/classes/PVFPrestaShopTaxBreakdown.php',
   'connectors/prestashop/examples/mapping-profile.json',
+  'connectors/prestashop/fixtures/tax-breakdown-v1.json',
   'packages/core/src/mapping-assistant.mjs',
   'scripts/auth/hash-credential.mjs',
   'scripts/ci/onboarding-smoke.mjs',
@@ -61,6 +63,7 @@ const requiredPaths = [
   'scripts/ci/woocommerce-package-check.mjs',
   'scripts/ci/woocommerce-compatibility-smoke.sh',
   'scripts/ci/prestashop-connector-check.mjs',
+  'scripts/ci/prestashop-tax-fixtures.php',
   'scripts/release/package-woocommerce.mjs'
 ];
 
@@ -95,6 +98,9 @@ try {
   }
   if (pkg?.scripts?.['prestashop:contract'] !== 'node scripts/ci/prestashop-connector-check.mjs') {
     failures.push({ code: 'REPO_PRESTASHOP_CONTRACT_GATE_MISSING', expected: 'prestashop:contract script' });
+  }
+  if (pkg?.scripts?.['prestashop:fixtures'] !== 'php scripts/ci/prestashop-tax-fixtures.php') {
+    failures.push({ code: 'REPO_PRESTASHOP_FIXTURE_GATE_MISSING', expected: 'prestashop:fixtures script' });
   }
   if (pkg?.scripts?.server !== 'node apps/server/src/main.mjs') {
     failures.push({ code: 'REPO_SERVER_ENTRYPOINT_MISSING', expected: 'server script' });
