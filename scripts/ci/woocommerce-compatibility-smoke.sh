@@ -42,7 +42,7 @@ if ( ! class_exists( "PV_Woo_Connector" ) || ! class_exists( "PV_Woo_Admin_Statu
 if ( ! class_exists( "\\Automattic\\WooCommerce\\Utilities\\OrderUtil" ) ) {
     throw new RuntimeException( "WooCommerce OrderUtil is unavailable" );
 }
-if ( ! \\Automattic\\WooCommerce\\Utilities\\OrderUtil::custom_orders_table_usage_is_enabled() ) {
+if ( ! \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled() ) {
     throw new RuntimeException( "HPOS was not enabled for compatibility smoke" );
 }
 if ( false === has_action( "woocommerce_order_refunded", array( PV_Woo_Connector::instance(), "order_refunded" ) ) ) {
