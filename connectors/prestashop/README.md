@@ -4,7 +4,7 @@ Conector nativo y deliberadamente fino para **PrestaShop 1.7.8.x y 8.x**. Extrae
 
 ## Estado
 
-Versión `0.4.0` con flujo manual seguro y automatización **opt-in** por tienda:
+Versión `0.4.0` con flujo manual seguro, automatización **opt-in** por tienda y aceptación transversal Connector Contract Suite v2 cerrada:
 
 - configuración por tienda para endpoint HTTPS y `MappingProfile` server-side;
 - Bearer token cifrado localmente con AES-256-GCM usando una clave derivada de `_COOKIE_KEY_`;
@@ -20,8 +20,11 @@ Versión `0.4.0` con flujo manual seguro y automatización **opt-in** por tienda
 - líneas y totales rectificativos con signo negativo;
 - automatización independiente para facturas y abonos, **desactivada por defecto**;
 - reconciliación en lugar de reemisión cuando ya existe `recordId`;
+- excepción API tipada que conserva código, HTTP status, correlation ID y `retryable`;
+- errores recuperables persistidos como `retry_pending` sin perder `recordId` ni idempotencia;
 - gate determinista con IVA 21 %, 10 % y 4 %, redondeo y rechazo de incoherencias;
 - smoke real en PrestaShop 1.7.8.11, 8.1.7 y 8.2.7;
+- seis escenarios nativos Contract Suite v2 ejecutados en cada versión real para factura y rectificativa;
 - ZIP reproducible con allowlist de runtime, SHA-256 y layout compatible con instaladores legacy;
 - upgrade real `0.3.0 → 0.4.0` que preserva estado existente, registra los hooks automáticos y mantiene ambos switches en OFF.
 
@@ -35,7 +38,7 @@ La matriz de CI instala el **ZIP reproducible de distribución** dentro de tiend
 - PrestaShop **8.1.7** / PHP **8.1**;
 - PrestaShop **8.2.7** / PHP **8.1**.
 
-Cada job comprueba arranque real, instalación y activación del módulo `0.4.0`, tablas de sincronización, hooks nativos, factura, payload principal, semáforo operativo y creación de un `OrderSlip` real. También demuestra que los hooks automáticos registrados **no crean estado ni intentan procesar operaciones mientras sus switches permanecen desactivados**. Esta matriz no implica soporte para PrestaShop 9.
+Cada job comprueba arranque real, instalación y activación del módulo `0.4.0`, tablas de sincronización, hooks nativos, factura, payload principal, semáforo operativo y creación de un `OrderSlip` real. También demuestra que los hooks automáticos registrados **no crean estado ni intentan procesar operaciones mientras sus switches permanecen desactivados** y ejecuta los seis escenarios transversales de reconciliación/idempotencia de Connector Contract Suite v2. Esta matriz no implica soporte para PrestaShop 9.
 
 Los datasets Flashlight usados por la prueba runtime tienen una línea al 0 %. Para que esa limitación no deje sin probar IVA positivo, CI ejecuta además `npm run prestashop:rectification-fixtures`, que usa la misma validación del runtime con 21 %, 10 %, 4 %, redondeos admisibles y desajustes que deben bloquearse.
 
@@ -119,7 +122,17 @@ Cuando el switch de rectificativas está activo, la creación de un `OrderSlip`:
 4. si el abono ya tiene `recordId`, reconcilia;
 5. en caso contrario ejecuta preflight y, si pasa, crea la operación con la idempotencia del `OrderSlip`.
 
-Si el bridge no está disponible o aparece un error, el conector captura la excepción y deja estado local revisable; no debe convertir un fallo del puente en una excepción no controlada del flujo comercial de PrestaShop.
+Si el bridge no está disponible, `PVFPrestaShopApiException` conserva si el fallo es recuperable. Un error retryable deja `retry_pending`; uno no recuperable deja `blocked`. En ambos casos se conserva cualquier `recordId`/idempotencia existente y nunca se transforma un fallo de reconciliación en una nueva emisión.
+
+## Connector Contract Suite v2
+
+Factura y rectificativa comparten la misma semántica transversal:
+
+- `recordId` existente + fallo retryable → preservar identidad, dejar estado recuperable y no reemitir;
+- `recordId` existente + fallo no retryable → preservar identidad, bloquear/revisar y no reemitir;
+- operación nueva + fallo retryable → conservar exactamente la misma clave idempotente en el siguiente intento.
+
+Esos seis escenarios se ejecutan dentro de las tres instalaciones reales de la matriz, junto con factura nativa y `OrderSlip` real. El meta-gate `npm run native:contract:v2` obliga además a que WooCommerce y PrestaShop mantengan el mismo fixture contractual.
 
 ## Persistencia local
 
@@ -144,7 +157,7 @@ Contrato visual:
 
 - **verde — Synced:** `accepted`;
 - **rojo — Action required:** `blocked`, `rejected`, `aeat_rejected`, `failed`;
-- **ámbar — Pending / review:** estados intermedios/desconocidos o estados con error local;
+- **ámbar — Pending / review:** `retry_pending`, otros estados intermedios/desconocidos o estados con error local;
 - **gris — Not sent:** no existe todavía operación local.
 
 El semáforo es únicamente operativo; no decide tratamiento fiscal.
@@ -173,7 +186,7 @@ npm run prestashop:package
 npm run prestashop:package:check
 ```
 
-El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, fixtures y tooling. CI lo construye dos veces y exige igualdad byte-a-byte antes de usarlo en instalaciones reales.
+El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, fixtures y tooling. CI lo construye dos veces y exige igualdad byte-a-byte antes de usarlo en instalaciones reales. `PVFPrestaShopApiException.php` forma parte obligatoria del runtime empaquetado.
 
 ## Upgrade validado
 
@@ -194,21 +207,20 @@ El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, 
 - `npm run prestashop:fixtures`: desglose/reconciliación de factura principal.
 - `npm run prestashop:rectification-fixtures`: IVA positivo 21/10/4, tolerancia de redondeo y rechazo de incoherencias rectificativas.
 - `npm run prestashop:package:check`: ZIP reproducible 0.4.0.
-- `scripts/ci/prestashop-compatibility-smoke.sh`: instalación real, hooks, defaults OFF, factura y `OrderSlip` real en las tres versiones.
+- `npm run native:contract:v2`: contrato transversal compartido con WooCommerce.
+- `scripts/ci/prestashop-compatibility-smoke.sh`: instalación real, hooks, defaults OFF, factura, `OrderSlip` real y escenarios v2 en las tres versiones.
 - `scripts/ci/prestashop-upgrade-smoke.sh`: migración 0.3.0 → 0.4.0 preservando estado y manteniendo la automatización desactivada.
 
 ## Límites conocidos
 
-- la automatización actual se ejecuta desde los eventos nativos; una cola durable/reintento desacoplado específico del conector se evaluará como hardening posterior si hace falta;
+- la automatización actual se ejecuta desde los eventos nativos; una cola durable/reintento desacoplado específico del conector se evaluará como hardening de Fase 6 si hace falta;
 - pedidos con varias facturas quedan fuera de la automatización hasta añadir selección explícita por `OrderInvoice`;
 - ecotasa queda bloqueada hasta disponer de mapping fiscal específico;
 - el smoke runtime de Flashlight usa datos al 0 %, complementados por fixtures deterministas de IVA positivo;
 - PrestaShop 9 no está declarado compatible y se evaluará explícitamente antes de incorporarlo.
 
-## Siguiente incremento
+## Estado dentro de Fase 5
 
-1. aceptación transversal de reconciliación/fallback común entre conectores;
-2. Connector Contract Suite específica para extensiones nativas;
-3. hardening de operación/reintentos cuando el contrato transversal esté cerrado.
+PrestaShop `0.4.0` queda técnicamente cerrado junto con WooCommerce: reconciliación/fallback, rectificativas, packaging, upgrade, automatización opt-in y Connector Contract Suite v2 están cubiertos en matrices reales. La aceptación transversal de Fase 5 está cerrada.
 
-El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real o release.
+El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real o release. El siguiente bloque del roadmap es Fase 6 — Production Readiness.
