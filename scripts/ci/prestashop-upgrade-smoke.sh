@@ -39,8 +39,8 @@ mkdir -p "$BASELINE_MODULES" "$BASELINE_TREE" "$TARGET_TREE"
 node "$ROOT/scripts/release/package-prestashop.mjs" --output "$TARGET_ZIP" >/dev/null
 unzip -q "$TARGET_ZIP" -d "$TARGET_TREE"
 cp -R "$TARGET_TREE/puenteverifactu" "$BASELINE_TREE/puenteverifactu"
-sed -i "s/const VERSION = '0.1.0';/const VERSION = '0.0.9';/" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
-rm -rf "$BASELINE_TREE/puenteverifactu/upgrade"
+sed -i "s/const VERSION = '0.2.0';/const VERSION = '0.1.0';/" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
+rm -f "$BASELINE_TREE/puenteverifactu/upgrade/install-0.2.0.php"
 (
   cd "$BASELINE_TREE"
   zip -qr "$BASELINE_MODULES/puenteverifactu.zip" puenteverifactu
@@ -59,13 +59,21 @@ function failUpgrade($code, $message)
 
 $module = Module::getInstanceByName('puenteverifactu');
 if (!$module || empty($module->active)) {
-    failUpgrade('PRESTA_UPGRADE_BASELINE_NOT_ACTIVE', 'Synthetic 0.0.9 baseline is not active.');
+    failUpgrade('PRESTA_UPGRADE_BASELINE_NOT_ACTIVE', 'Synthetic 0.1.0 baseline is not active.');
 }
-if ((string) $module->version !== '0.0.9') {
-    failUpgrade('PRESTA_UPGRADE_BASELINE_VERSION', 'Expected baseline 0.0.9, received ' . (string) $module->version);
+if ((string) $module->version !== '0.1.0') {
+    failUpgrade('PRESTA_UPGRADE_BASELINE_VERSION', 'Expected baseline 0.1.0, received ' . (string) $module->version);
 }
 
-$table = _DB_PREFIX_ . 'pvf_order_sync';
+if ($module->isRegisteredInHook('displayAdminOrderMainBottom')) {
+    if (!$module->unregisterHook('displayAdminOrderMainBottom')) {
+        failUpgrade('PRESTA_UPGRADE_BASELINE_HOOK_RESET_FAILED', 'Could not establish a 0.1.0 baseline without the native order status hook.');
+    }
+}
+if ($module->isRegisteredInHook('displayAdminOrderMainBottom')) {
+    failUpgrade('PRESTA_UPGRADE_BASELINE_HOOK_PRESENT', 'Baseline unexpectedly contains the native order status hook.');
+}
+
 Db::getInstance()->delete('pvf_order_sync', '`id_shop` = 1 AND `id_order` = 424242');
 $ok = Db::getInstance()->insert('pvf_order_sync', array(
     'id_shop' => 1,
@@ -80,7 +88,7 @@ if (!$ok) {
     failUpgrade('PRESTA_UPGRADE_SENTINEL_INSERT_FAILED', 'Could not insert upgrade sentinel row.');
 }
 
-echo json_encode(array('status' => 'ok', 'baseline' => (string) $module->version)) . PHP_EOL;
+echo json_encode(array('status' => 'ok', 'baseline' => (string) $module->version, 'hook_registered' => false)) . PHP_EOL;
 PHP
 
 cat >"$TMP/after.php" <<'PHP'
@@ -104,8 +112,11 @@ $module = Module::getInstanceByName('puenteverifactu');
 if (!$module || empty($module->active)) {
     failUpgrade('PRESTA_UPGRADE_TARGET_NOT_ACTIVE', 'Target module is not active after upgrade.');
 }
-if ((string) $module->version !== '0.1.0') {
-    failUpgrade('PRESTA_UPGRADE_TARGET_VERSION', 'Expected target 0.1.0, received ' . (string) $module->version);
+if ((string) $module->version !== '0.2.0') {
+    failUpgrade('PRESTA_UPGRADE_TARGET_VERSION', 'Expected target 0.2.0, received ' . (string) $module->version);
+}
+if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
+    failUpgrade('PRESTA_UPGRADE_STATUS_HOOK_MISSING', 'Upgrade did not register displayAdminOrderMainBottom.');
 }
 
 $row = Db::getInstance()->getRow(
@@ -121,8 +132,8 @@ if (!is_array($row)
 $moduleDbVersion = (string) Db::getInstance()->getValue(
     "SELECT version FROM `" . _DB_PREFIX_ . "module` WHERE name = 'puenteverifactu'"
 );
-if ($moduleDbVersion !== '0.1.0') {
-    failUpgrade('PRESTA_UPGRADE_DB_VERSION', 'Module database version was not advanced to 0.1.0.');
+if ($moduleDbVersion !== '0.2.0') {
+    failUpgrade('PRESTA_UPGRADE_DB_VERSION', 'Module database version was not advanced to 0.2.0.');
 }
 
 fwrite(STDOUT, json_encode(array(
@@ -131,9 +142,10 @@ fwrite(STDOUT, json_encode(array(
     'check' => 'prestashop-upgrade-smoke',
     'prestashop' => (string) _PS_VERSION_,
     'php' => $actualPhp,
-    'from' => '0.0.9',
+    'from' => '0.1.0',
     'to' => (string) $module->version,
     'state_preserved' => true,
+    'status_hook_registered' => true,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 PHP
 
