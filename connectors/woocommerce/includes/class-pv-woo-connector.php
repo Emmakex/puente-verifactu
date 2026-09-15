@@ -104,9 +104,9 @@ final class PV_Woo_Connector {
             return;
         }
 
-        $settings = PV_Woo_Settings::get();
-        $client   = new PV_Woo_Client( $settings );
-        $payload  = PV_Woo_Order_Payload::build( $order, $settings );
+        $settings  = PV_Woo_Settings::get();
+        $client    = new PV_Woo_Client( $settings );
+        $payload   = PV_Woo_Order_Payload::build( $order, $settings );
         $preflight = $client->preflight( $payload );
         if ( is_wp_error( $preflight ) ) {
             $this->handle_failure( $order, $preflight, $attempt );
@@ -128,6 +128,8 @@ final class PV_Woo_Connector {
 
         if ( empty( $result['recordId'] ) ) {
             $this->record_error( $order, new WP_Error( 'pv_record_missing', __( 'Puente VeriFactu did not return a record ID.', 'puente-verifactu-woocommerce' ) ) );
+            $order->update_meta_data( self::META_STATUS, 'blocked' );
+            $order->save();
             return;
         }
 
@@ -164,22 +166,25 @@ final class PV_Woo_Connector {
 
     private function preflight_order( WC_Order $order ) {
         $settings = PV_Woo_Settings::get();
-        $client = new PV_Woo_Client( $settings );
+        $client   = new PV_Woo_Client( $settings );
         return $client->preflight( PV_Woo_Order_Payload::build( $order, $settings ) );
     }
 
     private function handle_failure( WC_Order $order, WP_Error $error, $attempt ) {
         $this->record_error( $order, $error );
-        $data = $error->get_error_data();
+        $data      = $error->get_error_data();
         $retryable = is_array( $data ) && ! empty( $data['retryable'] );
-        $attempt = (int) $attempt;
+        $attempt   = (int) $attempt;
+
         if ( $retryable && $attempt + 1 < self::MAX_ATTEMPTS ) {
             $delays = array( 60, 300, 900, 3600, 10800 );
             $delay  = $delays[ min( $attempt, count( $delays ) - 1 ) ];
             $this->schedule( 'pv_woo_process_order', time() + $delay, array( (int) $order->get_id(), $attempt + 1 ) );
             $order->update_meta_data( self::META_STATUS, 'retry_scheduled' );
-            $order->save();
+        } else {
+            $order->update_meta_data( self::META_STATUS, 'blocked' );
         }
+        $order->save();
     }
 
     private function record_error( WC_Order $order, WP_Error $error ) {
