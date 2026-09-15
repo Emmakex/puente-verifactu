@@ -17,6 +17,8 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `universal-integration-kit-v1.md` | API/SDK, webhook low-code y patrón camaleónico de integración |
 | `woocommerce-compatibility.md` | Matriz WP/Woo/PHP, HPOS y ZIP reproducible del conector WooCommerce |
 | `compliance.md` | Marco normativo, obligaciones y checklist de release |
+| `release-evidence.md` | Manifest reproducible, blockers, revisión regulatoria y fingerprints de release |
+| `release/declaracion-responsable-template.md` | Checklist interno previo a la declaración responsable definitiva de una versión |
 | `api-contract.md` | Modelo canónico, idempotencia y contratos |
 | `connectors.md` | Contrato de adaptadores y estrategia por plataforma |
 | `security.md` | Credenciales, tenants, secretos, amenazas y privacidad |

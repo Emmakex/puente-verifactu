@@ -160,13 +160,14 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Outbox durable AEAT para el perfil single-node: persistencia de estado/backoff/intentos, leases, recuperación tras reinicio y `reconciliation_required` para resultados inciertos sin reemisión ciega.
 - [x] Observabilidad y alertas operativas v1: endpoint agregado protegido por `ops:read`, métricas de outbox/backup y códigos `VF_OBS_*` estables sin datos fiscales.
 - [x] Runbooks operativos single-node: deploy/rollback, incidente AEAT y `reconciliation_required`, backup/restore y rotación de credenciales; protegidos por gate CI.
-- [ ] Perfil HA/multi-réplica con store/locking/rate limiting compartidos cuando el despliegue lo requiera.
-- [ ] Verificación regulatoria final y evidencia de release por versión.
+- [x] Evidencia de release v1 y revisión regulatoria interna: registro versionado de fuentes, cruce con `AEAT_ARTIFACTS`, caducidad de revisión, commit/CI explícitos y SHA-256 reproducible de artefactos; `release_blocked` mientras #6 esté abierto.
+- [ ] Cierre regulatorio final de una versión candidata: completar AEAT #6, generar evidencia para el commit exacto y preparar/aprobar la declaración responsable definitiva de esa versión.
+- [ ] Perfil HA/multi-réplica con store/locking/rate limiting compartidos **solo si el despliegue real lo requiere**; para el perfil `sqlite-single-node` actual figura como `not_applicable` y no bloquea el desarrollo interno.
 - [ ] Piloto progresivo con rollback y monitorización activa.
 
-**Estado:** Fase 6 en curso con cinco gates internos implementados para el perfil single-node: backup/restore SQLite, política de ciclo de vida de backups, outbox AEAT durable, observabilidad/alertas v1 y runbooks operativos verificables. La política de backup define evidencia proveedor-neutral y un restore drill real, pero cada entorno debe aportar su propia evidencia de copia remota cifrada para considerarse conforme. Los resultados remotos ambiguos siguen en `reconciliation_required` hasta resolución explícita. Esto **no** convierte SQLite en HA ni acredita por sí solo un entorno multi-réplica.
+**Estado:** Fase 6 en curso con seis gates internos implementados para el perfil single-node: backup/restore SQLite, política de ciclo de vida de backups, outbox AEAT durable, observabilidad/alertas v1, runbooks operativos y evidencia de release/regulatoria reproducible. El gate de evidencia genera fingerprints de los paquetes oficiales, fija las versiones regulatorias revisadas y falla si la revisión supera 90 días. Ningún CI verde cambia por sí solo `release_blocked`: el cierre regulatorio final continúa condicionado al gate externo AEAT #6 y a la declaración responsable de la versión candidata.
 
-**Gate de entrada a release/piloto:** Fase 3 externa cerrada (#6), además de todos los gates propios de Fase 6 aplicables al perfil de despliegue y evidencia real del entorno seleccionado.
+**Gate de entrada a release/piloto:** Fase 3 externa cerrada (#6), evidencia de release correspondiente al mismo commit candidato, revisión regulatoria vigente, declaración responsable final de esa versión y todos los gates aplicables al perfil de despliegue con evidencia real del entorno seleccionado.
 
 ## Posterior
 

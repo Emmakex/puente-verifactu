@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-09-15",
+  "expires_after_days": 90,
+  "aeat_artifacts": {
+    "web_service_document_version": "1.0.3",
+    "validations_document_version": "1.2.2",
+    "schema_generation": "tikeV1.0",
+    "record_version": "1.0"
+  },
+  "sources": [
+    {
+      "id": "aeat_technical_information",
+      "authority": "AEAT",
+      "reference": "Sede AEAT > VERI*FACTU > Informacion tecnica",
+      "purpose": "WSDL, XSD, validaciones, huella, QR y ejemplos de declaracion responsable"
+    },
+    {
+      "id": "aeat_responsible_declaration_faq",
+      "authority": "AEAT",
+      "reference": "Sede AEAT > FAQ > Certificacion de los sistemas informaticos: declaracion responsable",
+      "purpose": "Declaracion responsable por version del SIF y disponibilidad dentro del producto",
+      "observed_updated_at": "2026-07-21"
+    },
+    {
+      "id": "aeat_deadlines_2027",
+      "authority": "AEAT",
+      "reference": "Sede AEAT > Nota informativa sobre ampliacion del plazo de adaptacion",
+      "purpose": "Plazos de adaptacion: 2027-01-01 Impuesto sobre Sociedades y 2027-07-01 resto de obligados"
+    },
+    {
+      "id": "boe_rdl_15_2025",
+      "authority": "BOE",
+      "reference": "BOE-A-2025-24446, Real Decreto-ley 15/2025",
+      "purpose": "Modificacion de la disposicion final cuarta del Real Decreto 1007/2023"
+    }
+  ]
+}

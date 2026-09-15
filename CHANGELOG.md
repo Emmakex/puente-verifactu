@@ -6,6 +6,10 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Fase 6: evidencia de release v1 con commit fuente explícito, estado de blockers, perfil de despliegue y SHA-256 reproducible de los paquetes WooCommerce y PrestaShop.
+- Registro regulatorio versionado `config/regulatory-sources.json`, cruzado en CI con `AEAT_ARTIFACTS` y con caducidad de 90 días para forzar revalidación periódica de fuentes AEAT/BOE.
+- Contrato `config/release-gates.json` que mantiene AEAT #6 como blocker de release/piloto fiscal real y declara HA/multi-réplica como no aplicable al perfil SQLite single-node actual.
+- Comandos `release:evidence` y `release:evidence:check`, checklist interno previo a la declaración responsable y gate obligatorio integrado en `npm run check`; CI verde nunca elimina por sí solo `release_blocked`.
 - Fase 6: outbox AEAT durable para el perfil SQLite single-node, con persistencia de jobs, `availableAt`, intentos, último resultado y leases de dispatch.
 - Estado de seguridad `reconciliation_required` para resultados de transporte inciertos, excepciones durante dispatch o leases vencidos tras crash; nunca se reemiten automáticamente.
 - Resolución explícita de reconciliación mediante `complete`, `block` o `retry`, siendo `retry` una decisión deliberada posterior a confirmar que una nueva remisión es segura.
