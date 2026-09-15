@@ -78,6 +78,9 @@ export class ImportSessionService {
     maxFileBytes = DEFAULT_MAX_FILE_BYTES,
     maxSessions = DEFAULT_MAX_SESSIONS,
   } = {}) {
+    if (!(ttlMs > 0) || !(maxFileBytes > 0) || !Number.isInteger(maxSessions) || maxSessions < 1) {
+      throw new TypeError('Import session limits must be positive and maxSessions must be an integer');
+    }
     this.clock = clock;
     this.ttlMs = ttlMs;
     this.maxFileBytes = maxFileBytes;
@@ -85,9 +88,13 @@ export class ImportSessionService {
     this.sessions = new Map();
   }
 
-  cleanup() {
+  purgeExpired() {
     const now = this.clock();
     for (const [id, session] of this.sessions) if (session.expiresAt <= now) this.sessions.delete(id);
+  }
+
+  ensureCapacity() {
+    this.purgeExpired();
     while (this.sessions.size >= this.maxSessions) this.sessions.delete(this.sessions.keys().next().value);
   }
 
@@ -96,7 +103,7 @@ export class ImportSessionService {
     if (!Buffer.isBuffer(buffer)) throw apiError('VF_IMPORT_FILE_REQUIRED', 'Import body must be a file buffer', 400);
     if (buffer.length === 0) throw apiError('VF_IMPORT_FILE_EMPTY', 'Import file is empty', 400);
     if (buffer.length > this.maxFileBytes) throw apiError('VF_IMPORT_FILE_TOO_LARGE', `Import file exceeds ${this.maxFileBytes} bytes`, 413);
-    this.cleanup();
+    this.ensureCapacity();
 
     const table = parseImportFile(buffer, { filename, sheet, headerRow });
     const constants = addConfiguration(identityConstants(context), configuration);
@@ -135,7 +142,6 @@ export class ImportSessionService {
 
   session(importId, context) {
     requireContext(context);
-    this.cleanup();
     const session = this.sessions.get(importId);
     if (!session || session.organizationId !== context.organizationId || session.installationId !== context.installationId) {
       throw apiError('VF_IMPORT_SESSION_NOT_FOUND', 'Import session not found', 404);
@@ -144,6 +150,7 @@ export class ImportSessionService {
       this.sessions.delete(importId);
       throw apiError('VF_IMPORT_SESSION_EXPIRED', 'Import session expired', 410);
     }
+    this.purgeExpired();
     return session;
   }
 
