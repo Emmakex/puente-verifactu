@@ -44,6 +44,7 @@ add_action(
             return;
         }
 
+        require_once PV_WOO_PATH . 'includes/class-pv-woo-secret-store.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-settings.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-client.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-order-payload.php';
