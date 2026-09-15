@@ -6,6 +6,7 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Preflight local `npm run aeat:cert:check` para validar PFX/passphrase mediante el mismo parser TLS usado por el gate real, sin crear transporte ni abrir red; salida limitada a metadatos no sensibles y fingerprint SHA-256 del contenedor.
 - Gate AEAT externo endurecido: `--expect` para aceptación/rechazo controlado, evidencia sanitizada ligada a commit, CSV/descripciones conservados solo por SHA-256, `--show-xml` restringido a dry-run y validación local del PFX antes de abrir red.
 - Soporte de passphrase PFX desde fichero secreto independiente y evidencia no-sobrescribible con permisos restrictivos, sin almacenar certificado, passphrase, XML fiscal ni SOAP crudo.
 - Fase 6: evidencia de release v1 con commit fuente explícito, estado de blockers, perfil de despliegue y SHA-256 reproducible de los paquetes WooCommerce y PrestaShop.
@@ -60,7 +61,7 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 - Importador XLSX read-only sin dependencias externas, con selección de hoja, fechas Excel y límites defensivos.
 - Mapping Assistant v1 con confianza, revisión explícita, campos pendientes y borrador seguro de `MappingProfile`.
 - Inspección unificada CSV/XLSX y smoke CI de mapping asistido.
-- Primera entrega de Universal Integration Kit v1: API framework-neutral, SDK server-side, webhook HMAC, preflight/envío mapeado, idempotencia HTTP y conector de referencia.
+- Primera entrega de Universal Integration Kit v1: API/SDK, webhook low-code y patrón camaleónico de integración.
 - ADR-0003 para diferir gates exclusivamente externos sin desbloquear releases/pilotos.
 - Harness seguro `npm run aeat:gate` para dry-run y cierre del gate real de pruebas AEAT con doble confirmación de envío y salida sanitizada.
 - Adaptador server-side AEAT VERI*FACTU con SOAP 1.1/XML y endpoints oficiales versionados.
