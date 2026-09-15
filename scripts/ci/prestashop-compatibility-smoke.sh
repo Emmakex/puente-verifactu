@@ -90,11 +90,39 @@ if ($tableExists !== 1) {
 }
 
 $orderId = (int) Db::getInstance()->getValue(
-    'SELECT `id_order` FROM `' . _DB_PREFIX_ . 'order_invoice` '
-    . 'WHERE `number` > 0 GROUP BY `id_order` HAVING COUNT(*) = 1 ORDER BY `id_order` ASC'
+    'SELECT oi.`id_order` FROM `' . _DB_PREFIX_ . 'order_invoice` oi '
+    . 'WHERE oi.`number` > 0 GROUP BY oi.`id_order` HAVING COUNT(*) = 1 ORDER BY oi.`id_order` ASC'
 );
+
 if ($orderId <= 0) {
-    pvfFail('PRESTA_SEED_INVOICE_MISSING', 'Flashlight seed contains no single-invoice order for the smoke test.');
+    $orderId = (int) Db::getInstance()->getValue(
+        'SELECT o.`id_order` FROM `' . _DB_PREFIX_ . 'orders` o '
+        . 'INNER JOIN `' . _DB_PREFIX_ . 'order_detail` od ON od.`id_order` = o.`id_order` '
+        . 'GROUP BY o.`id_order` ORDER BY o.`id_order` ASC'
+    );
+    if ($orderId <= 0) {
+        pvfFail('PRESTA_SEED_ORDER_MISSING', 'Flashlight seed contains no order with order details for the smoke test.');
+    }
+
+    $seedOrder = new Order($orderId);
+    if (!Validate::isLoadedObject($seedOrder)) {
+        pvfFail('PRESTA_SEED_ORDER_INVALID', 'Seed order could not be loaded before invoice generation.');
+    }
+
+    try {
+        Configuration::updateValue('PS_INVOICE', 1, false, null, (int) $seedOrder->id_shop);
+        Configuration::updateValue('PS_INVOICE_START_NUMBER', 900001, false, null, (int) $seedOrder->id_shop);
+        $seedOrder->setInvoice(false);
+    } catch (Exception $exception) {
+        pvfFail('PRESTA_SEED_INVOICE_CREATE_FAILED', $exception->getMessage());
+    }
+
+    $invoiceCount = (int) Db::getInstance()->getValue(
+        'SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'order_invoice` WHERE `id_order` = ' . (int) $orderId . ' AND `number` > 0'
+    );
+    if ($invoiceCount !== 1) {
+        pvfFail('PRESTA_SEED_INVOICE_CREATE_FAILED', 'Native Order::setInvoice() did not create exactly one numbered invoice.');
+    }
 }
 
 $order = new Order($orderId);
