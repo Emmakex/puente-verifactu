@@ -10,6 +10,8 @@ const required = [
   `${root}/includes/class-pv-woo-order-payload.php`,
   `${root}/includes/class-pv-woo-connector.php`,
   `${root}/examples/mapping-profile.json`,
+  `${root}/languages/puente-verifactu-woocommerce-es_ES.po`,
+  `${root}/languages/puente-verifactu-woocommerce-es_ES.mo`,
   `${root}/README.md`,
 ];
 const failures = [];
@@ -28,12 +30,15 @@ function phpFiles(dir) {
   return result;
 }
 
-for (const path of required) text(path);
+for (const path of required) {
+  try { statSync(path); } catch { failures.push({ code: 'WOO_REQUIRED_FILE_MISSING', path }); }
+}
 
 const bootstrap = text(`${root}/puente-verifactu-woocommerce.php`);
 if (!bootstrap.includes("declare_compatibility( 'custom_order_tables'")) failures.push({ code: 'WOO_HPOS_DECLARATION_MISSING' });
 if (!bootstrap.includes('WC tested up to: 11.1')) failures.push({ code: 'WOO_TESTED_VERSION_MISSING', expected: '11.1' });
 if (!bootstrap.includes('Requires PHP: 7.4')) failures.push({ code: 'WOO_PHP_CONTRACT_MISSING', expected: '7.4' });
+if (!bootstrap.includes('load_plugin_textdomain')) failures.push({ code: 'WOO_I18N_LOAD_MISSING' });
 
 const forbiddenStorage = [
   /\$wpdb\b/,
@@ -69,13 +74,20 @@ const preflightIndex = connector.indexOf('$client->preflight');
 const issueIndex = connector.indexOf('$client->issue');
 if (preflightIndex < 0 || issueIndex < 0 || preflightIndex > issueIndex) failures.push({ code: 'WOO_PREFLIGHT_MUST_PRECEDE_ISSUE' });
 
+const settings = text(`${root}/includes/class-pv-woo-settings.php`);
+for (const marker of ['invoice_number_source', 'invoice_number_meta_key', "'order_number'", "'meta'"]) {
+  if (!settings.includes(marker)) failures.push({ code: 'WOO_INVOICE_NUMBER_SOURCE_MISSING', marker });
+}
+
 const payload = text(`${root}/includes/class-pv-woo-order-payload.php`);
-for (const marker of ['get_taxes()', 'get_items(', "'tax_lines'", "'source_invoice_id'", 'get_currency()']) {
+for (const marker of ['get_taxes()', 'get_items(', "'tax_lines'", "'source_invoice_id'", "'invoice_number'", 'get_currency()', 'pv_woo_invoice_number']) {
   if (!payload.includes(marker)) failures.push({ code: 'WOO_PAYLOAD_CONTRACT_MISSING', marker });
 }
 
 try {
   const profile = JSON.parse(text(`${root}/examples/mapping-profile.json`));
+  if (profile?.fields?.invoice_number !== 'number') failures.push({ code: 'WOO_PROFILE_INVOICE_NUMBER_INVALID' });
+  if (profile?.fields?.order_number === 'number') failures.push({ code: 'WOO_PROFILE_IMPLICIT_ORDER_NUMBER_FORBIDDEN' });
   if (profile?.fields?.tax_lines !== 'taxBreakdown') failures.push({ code: 'WOO_PROFILE_TAX_LINES_INVALID' });
   if (profile?.fields?.currency !== 'currency') failures.push({ code: 'WOO_PROFILE_CURRENCY_INVALID' });
   for (const field of ['taxCode', 'regimeKey', 'operationClass']) {
