@@ -82,7 +82,7 @@ function renderFileMeta() {
   const size = state.file.size < 1024 * 1024
     ? `${Math.max(1, Math.round(state.file.size / 1024))} KB`
     : `${(state.file.size / 1024 / 1024).toFixed(1)} MB`;
-  els.fileMeta.textContent = `${state.file.name} · ${size} · ${file.rows} ${t('rows')} · ${file.columns} columnas`;
+  els.fileMeta.textContent = `${state.file.name} · ${size} · ${file.rows} ${t('rows')} · ${file.columns} ${t('columns')}`;
   els.fileMeta.hidden = false;
 }
 
@@ -286,7 +286,7 @@ function renderResult(report) {
     for (const row of problems) {
       const item = document.createElement('li');
       const messages = (row.errors ?? []).map(localizedIssue).join(' · ');
-      item.textContent = `Fila ${row.row}: ${messages}`;
+      item.textContent = `${t('row')} ${row.row}: ${messages}`;
       list.append(item);
     }
     els.resultErrors.append(list);
@@ -297,17 +297,17 @@ async function validateImport() {
   if (!state.inspection?.importId) return;
   const pending = state.selections.filter((selection) => selection.target && selection.status !== 'auto' && !selection.confirmed);
   if (pending.length) {
-    setStatus(state.locale === 'en' ? 'Confirm or ignore the mappings marked for review.' : 'Confirma o ignora las equivalencias marcadas para revisar.');
+    setStatus(t('confirmReviews'));
     return;
   }
   const missing = missingRequiredConfiguration(state.configuration);
   if (missing.length) {
-    setStatus(state.locale === 'en' ? 'Complete the required business data.' : 'Completa los datos obligatorios del negocio.');
+    setStatus(t('requiredData'));
     return;
   }
 
   els.validateButton.disabled = true;
-  setStatus(state.locale === 'en' ? 'Validating…' : 'Validando…');
+  setStatus(t('validating'));
   try {
     const payload = preflightPayload(state.selections, state.configuration);
     const report = await apiJson(`/v1/imports/${state.inspection.importId}/preflight`, {
@@ -338,6 +338,7 @@ document.querySelectorAll('[data-lang]').forEach((button) => button.addEventList
   state.locale = button.dataset.lang;
   translateStatic();
   if (state.inspection) {
+    renderFileMeta();
     renderMapping();
     renderConfiguration();
     if (state.preflight) renderResult(state.preflight);
