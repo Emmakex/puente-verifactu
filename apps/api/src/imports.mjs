@@ -6,6 +6,7 @@ import {
 } from '../../../packages/core/src/mapping-assistant.mjs';
 import { setPath } from '../../../packages/core/src/mapping.mjs';
 import { preflightRows } from '../../../packages/core/src/preflight.mjs';
+import { MemoryImportSessionStore } from './import-session-store.mjs';
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
 const DEFAULT_MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -77,25 +78,27 @@ export class ImportSessionService {
     ttlMs = DEFAULT_TTL_MS,
     maxFileBytes = DEFAULT_MAX_FILE_BYTES,
     maxSessions = DEFAULT_MAX_SESSIONS,
+    store = new MemoryImportSessionStore(),
   } = {}) {
     if (!(ttlMs > 0) || !(maxFileBytes > 0) || !Number.isInteger(maxSessions) || maxSessions < 1) {
       throw new TypeError('Import session limits must be positive and maxSessions must be an integer');
+    }
+    for (const method of ['purgeExpired', 'ensureCapacity', 'put', 'get', 'delete']) {
+      if (typeof store?.[method] !== 'function') throw new TypeError(`Import session store must implement ${method}()`);
     }
     this.clock = clock;
     this.ttlMs = ttlMs;
     this.maxFileBytes = maxFileBytes;
     this.maxSessions = maxSessions;
-    this.sessions = new Map();
+    this.store = store;
   }
 
   purgeExpired() {
-    const now = this.clock();
-    for (const [id, session] of this.sessions) if (session.expiresAt <= now) this.sessions.delete(id);
+    this.store.purgeExpired(this.clock());
   }
 
   ensureCapacity() {
-    this.purgeExpired();
-    while (this.sessions.size >= this.maxSessions) this.sessions.delete(this.sessions.keys().next().value);
+    this.store.ensureCapacity(this.maxSessions, this.clock());
   }
 
   inspect({ buffer, filename, sheet, headerRow, locale = 'es-ES', configuration = {}, context }) {
@@ -136,18 +139,18 @@ export class ImportSessionService {
         columns: table.headers.length,
       },
     };
-    this.sessions.set(importId, session);
+    this.store.put(session);
     return publicInspection(session);
   }
 
   session(importId, context) {
     requireContext(context);
-    const session = this.sessions.get(importId);
+    const session = this.store.get(importId);
     if (!session || session.organizationId !== context.organizationId || session.installationId !== context.installationId) {
       throw apiError('VF_IMPORT_SESSION_NOT_FOUND', 'Import session not found', 404);
     }
     if (session.expiresAt <= this.clock()) {
-      this.sessions.delete(importId);
+      this.store.delete(importId);
       throw apiError('VF_IMPORT_SESSION_EXPIRED', 'Import session expired', 410);
     }
     this.purgeExpired();
@@ -185,7 +188,7 @@ export class ImportSessionService {
 
   remove(importId, context) {
     this.session(importId, context);
-    this.sessions.delete(importId);
+    this.store.delete(importId);
     return { importId, removed: true };
   }
 }
