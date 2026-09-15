@@ -52,6 +52,9 @@ jobs:
       - name: Durable HTTP runtime smoke
         run: npm run runtime:smoke
 
+      - name: SQLite backup and restore smoke
+        run: npm run sqlite:backup:smoke
+
       - name: WooCommerce connector contract
         run: npm run woo:contract
 
