@@ -18,7 +18,7 @@ function listLocalEntries(buffer) {
 
 const first = await buildPrestaShopZip();
 const second = await buildPrestaShopZip();
-assert.equal(first.version, '0.3.0');
+assert.equal(first.version, '0.4.0');
 assert.deepEqual(first.buffer, second.buffer, 'PrestaShop ZIP must be byte-for-byte reproducible');
 
 const names = listLocalEntries(first.buffer);
@@ -35,9 +35,11 @@ assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopRectifications.ph
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopTaxBreakdown.php'));
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopSecretStore.php'));
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopAdminStatus.php'));
+assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopAutomation.php'));
 assert.ok(names.includes('puenteverifactu/upgrade/install-0.1.0.php'));
 assert.ok(names.includes('puenteverifactu/upgrade/install-0.2.0.php'));
 assert.ok(names.includes('puenteverifactu/upgrade/install-0.3.0.php'));
+assert.ok(names.includes('puenteverifactu/upgrade/install-0.4.0.php'));
 assert.equal(names.some((name) => name.includes('/examples/')), false, 'Server-side mapping examples must not ship in the PrestaShop runtime ZIP');
 assert.equal(names.some((name) => name.includes('/fixtures/')), false, 'Fiscal test fixtures must not ship in the PrestaShop runtime ZIP');
 assert.equal(names.some((name) => name.includes('/scripts/')), false);
@@ -50,5 +52,6 @@ console.log(JSON.stringify({
   version: first.version,
   entries: names.length,
   corrective_credit_slips: true,
+  opt_in_automation: true,
   sha256: createHash('sha256').update(first.buffer).digest('hex'),
 }, null, 2));
