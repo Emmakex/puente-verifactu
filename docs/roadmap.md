@@ -149,7 +149,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [ ] Reconciliación/fallback end-to-end común entre conectores.
 - [ ] Tests de compatibilidad y Connector Contract Suite para cada extensión.
 
-**Estado:** WooCommerce queda técnicamente cerrado y PrestaShop alcanza el alcance nativo `0.4.0`: factura, semáforo, rectificativas `OrderSlip`, packaging reproducible, matriz real y automatización opt-in segura por tienda. El modo manual permanece disponible y cualquier instalación/upgrade conserva la automatización desactivada hasta decisión explícita del comercio. El siguiente bloque de Fase 5 es la aceptación transversal común entre conectores. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
+**Estado:** WooCommerce queda técnicamente cerrado y PrestaShop alcanza el alcance nativo `0.4.0`. Connector Contract Suite v2 ya fija la semántica transversal `sync`: un `recordId` existente solo puede reconciliarse y nunca reemitirse como fallback; una operación nueva exige `eventId`, preflight e idempotencia estable incluso tras fallos retryable. El siguiente incremento aplica esa semántica como gate ejecutable específico sobre WooCommerce y PrestaShop antes de marcar la aceptación transversal como cerrada. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
 
 **Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre de la aceptación transversal y al gate AEAT #6 antes de cualquier piloto fiscal real.
 
