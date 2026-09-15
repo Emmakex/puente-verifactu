@@ -16,7 +16,7 @@ test('reference connector delegates mapped preflight/send/status', async () => {
   assert.deepEqual(calls[1][3], { idempotencyKey: 'erp-demo:evt-1' });
 });
 
-test('reference connector requires event id', async () => {
+test('reference connector requires event id', () => {
   const connector = new ReferenceConnector({ client: {}, profileId: 'erp-v1' });
-  await assert.rejects(() => connector.send({}, {}), /eventId is required/);
+  assert.throws(() => connector.send({}, {}), /eventId is required/);
 });
