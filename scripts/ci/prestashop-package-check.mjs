@@ -29,6 +29,7 @@ assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopClient.php'));
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopOrderPayload.php'));
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopTaxBreakdown.php'));
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopSecretStore.php'));
+assert.ok(names.includes('puenteverifactu/upgrade/install-0.1.0.php'));
 assert.equal(names.some((name) => name.includes('/examples/')), false, 'Server-side mapping examples must not ship in the PrestaShop runtime ZIP');
 assert.equal(names.some((name) => name.includes('/fixtures/')), false, 'Fiscal test fixtures must not ship in the PrestaShop runtime ZIP');
 assert.equal(names.some((name) => name.includes('/scripts/')), false);
