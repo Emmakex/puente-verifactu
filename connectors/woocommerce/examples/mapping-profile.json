@@ -6,7 +6,7 @@
   "locale": "es-ES",
   "fields": {
     "source_invoice_id": "sourceInvoiceId",
-    "order_number": "number",
+    "invoice_number": "number",
     "order_date": "issueDate",
     "description": "description",
     "currency": "currency",
@@ -16,7 +16,7 @@
     "total_amount": "totals.totalAmount"
   },
   "transforms": {
-    "order_number": ["trim"],
+    "invoice_number": ["trim"],
     "order_date": ["trim"],
     "currency": ["trim", "upper"],
     "customer_name": ["trim"],
