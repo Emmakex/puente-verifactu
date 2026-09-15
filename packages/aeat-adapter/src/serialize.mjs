@@ -67,28 +67,27 @@ function altaXml(entry, sif) {
   }
 
   const refExternal = record.source?.sourceInvoiceId ? requireText(record.source.sourceInvoiceId, 'RefExterna', 60) : null;
-  let rectification = '';
-  if (intent.rectification) {
-    rectification += element('sf', 'TipoRectificativa', intent.rectification.type);
-    if (intent.rectification.originalInvoices?.length) {
-      rectification += `<sf:FacturasRectificadas>${intent.rectification.originalInvoices.map((ref) => invoiceReferenceXml({ ...ref, issuerTaxId: intent.issuer.taxId }, 'IDFacturaRectificada')).join('')}</sf:FacturasRectificadas>`;
+  const rectificationType = intent.rectification ? element('sf', 'TipoRectificativa', intent.rectification.type) : '';
+  const correctedInvoices = intent.rectification?.originalInvoices?.length
+    ? `<sf:FacturasRectificadas>${intent.rectification.originalInvoices.map((ref) => invoiceReferenceXml({ ...ref, issuerTaxId: intent.issuer.taxId }, 'IDFacturaRectificada')).join('')}</sf:FacturasRectificadas>`
+    : '';
+  const replacedInvoices = intent.replacedInvoices?.length
+    ? `<sf:FacturasSustituidas>${intent.replacedInvoices.map((ref) => invoiceReferenceXml({ ...ref, issuerTaxId: intent.issuer.taxId }, 'IDFacturaSustituida')).join('')}</sf:FacturasSustituidas>`
+    : '';
+
+  let rectificationAmounts = '';
+  if (intent.rectification?.type === 'S') {
+    if (intent.rectification.correctedBaseAmount == null || intent.rectification.correctedTaxAmount == null) {
+      throw Object.assign(new Error('Substitutive rectification requires corrected base and tax amounts'), { code: 'VF_AEAT_RECTIFICATION_AMOUNTS_REQUIRED' });
     }
-    if (intent.rectification.type === 'S') {
-      if (intent.rectification.correctedBaseAmount == null || intent.rectification.correctedTaxAmount == null) {
-        throw Object.assign(new Error('Substitutive rectification requires corrected base and tax amounts'), { code: 'VF_AEAT_RECTIFICATION_AMOUNTS_REQUIRED' });
-      }
-      rectification += `<sf:ImporteRectificacion>${element('sf', 'BaseRectificada', intent.rectification.correctedBaseAmount)}${element('sf', 'CuotaRectificada', intent.rectification.correctedTaxAmount)}</sf:ImporteRectificacion>`;
-    }
-  }
-  if (intent.replacedInvoices?.length) {
-    rectification += `<sf:FacturasSustituidas>${intent.replacedInvoices.map((ref) => invoiceReferenceXml({ ...ref, issuerTaxId: intent.issuer.taxId }, 'IDFacturaSustituida')).join('')}</sf:FacturasSustituidas>`;
+    rectificationAmounts = `<sf:ImporteRectificacion>${element('sf', 'BaseRectificada', intent.rectification.correctedBaseAmount)}${element('sf', 'CuotaRectificada', intent.rectification.correctedTaxAmount)}${intent.rectification.correctedSurchargeAmount != null ? element('sf', 'CuotaRecargoRectificado', intent.rectification.correctedSurchargeAmount) : ''}</sf:ImporteRectificacion>`;
   }
 
   const recipients = intent.recipients?.length
     ? `<sf:Destinatarios>${intent.recipients.map((party) => `<sf:IDDestinatario>${partyXml(party)}</sf:IDDestinatario>`).join('')}</sf:Destinatarios>`
     : '';
 
-  return `<sf:RegistroAlta>${element('sf', 'IDVersion', AEAT_ARTIFACTS.recordVersion)}<sf:IDFactura>${element('sf', 'IDEmisorFactura', record.invoice.issuerTaxId)}${element('sf', 'NumSerieFactura', record.invoice.fiscalNumber)}${element('sf', 'FechaExpedicionFactura', formatAeatDate(record.invoice.issueDate))}</sf:IDFactura>${refExternal ? element('sf', 'RefExterna', refExternal) : ''}${element('sf', 'NombreRazonEmisor', intent.issuer.name)}${delivery.subsanacion != null ? element('sf', 'Subsanacion', yesNo(delivery.subsanacion)) : ''}${delivery.rechazoPrevio != null ? element('sf', 'RechazoPrevio', yesNo(delivery.rechazoPrevio)) : ''}${element('sf', 'TipoFactura', intent.invoiceType)}${rectification}${element('sf', 'DescripcionOperacion', intent.description)}${recipients}<sf:Desglose>${intent.taxBreakdown.map(taxDetailXml).join('')}</sf:Desglose>${element('sf', 'CuotaTotal', record.quotaTotal)}${element('sf', 'ImporteTotal', record.totalAmount)}${chainXml(record)}${sifXml(sif, record)}${element('sf', 'FechaHoraHusoGenRegistro', record.generatedAt)}${element('sf', 'TipoHuella', record.hashType)}${element('sf', 'Huella', record.hash)}</sf:RegistroAlta>`;
+  return `<sf:RegistroAlta>${element('sf', 'IDVersion', AEAT_ARTIFACTS.recordVersion)}<sf:IDFactura>${element('sf', 'IDEmisorFactura', record.invoice.issuerTaxId)}${element('sf', 'NumSerieFactura', record.invoice.fiscalNumber)}${element('sf', 'FechaExpedicionFactura', formatAeatDate(record.invoice.issueDate))}</sf:IDFactura>${refExternal ? element('sf', 'RefExterna', refExternal) : ''}${element('sf', 'NombreRazonEmisor', intent.issuer.name)}${delivery.subsanacion != null ? element('sf', 'Subsanacion', yesNo(delivery.subsanacion)) : ''}${delivery.rechazoPrevio != null ? element('sf', 'RechazoPrevio', yesNo(delivery.rechazoPrevio)) : ''}${element('sf', 'TipoFactura', intent.invoiceType)}${rectificationType}${correctedInvoices}${replacedInvoices}${rectificationAmounts}${element('sf', 'DescripcionOperacion', intent.description)}${recipients}<sf:Desglose>${intent.taxBreakdown.map(taxDetailXml).join('')}</sf:Desglose>${element('sf', 'CuotaTotal', record.quotaTotal)}${element('sf', 'ImporteTotal', record.totalAmount)}${chainXml(record)}${sifXml(sif, record)}${element('sf', 'FechaHoraHusoGenRegistro', record.generatedAt)}${element('sf', 'TipoHuella', record.hashType)}${element('sf', 'Huella', record.hash)}</sf:RegistroAlta>`;
 }
 
 function anulacionXml(entry, sif) {
