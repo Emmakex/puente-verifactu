@@ -6,6 +6,10 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- PrestaShop Connector v1 foundation para 1.7.8.x/8.x con configuración por tienda, payload neutral y flujo manual `preflight -> issue -> reconcile`.
+- Token Bearer del conector PrestaShop cifrado con AES-256-GCM; certificado y lógica AEAT permanecen exclusivamente server-side.
+- Idempotencia PrestaShop por tienda/pedido/factura, persistencia local de `recordId`/estado y bloqueo de duplicados antes de reconciliar.
+- Gate CI `npm run prestashop:contract` más sintaxis PHP 7.4 para HTTPS/TLS, numeración fiscal nativa, mapping server-side y ausencia de lógica AEAT duplicada.
 - ZIP reproducible del conector WooCommerce v0.2 con allowlist de runtime, SHA-256 y gate byte-a-byte.
 - Matriz CI real WordPress/WooCommerce/PHP con MySQL, instalación del ZIP, HPOS, hooks y smoke CRUD.
 - Documento de compatibilidad WooCommerce con versiones oficiales revisadas el 15/09/2026.
