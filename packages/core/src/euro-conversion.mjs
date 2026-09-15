@@ -93,7 +93,7 @@ export function convertInvoiceIntentToEuro(intent, conversion) {
     };
   }
 
-  const structural = validateInvoiceIntent(intent, { allowNonEuro: true });
+  const structural = validateInvoiceIntent({ ...structuredClone(intent), currency: 'EUR' });
   if (!structural.ok) throw conversionError('VF_FX_SOURCE_INTENT_INVALID', 'Source InvoiceIntent is invalid before EUR conversion', structural.errors);
   const rate = assertConversion(intent, conversion);
   const fiscalIntent = structuredClone(intent);
