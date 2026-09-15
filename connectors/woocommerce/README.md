@@ -47,6 +47,8 @@ En `WooCommerce → Puente VeriFactu`:
 
 El token se almacena cifrado usando las salts de WordPress. Nunca se incluye en logs, notas de pedido o payloads.
 
+La conversión fiscal de divisas se configura exclusivamente en el servidor Puente. El plugin no recibe ni almacena tipos de cambio.
+
 ## Número de factura ordinaria
 
 WooCommerce core crea pedidos, no una numeración fiscal que Puente pueda asumir automáticamente. Por eso el plugin obliga a elegir una fuente:
@@ -185,7 +187,7 @@ Refund:
 
 `tax_lines[]` puede contener varios tipos impositivos. El origen no puede introducir `taxCode`, `regimeKey`, `operationClass` ni `invoiceType`; estos datos permanecen server-side.
 
-La moneda viene del objeto Woo. En la versión actual una moneda distinta de EUR queda bloqueada por preflight hasta existir un contrato explícito de conversión; el plugin no inventa tipos de cambio.
+La moneda comercial viene del objeto Woo. Si no es EUR, Puente busca una conversión fiscal server-side por organización, instalación, moneda y fecha; conserva la vista comercial original y genera una vista fiscal EUR separada. Si falta el cambio o los céntimos no reconcilian, preflight bloquea sin emitir. El plugin nunca inventa ni aporta el tipo de cambio. Ver `docs/euro-conversion-v1.md`.
 
 ## Reintentos
 
@@ -219,7 +221,6 @@ El CI instala ese ZIP real en la matriz WordPress/WooCommerce antes de considera
 
 Si una actualización de WooCommerce rompe temporalmente el conector, el negocio puede seguir usando CSV/XLSX mediante el wizard universal. El conector nativo es una optimización, no una dependencia del motor fiscal.
 
-## Pendiente dentro de Fase 5
+## Estado dentro de Fase 5
 
-- contrato explícito de conversión EUR para pedidos en moneda extranjera;
-- conector PrestaShop.
+El bloque WooCommerce queda técnicamente cerrado: facturas ordinarias, rectificativas por refund, semáforo operativo, compatibilidad empaquetada y conversión fiscal EUR server-side están cubiertos. El siguiente conector nativo es PrestaShop.

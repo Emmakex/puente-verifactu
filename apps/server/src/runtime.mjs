@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApiHandler } from '../../api/src/handler.mjs';
 import { ImportSessionService } from '../../api/src/imports.mjs';
-import { UniversalBridgeService } from '../../api/src/service.mjs';
+import { FxAwareBridgeService } from '../../api/src/fx-bridge.mjs';
 import { FiscalRecordService } from '../../../packages/core/src/fiscal-record-service.mjs';
 import { createSqlitePersistence } from '../../../packages/sqlite-store/src/index.mjs';
 import { createHttpAuthenticator } from './auth.mjs';
@@ -20,7 +20,7 @@ function requiredString(value, name) {
 export function createPuenteRuntime({
   databasePath,
   authConfig,
-  integrationConfig = { integrations: [] },
+  integrationConfig = { integrations: [], euroConversions: [] },
   sif,
   onboardingDir = DEFAULT_ONBOARDING_DIR,
   rateLimiter = new FixedWindowRateLimiter(),
@@ -45,13 +45,14 @@ export function createPuenteRuntime({
     store: persistence.fiscalStore,
     clock,
   });
-  const bridge = new UniversalBridgeService({
+  const resolvers = createIntegrationResolvers(integrationConfig);
+  const bridge = new FxAwareBridgeService({
     fiscalService,
     store: persistence.integrationStore,
+    resolveEuroConversion: resolvers.resolveEuroConversion,
   });
   const imports = new ImportSessionService({ store: persistence.importStore });
   const authenticateHttp = createHttpAuthenticator(authConfig);
-  const resolvers = createIntegrationResolvers(integrationConfig);
   const apiHandler = createApiHandler({
     bridge,
     imports,

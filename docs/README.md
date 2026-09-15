@@ -11,6 +11,7 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `canonical-core-v1.md` | Contrato ejecutable InvoiceIntent/MappingProfile/preflight v1 |
 | `mapping-assistant-v1.md` | XLSX/CSV, confianza de mapeo y wizard de configuración |
 | `fiscal-records-v1.md` | Registros alta/anulación, hash AEAT, encadenamiento e idempotencia |
+| `euro-conversion-v1.md` | Conversión fiscal no-EUR → EUR, auditoría, redondeo e idempotencia |
 | `aeat-test-adapter-v1.md` | SOAP/XML, mTLS, respuestas, reintentos y gate externo de pruebas AEAT |
 | `aeat-live-gate.md` | Runbook y comando seguro para cerrar la prueba real de Fase 3 |
 | `universal-integration-kit-v1.md` | API/SDK, webhook low-code y patrón camaleónico de integración |
