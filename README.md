@@ -2,7 +2,7 @@
 
 **Puente VeriFactu** es la capa de integración fiscal de Kairoseth Extensions para conectar sistemas de facturación, ERP, CRM, ecommerce, hojas de cálculo y software propio con **VERI*FACTU / AEAT** sin obligar al negocio a sustituir lo que ya utiliza.
 
-> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 en desarrollo con WooCommerce técnicamente cerrado y PrestaShop `0.3.0` validado con factura nativa, semáforo operativo, ZIP reproducible y rectificativas idempotentes basadas en `OrderSlip` en 1.7.8.11, 8.1.7 y 8.2.7. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
+> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 en desarrollo transversal con WooCommerce técnicamente cerrado y PrestaShop `0.4.0` validado con factura nativa, semáforo operativo, ZIP reproducible, rectificativas `OrderSlip` y automatización opt-in segura en 1.7.8.11, 8.1.7 y 8.2.7. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
 
 ## Principio Camaleón
 
@@ -33,6 +33,7 @@ La primera etapa será **solo VERI*FACTU**. El modo NO VERI*FACTU queda fuera de
 - Historial fiscal finalizado inmutable; las correcciones generan operaciones nuevas.
 - Idempotencia obligatoria de extremo a extremo.
 - Credenciales/certificados AEAT exclusivamente server-side y fuera del repositorio.
+- Automatizaciones nativas opt-in y desactivadas por defecto cuando puedan crear operaciones fiscales.
 - ES/EN juntos en interfaces de cliente.
 - Todo fallo de CI, build, test, deploy o runtime genera diagnóstico estructurado accionable.
 - `finish before advancing`, salvo gate exclusivamente externo diferido mediante ADR y manteniendo bloqueo de release/piloto.
@@ -69,7 +70,7 @@ Documentación revisada el **15 de septiembre de 2026**. Antes de cada release c
 
 ## Desarrollo
 
-Requiere Node.js 22.13+ para las herramientas actuales del repositorio. Los gates de conectores validan además sintaxis PHP 7.4. WooCommerce dispone de matriz real WordPress/WooCommerce y ZIP reproducible. PrestaShop dispone de contrato estático, fixtures de factura y rectificativa, ZIP reproducible, upgrade smoke y matriz real en PrestaShop 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1. La versión `0.3.0` crea un `OrderSlip` real en cada combinación y mantiene `R1–R5` y `S/I` exclusivamente server-side.
+Requiere Node.js 22.13+ para las herramientas actuales del repositorio. Los gates de conectores validan además sintaxis PHP 7.4. WooCommerce dispone de matriz real WordPress/WooCommerce y ZIP reproducible. PrestaShop dispone de contrato estático, fixtures de factura y rectificativa, ZIP reproducible, upgrade smoke y matriz real en PrestaShop 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1. La versión `0.4.0` añade automatización opt-in por tienda mediante eventos nativos, siempre OFF al instalar/actualizar y reutilizando preflight, idempotencia y reconciliación; `R1–R5`, `S/I` y las credenciales AEAT siguen exclusivamente server-side.
 
 ```bash
 npm run check

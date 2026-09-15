@@ -82,7 +82,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Importador CSV reutilizando contrato canónico.
 - [x] XLSX read-only sin dependencias externas.
 - [x] Inspección unificada CSV/XLSX.
-- [x] Asistente de mapping con confianza y confirmación explícita.
+- [x] Asistente de mapping con confianza, revisión explícita, campos pendientes y borrador seguro de `MappingProfile`.
 - [x] Contrato UX del wizard de mapping.
 - [x] Wizard visual responsive ES/EN de upload → mapping → configuración → preflight.
 - [x] Sesiones temporales de importación aisladas por tenant/instalación.
@@ -120,12 +120,12 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Paquete ZIP reproducible del plugin con allowlist de runtime y SHA-256.
 - [x] Contrato server-side auditable de conversión EUR para operaciones en moneda extranjera, con redondeo exacto, reconciliación e idempotencia.
 
-### PrestaShop 🚧
+### PrestaShop ✅ alcance nativo v0.4
 
 - [x] Foundation v1 como módulo fino para PrestaShop 1.7.8.x/8.x.
 - [x] Configuración por tienda: endpoint HTTPS, `MappingProfile`, timeout y Bearer token cifrado con AES-256-GCM.
 - [x] Payload neutral con número fiscal de factura, fecha, moneda, destinatario, totales y desglose por tipos.
-- [x] Flujo manual seguro `preflight -> issue -> reconcile` antes de cualquier automatización.
+- [x] Flujo manual seguro `preflight -> issue -> reconcile` siempre disponible.
 - [x] Idempotencia estable por tienda + pedido + número fiscal y bloqueo local de duplicados mediante `recordId`.
 - [x] Persistencia mínima de estado/sincronización aislada por tienda.
 - [x] Gate contractual CI y sintaxis PHP 7.4.
@@ -139,16 +139,19 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Persistencia rectificativa separada por tienda + `OrderSlip`, relación obligatoria con factura original y estado visible en la ficha del pedido.
 - [x] Gate real de `OrderSlip::create()` en 1.7.8.11/8.1.7/8.2.7 más fixtures deterministas de IVA 21/10/4 y redondeo.
 - [x] Upgrade `0.2.0 → 0.3.0` preservando sincronización de factura y creando almacenamiento de rectificativas.
-- [ ] Automatización opt-in de eventos solo después de validar el flujo manual.
+- [x] Automatización opt-in por tienda para factura y `OrderSlip`, con switches independientes OFF por defecto.
+- [x] Eventos nativos `actionOrderStatusPostUpdate` y `actionOrderSlipAdd` reutilizando preflight, idempotencia y reconciliación existentes.
+- [x] Upgrade `0.3.0 → 0.4.0` preservando estado principal/rectificativo, registrando hooks y dejando automatización OFF.
+- [x] Smoke real que demuestra ausencia de efectos automáticos mientras los switches están desactivados.
 
 ### Aceptación transversal
 
 - [ ] Reconciliación/fallback end-to-end común entre conectores.
 - [ ] Tests de compatibilidad y Connector Contract Suite para cada extensión.
 
-**Estado:** WooCommerce queda técnicamente cerrado dentro de Fase 5. PrestaShop alcanza `0.3.0` con factura principal, semáforo operativo y rectificativas nativas `OrderSlip` idempotentes. La matriz real valida instalación, factura y creación de abono en 1.7.8.11, 8.1.7 y 8.2.7; los fixtures complementarios cubren IVA positivo 21/10/4 y bloqueos por incoherencia. El upgrade `0.2.0 → 0.3.0` conserva el estado de la factura original. El siguiente bloque funcional es automatización opt-in de eventos, sin eliminar el modo manual seguro. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
+**Estado:** WooCommerce queda técnicamente cerrado y PrestaShop alcanza el alcance nativo `0.4.0`: factura, semáforo, rectificativas `OrderSlip`, packaging reproducible, matriz real y automatización opt-in segura por tienda. El modo manual permanece disponible y cualquier instalación/upgrade conserva la automatización desactivada hasta decisión explícita del comercio. El siguiente bloque de Fase 5 es la aceptación transversal común entre conectores. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
 
-**Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre previo del gate AEAT #6 antes de cualquier piloto fiscal real.
+**Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre de la aceptación transversal y al gate AEAT #6 antes de cualquier piloto fiscal real.
 
 ## Fase 6 — Production Readiness
 

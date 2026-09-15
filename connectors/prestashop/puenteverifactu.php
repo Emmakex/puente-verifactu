@@ -9,10 +9,11 @@ require_once __DIR__ . '/classes/PVFPrestaShopClient.php';
 require_once __DIR__ . '/classes/PVFPrestaShopOrderPayload.php';
 require_once __DIR__ . '/classes/PVFPrestaShopAdminStatus.php';
 require_once __DIR__ . '/classes/PVFPrestaShopRectifications.php';
+require_once __DIR__ . '/classes/PVFPrestaShopAutomation.php';
 
 class PuenteVerifactu extends Module
 {
-    const VERSION = '0.3.0';
+    const VERSION = '0.4.0';
     const CONFIG_ENDPOINT = 'PVF_ENDPOINT';
     const CONFIG_PROFILE_ID = 'PVF_PROFILE_ID';
     const CONFIG_TIMEOUT = 'PVF_TIMEOUT';
@@ -36,11 +37,15 @@ class PuenteVerifactu extends Module
 
     public function install()
     {
+        $shopId = (int) $this->context->shop->id;
         return parent::install()
             && $this->installSchema()
             && PVFPrestaShopRectifications::installSchema()
-            && Configuration::updateValue(self::CONFIG_TIMEOUT, 15, false, null, (int) $this->context->shop->id)
-            && $this->registerHook('displayAdminOrderMainBottom');
+            && Configuration::updateValue(self::CONFIG_TIMEOUT, 15, false, null, $shopId)
+            && PVFPrestaShopAutomation::installDefaults($shopId)
+            && $this->registerHook('displayAdminOrderMainBottom')
+            && $this->registerHook('actionOrderStatusPostUpdate')
+            && $this->registerHook('actionOrderSlipAdd');
     }
 
     public function uninstall()
@@ -50,7 +55,8 @@ class PuenteVerifactu extends Module
         Configuration::deleteByName(self::CONFIG_TIMEOUT);
         Configuration::deleteByName(PVFPrestaShopSecretStore::CONFIG_KEY);
 
-        return PVFPrestaShopRectifications::uninstall()
+        return PVFPrestaShopAutomation::uninstall()
+            && PVFPrestaShopRectifications::uninstall()
             && $this->uninstallSchema()
             && parent::uninstall();
     }
@@ -77,6 +83,16 @@ class PuenteVerifactu extends Module
             . $this->renderSettingsForm()
             . $this->renderManualPanel()
             . PVFPrestaShopRectifications::renderPanel($this);
+    }
+
+    public function hookActionOrderStatusPostUpdate($params)
+    {
+        PVFPrestaShopAutomation::handleOrderStatus($this, is_array($params) ? $params : array());
+    }
+
+    public function hookActionOrderSlipAdd($params)
+    {
+        PVFPrestaShopAutomation::handleOrderSlip($this, is_array($params) ? $params : array());
     }
 
     public function hookDisplayAdminOrderMainBottom($params)
@@ -154,6 +170,8 @@ class PuenteVerifactu extends Module
         $profileId = trim((string) Tools::getValue('PVF_PROFILE_ID'));
         $timeout = max(5, min(30, (int) Tools::getValue('PVF_TIMEOUT', 15)));
         $token = trim((string) Tools::getValue('PVF_API_TOKEN'));
+        $autoInvoices = (int) Tools::getValue(PVFPrestaShopAutomation::CONFIG_AUTO_INVOICES, 0) === 1 ? 1 : 0;
+        $autoRectifications = (int) Tools::getValue(PVFPrestaShopAutomation::CONFIG_AUTO_RECTIFICATIONS, 0) === 1 ? 1 : 0;
 
         if ($endpoint === '' || strpos($endpoint, 'https://') !== 0) {
             return $this->displayError($this->l('The Puente VeriFactu endpoint must use HTTPS.'));
@@ -165,6 +183,8 @@ class PuenteVerifactu extends Module
         Configuration::updateValue(self::CONFIG_ENDPOINT, $endpoint, false, null, $shopId);
         Configuration::updateValue(self::CONFIG_PROFILE_ID, $profileId, false, null, $shopId);
         Configuration::updateValue(self::CONFIG_TIMEOUT, $timeout, false, null, $shopId);
+        Configuration::updateValue(PVFPrestaShopAutomation::CONFIG_AUTO_INVOICES, $autoInvoices, false, null, $shopId);
+        Configuration::updateValue(PVFPrestaShopAutomation::CONFIG_AUTO_RECTIFICATIONS, $autoRectifications, false, null, $shopId);
 
         if ($token !== '') {
             try {
@@ -199,6 +219,8 @@ class PuenteVerifactu extends Module
                 'PVF_PROFILE_ID' => (string) Configuration::get(self::CONFIG_PROFILE_ID, null, null, $shopId),
                 'PVF_TIMEOUT' => (int) Configuration::get(self::CONFIG_TIMEOUT, null, null, $shopId),
                 'PVF_API_TOKEN' => '',
+                PVFPrestaShopAutomation::CONFIG_AUTO_INVOICES => (int) Configuration::get(PVFPrestaShopAutomation::CONFIG_AUTO_INVOICES, null, null, $shopId),
+                PVFPrestaShopAutomation::CONFIG_AUTO_RECTIFICATIONS => (int) Configuration::get(PVFPrestaShopAutomation::CONFIG_AUTO_RECTIFICATIONS, null, null, $shopId),
             ),
         );
 
@@ -237,6 +259,28 @@ class PuenteVerifactu extends Module
                         'name' => 'PVF_TIMEOUT',
                         'required' => true,
                         'desc' => $this->l('Allowed range: 5 to 30 seconds.'),
+                    ),
+                    array(
+                        'type' => 'switch',
+                        'label' => $this->l('Automatic invoices'),
+                        'name' => PVFPrestaShopAutomation::CONFIG_AUTO_INVOICES,
+                        'is_bool' => true,
+                        'desc' => $this->l('Off by default. When enabled, a post-status event with exactly one native invoice runs preflight and creates or reconciles the Puente record.'),
+                        'values' => array(
+                            array('id' => 'pvf_auto_invoices_on', 'value' => 1, 'label' => $this->l('Enabled')),
+                            array('id' => 'pvf_auto_invoices_off', 'value' => 0, 'label' => $this->l('Disabled')),
+                        ),
+                    ),
+                    array(
+                        'type' => 'switch',
+                        'label' => $this->l('Automatic corrective credit slips'),
+                        'name' => PVFPrestaShopAutomation::CONFIG_AUTO_RECTIFICATIONS,
+                        'is_bool' => true,
+                        'desc' => $this->l('Off by default. Requires the separate corrective MappingProfile and an already fiscalized original invoice.'),
+                        'values' => array(
+                            array('id' => 'pvf_auto_rectifications_on', 'value' => 1, 'label' => $this->l('Enabled')),
+                            array('id' => 'pvf_auto_rectifications_off', 'value' => 0, 'label' => $this->l('Disabled')),
+                        ),
                     ),
                 ),
                 'submit' => array(

@@ -93,15 +93,19 @@ $module = Module::getInstanceByName('puenteverifactu');
 if (!$module || empty($module->active)) {
     pvfFail('PRESTA_MODULE_NOT_ACTIVE', 'puenteverifactu is not active.');
 }
-if ((string) $module->version !== '0.3.0') {
-    pvfFail('PRESTA_MODULE_VERSION_MISMATCH', 'Expected module 0.3.0, received ' . (string) $module->version);
+if ((string) $module->version !== '0.4.0') {
+    pvfFail('PRESTA_MODULE_VERSION_MISMATCH', 'Expected module 0.4.0, received ' . (string) $module->version);
 }
 if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
     pvfFail('PRESTA_ORDER_STATUS_HOOK_MISSING', 'displayAdminOrderMainBottom was not registered.');
 }
+if (!$module->isRegisteredInHook('actionOrderStatusPostUpdate') || !$module->isRegisteredInHook('actionOrderSlipAdd')) {
+    pvfFail('PRESTA_AUTOMATION_HOOK_MISSING', 'Opt-in automation hooks were not registered.');
+}
 if (!class_exists('PVFPrestaShopOrderPayload')
     || !class_exists('PVFPrestaShopOrderSlipPayload')
     || !class_exists('PVFPrestaShopRectifications')
+    || !class_exists('PVFPrestaShopAutomation')
     || !class_exists('PVFPrestaShopTaxBreakdown')
     || !class_exists('PVFPrestaShopAdminStatus')) {
     pvfFail('PRESTA_RUNTIME_CLASSES_MISSING', 'Connector runtime classes were not loaded.');
@@ -181,6 +185,21 @@ if (!Validate::isLoadedObject($order)) {
 }
 pvfHydrateContext($order);
 
+if ((int) Configuration::get(PVFPrestaShopAutomation::CONFIG_AUTO_INVOICES, null, null, (int) $order->id_shop) !== 0
+    || (int) Configuration::get(PVFPrestaShopAutomation::CONFIG_AUTO_RECTIFICATIONS, null, null, (int) $order->id_shop) !== 0) {
+    pvfFail('PRESTA_AUTOMATION_DEFAULT_NOT_OFF', 'Automation must be disabled by default for invoices and corrective credit slips.');
+}
+
+Db::getInstance()->delete('pvf_order_sync', '`id_shop` = ' . (int) $order->id_shop . ' AND `id_order` = ' . (int) $order->id);
+$module->hookActionOrderStatusPostUpdate(array('id_order' => (int) $order->id));
+$disabledRows = (int) Db::getInstance()->getValue(
+    'SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'pvf_order_sync` WHERE `id_shop` = ' . (int) $order->id_shop
+    . ' AND `id_order` = ' . (int) $order->id
+);
+if ($disabledRows !== 0) {
+    pvfFail('PRESTA_INVOICE_AUTOMATION_DEFAULT_SIDE_EFFECT', 'Disabled invoice automation created local synchronization state.');
+}
+
 try {
     $payload = PVFPrestaShopOrderPayload::build($order, array('shop_id' => (int) $order->id_shop));
 } catch (Exception $exception) {
@@ -251,6 +270,8 @@ fwrite(STDOUT, json_encode(array(
     'tax_lines' => count($payload['tax_lines']),
     'native_order_status_card' => true,
     'corrective_runtime_loaded' => true,
+    'automation_hooks_registered' => true,
+    'automation_default_off' => true,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 PHP
 
@@ -319,4 +340,4 @@ docker exec \
   -e EXPECTED_PHP_VERSION="$PRESTASHOP_PHP" \
   "$PS_CONTAINER" php /tmp/pvf-rectification-runtime.php
 
-echo "[presta-ci] release-package and corrective compatibility smoke passed for PrestaShop ${PRESTASHOP_VERSION} / PHP ${PRESTASHOP_PHP}"
+echo "[presta-ci] release-package, opt-in automation defaults and corrective compatibility smoke passed for PrestaShop ${PRESTASHOP_VERSION} / PHP ${PRESTASHOP_PHP}"
