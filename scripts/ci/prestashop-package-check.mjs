@@ -29,6 +29,7 @@ assert.ok(names.includes('puenteverifactu/upgrade/'));
 assert.ok(names.includes('puenteverifactu/puenteverifactu.php'));
 assert.ok(names.includes('puenteverifactu/README.md'));
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopClient.php'));
+assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopApiException.php'));
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopOrderPayload.php'));
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopOrderSlipPayload.php'));
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopRectifications.php'));
@@ -46,12 +47,14 @@ assert.equal(names.some((name) => name.includes('/scripts/')), false);
 assert.equal(names.some((name) => name.includes('../')), false);
 
 console.log(JSON.stringify({
-  schema_version: 1,
+  schema_version: 2,
   status: 'ok',
   check: 'prestashop-release-package',
   version: first.version,
   entries: names.length,
   corrective_credit_slips: true,
   opt_in_automation: true,
+  typed_api_errors: true,
+  native_reconciliation_v2: true,
   sha256: createHash('sha256').update(first.buffer).digest('hex'),
 }, null, 2));
