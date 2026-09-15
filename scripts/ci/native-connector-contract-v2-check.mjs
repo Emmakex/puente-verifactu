@@ -52,6 +52,7 @@ const expectations = [
   [prestaSmoke.includes('prestashop-rectification-runtime.php'), 'NATIVE_V2_PRESTA_REAL_MATRIX_NOT_WIRED'],
   [wooConnector.includes('if ( $order->get_meta( self::META_RECORD_ID, true ) )') && wooConnector.includes('$this->reconcile_order( $order_id );') && wooConnector.includes('return;'), 'NATIVE_V2_WOO_INVOICE_RECONCILE_FIRST_MISSING'],
   [wooConnector.includes('if ( $refund->get_meta( self::META_RECORD_ID, true ) )') && wooConnector.includes('$this->reconcile_refund( $refund_id );'), 'NATIVE_V2_WOO_CORRECTIVE_RECONCILE_FIRST_MISSING'],
+  [wooConnector.includes('private function reconcile_object( WC_Abstract_Order $order') && wooConnector.includes('private function record_error( WC_Abstract_Order $order') && wooConnector.includes('private function store_success( WC_Abstract_Order $order'), 'NATIVE_V2_WOO_SHARED_REFUND_CRUD_ABSTRACTION_MISSING'],
   [wooConnector.includes("'woo:%d:order:%d:issue:v1'") && wooConnector.includes("'woo:%d:refund:%d:issue:v1'"), 'NATIVE_V2_WOO_STABLE_IDEMPOTENCY_MISSING'],
   [wooClient.includes("array( 'cause' => $response->get_error_code(), 'retryable' => true )") && wooClient.includes("429 === $status || $status >= 500"), 'NATIVE_V2_WOO_RETRYABLE_CLASSIFICATION_MISSING'],
   [prestaClient.includes("require_once __DIR__ . '/PVFPrestaShopApiException.php';"), 'NATIVE_V2_PRESTA_TYPED_ERROR_NOT_LOADED'],
