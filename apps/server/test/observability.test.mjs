@@ -23,23 +23,29 @@ test('operational snapshot exposes aggregate outbox health and stable alerts wit
   const files = fixture();
   const persistence = createSqlitePersistence({ path: ':memory:' });
   const now = Date.parse('2026-09-15T18:00:00Z');
+  const jobIds = [
+    'job_id_pnd_7f3a',
+    'job_id_rec_8b4c',
+    'job_id_blk_9c5d',
+    'job_id_lease_ad6e',
+  ];
   try {
     persistence.aeatOutbox.enqueue({ secretInvoice: 'SHOULD-NOT-LEAK' }, {
-      id: 'pending-old',
+      id: jobIds[0],
       availableAt: now - 20 * 60 * 1000,
       now: now - 20 * 60 * 1000,
     });
 
-    persistence.aeatOutbox.enqueue({ secretInvoice: 'RECONCILE-SECRET' }, { id: 'reconcile', availableAt: 0, now: now - 5000 });
-    persistence.aeatOutbox.claim('reconcile', { owner: 'dead-worker', now: now - 5000, leaseMs: 1 });
+    persistence.aeatOutbox.enqueue({ secretInvoice: 'RECONCILE-SECRET' }, { id: jobIds[1], availableAt: 0, now: now - 5000 });
+    persistence.aeatOutbox.claim(jobIds[1], { owner: 'dead-worker', now: now - 5000, leaseMs: 1 });
     persistence.aeatOutbox.recoverExpired(now - 4000);
 
-    persistence.aeatOutbox.enqueue({ secretInvoice: 'BLOCKED-SECRET' }, { id: 'blocked', availableAt: 0, now: now - 3000 });
-    persistence.aeatOutbox.claim('blocked', { owner: 'worker', now: now - 3000, leaseMs: 5000 });
-    persistence.aeatOutbox.settle('blocked', { owner: 'worker', state: 'blocked', lastResult: { kind: 'test' }, now: now - 2000 });
+    persistence.aeatOutbox.enqueue({ secretInvoice: 'BLOCKED-SECRET' }, { id: jobIds[2], availableAt: 0, now: now - 3000 });
+    persistence.aeatOutbox.claim(jobIds[2], { owner: 'worker', now: now - 3000, leaseMs: 5000 });
+    persistence.aeatOutbox.settle(jobIds[2], { owner: 'worker', state: 'blocked', lastResult: { kind: 'test' }, now: now - 2000 });
 
-    persistence.aeatOutbox.enqueue({ secretInvoice: 'LEASE-SECRET' }, { id: 'expired-lease', availableAt: 0, now: now - 2000 });
-    persistence.aeatOutbox.claim('expired-lease', { owner: 'stuck-worker', now: now - 2000, leaseMs: 100 });
+    persistence.aeatOutbox.enqueue({ secretInvoice: 'LEASE-SECRET' }, { id: jobIds[3], availableAt: 0, now: now - 2000 });
+    persistence.aeatOutbox.claim(jobIds[3], { owner: 'stuck-worker', now: now - 2000, leaseMs: 100 });
 
     writeFileSync(files.manifestPath, JSON.stringify({
       schema_version: 1,
@@ -72,7 +78,7 @@ test('operational snapshot exposes aggregate outbox health and stable alerts wit
     assert.ok(codes(snapshot).includes('VF_OBS_BACKUP_AGE_CRITICAL'));
     const serialized = JSON.stringify(snapshot);
     assert.doesNotMatch(serialized, /SHOULD-NOT-LEAK|RECONCILE-SECRET|BLOCKED-SECRET|LEASE-SECRET/);
-    assert.doesNotMatch(serialized, /pending-old|reconcile|blocked|expired-lease/);
+    for (const jobId of jobIds) assert.equal(serialized.includes(jobId), false);
   } finally {
     persistence.close();
     files.cleanup();
