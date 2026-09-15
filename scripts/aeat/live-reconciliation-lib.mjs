@@ -118,7 +118,7 @@ export function openReadOnlyAeatOutbox(path, { Database = DatabaseSync } = {}) {
         db.close();
       },
     };
-  } catch (cause) {
+  } catch {
     try { db?.close(); } catch {}
     throw cliError('VF_AEAT_RECONCILIATION_DB_OPEN_FAILED', 'The SQLite outbox could not be opened for reconciliation');
   }
@@ -201,7 +201,6 @@ export async function runLiveReconciliation({
   const writeEvidence = dependencies.writeEvidence ?? writeLiveReconciliationEvidence;
 
   await assertDatabase(options.databasePath);
-  const { pfx, passphrase, summary: certificateSummary } = await loadCredentials(env);
 
   let resource;
   try {
@@ -217,6 +216,7 @@ export async function runLiveReconciliation({
 
     const outbox = options.apply ? resource.aeatOutbox : resource;
     const beforeJob = validateTargetJob(outbox.get(options.jobId));
+    const { pfx, passphrase, summary: certificateSummary } = await loadCredentials(env);
     const transport = makeTransport({ tls: { pfx, passphrase } });
     const sif = beforeJob.payload.entries[0]?.record?.sif ?? { systemId: 'PV' };
     const adapter = new Adapter({ sif, environment: 'test', transport });
@@ -233,9 +233,6 @@ export async function runLiveReconciliation({
     if (options.evidenceOutput) await writeEvidence(options.evidenceOutput, evidence);
     return evidence;
   } finally {
-    try {
-      if (options.apply) resource?.close?.();
-      else resource?.close?.();
-    } catch {}
+    try { resource?.close?.(); } catch {}
   }
 }
