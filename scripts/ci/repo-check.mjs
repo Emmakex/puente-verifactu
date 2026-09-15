@@ -15,6 +15,7 @@ const requiredPaths = [
   'docs/mapping-assistant-v1.md',
   'docs/canonical-core-v1.md',
   'docs/woocommerce-compatibility.md',
+  'docs/production-readiness.md',
   'docs/adr/0001-verifactu-only-mvp.md',
   'docs/adr/0002-chameleon-integration.md',
   'docs/adr/0003-defer-external-gates-with-release-block.md',
@@ -146,6 +147,11 @@ try {
 const readme = existsSync('README.md') ? readFileSync('README.md', 'utf8') : '';
 if (!readme.includes('Principio Camaleón')) {
   failures.push({ code: 'REPO_PRODUCT_PRINCIPLE_MISSING', expected: 'Principio Camaleón in README.md' });
+}
+
+const readiness = existsSync('docs/production-readiness.md') ? readFileSync('docs/production-readiness.md', 'utf8') : '';
+for (const marker of ['Backup/restore', 'Outbox durable', 'Observabilidad', 'Perfil HA', 'gate AEAT #6']) {
+  if (!readiness.includes(marker)) failures.push({ code: 'REPO_PRODUCTION_READINESS_DOC_INCOMPLETE', marker });
 }
 
 const ci = existsSync('.github/workflows/ci.yml') ? readFileSync('.github/workflows/ci.yml', 'utf8') : '';
