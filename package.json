@@ -15,6 +15,7 @@
     "onboarding:smoke": "node scripts/ci/onboarding-smoke.mjs",
     "contract:reference": "node packages/connector-contract-suite/src/cli.mjs --module ./connectors/reference/contract.mjs",
     "runtime:smoke": "node --test apps/server/test/*.test.mjs packages/sqlite-store/test/*.test.mjs",
+    "woo:contract": "node scripts/ci/woocommerce-connector-check.mjs",
     "server": "node apps/server/src/main.mjs",
     "auth:hash": "node scripts/auth/hash-credential.mjs",
     "aeat:gate": "node scripts/aeat/live-gate.mjs"
