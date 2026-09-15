@@ -52,6 +52,9 @@ jobs:
       - name: Durable HTTP runtime smoke
         run: npm run runtime:smoke
 
+      - name: Production observability smoke
+        run: npm run ops:smoke
+
       - name: SQLite backup and restore smoke
         run: npm run sqlite:backup:smoke
 
