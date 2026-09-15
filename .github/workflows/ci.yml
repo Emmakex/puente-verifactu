@@ -61,6 +61,9 @@ jobs:
       - name: AEAT certificate preflight smoke
         run: npm run aeat:cert:smoke
 
+      - name: AEAT evidence bundle smoke
+        run: npm run aeat:evidence:smoke
+
       - name: Durable AEAT outbox smoke
         run: npm run aeat:outbox:smoke
 
