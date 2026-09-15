@@ -93,8 +93,30 @@ $module = Module::getInstanceByName('puenteverifactu');
 if (!$module || empty($module->active)) {
     pvfFail('PRESTA_MODULE_NOT_ACTIVE', 'puenteverifactu is not active.');
 }
-if (!class_exists('PVFPrestaShopOrderPayload') || !class_exists('PVFPrestaShopTaxBreakdown')) {
+if ((string) $module->version !== '0.2.0') {
+    pvfFail('PRESTA_MODULE_VERSION_MISMATCH', 'Expected module 0.2.0, received ' . (string) $module->version);
+}
+if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
+    pvfFail('PRESTA_ORDER_STATUS_HOOK_MISSING', 'displayAdminOrderMainBottom was not registered.');
+}
+if (!class_exists('PVFPrestaShopOrderPayload')
+    || !class_exists('PVFPrestaShopTaxBreakdown')
+    || !class_exists('PVFPrestaShopAdminStatus')) {
     pvfFail('PRESTA_RUNTIME_CLASSES_MISSING', 'Connector runtime classes were not loaded.');
+}
+
+$summaryCases = array(
+    array(null, 'gray'),
+    array(array('status' => 'accepted', 'record_id' => 'r1', 'last_error' => '', 'date_upd' => ''), 'green'),
+    array(array('status' => 'preflight_valid', 'record_id' => '', 'last_error' => '', 'date_upd' => ''), 'amber'),
+    array(array('status' => 'blocked', 'record_id' => '', 'last_error' => 'blocked', 'date_upd' => ''), 'red'),
+    array(array('status' => 'accepted', 'record_id' => 'r1', 'last_error' => 'review', 'date_upd' => ''), 'amber'),
+);
+foreach ($summaryCases as $case) {
+    $summary = PVFPrestaShopAdminStatus::summarize($case[0]);
+    if ((string) $summary['level'] !== $case[1]) {
+        pvfFail('PRESTA_ORDER_STATUS_LEVEL_INVALID', 'Unexpected traffic-light level for status summary fixture.');
+    }
 }
 
 $table = _DB_PREFIX_ . 'pvf_order_sync';
@@ -165,6 +187,48 @@ if (!isset($payload['total_amount']) || !isset($payload['tax_amount']) || !isset
     pvfFail('PRESTA_REAL_PAYLOAD_TOTALS_MISSING', 'Real invoice payload misses totals/currency.');
 }
 
+Db::getInstance()->delete('pvf_order_sync', '`id_shop` = ' . (int) $order->id_shop . ' AND `id_order` = ' . (int) $order->id);
+if (!Db::getInstance()->insert('pvf_order_sync', array(
+    'id_shop' => (int) $order->id_shop,
+    'id_order' => (int) $order->id,
+    'record_id' => 'status-smoke-record',
+    'idempotency_key' => 'status-smoke-key',
+    'status' => 'accepted',
+    'last_error' => '',
+    'date_upd' => date('Y-m-d H:i:s'),
+))) {
+    pvfFail('PRESTA_ORDER_STATUS_SEED_FAILED', 'Could not seed local status row.');
+}
+
+$statusHtml = $module->hookDisplayAdminOrderMainBottom(array('id_order' => (int) $order->id));
+if (strpos($statusHtml, 'badge-success') === false || strpos($statusHtml, 'status-smoke-record') === false) {
+    pvfFail('PRESTA_ORDER_STATUS_GREEN_RENDER_FAILED', 'Accepted state did not render a green native order card.');
+}
+
+if (!Db::getInstance()->update('pvf_order_sync', array(
+    'status' => 'blocked',
+    'last_error' => 'status-smoke-review',
+    'date_upd' => date('Y-m-d H:i:s'),
+), '`id_shop` = ' . (int) $order->id_shop . ' AND `id_order` = ' . (int) $order->id)) {
+    pvfFail('PRESTA_ORDER_STATUS_UPDATE_FAILED', 'Could not update local status row.');
+}
+$statusHtml = $module->hookDisplayAdminOrderMainBottom(array('id_order' => (int) $order->id));
+if (strpos($statusHtml, 'badge-danger') === false || strpos($statusHtml, 'status-smoke-review') === false) {
+    pvfFail('PRESTA_ORDER_STATUS_RED_RENDER_FAILED', 'Blocked state did not render a red native order card.');
+}
+
+if (!Db::getInstance()->update('pvf_order_sync', array(
+    'status' => 'preflight_valid',
+    'last_error' => '',
+    'date_upd' => date('Y-m-d H:i:s'),
+), '`id_shop` = ' . (int) $order->id_shop . ' AND `id_order` = ' . (int) $order->id)) {
+    pvfFail('PRESTA_ORDER_STATUS_UPDATE_FAILED', 'Could not update local status row for amber state.');
+}
+$statusHtml = $module->hookDisplayAdminOrderMainBottom(array('id_order' => (int) $order->id));
+if (strpos($statusHtml, 'badge-warning') === false) {
+    pvfFail('PRESTA_ORDER_STATUS_AMBER_RENDER_FAILED', 'Pending state did not render an amber native order card.');
+}
+
 fwrite(STDOUT, json_encode(array(
     'schema_version' => 1,
     'status' => 'ok',
@@ -175,6 +239,7 @@ fwrite(STDOUT, json_encode(array(
     'order_id' => (int) $order->id,
     'invoice_id' => (string) $payload['invoice_id'],
     'tax_lines' => count($payload['tax_lines']),
+    'native_order_status_card' => true,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 PHP
 
