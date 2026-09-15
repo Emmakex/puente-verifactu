@@ -30,20 +30,14 @@ El perfil se configura una vez y se reutiliza. El sistema origen puede seguir ll
 
 Para sistemas capaces de lanzar un HTTP POST cuando crean una factura.
 
-El webhook usa:
-
-- `profileId` en la ruta;
-- HMAC-SHA256;
-- timestamp anti-replay;
-- `Idempotency-Key` o `X-Event-Id`;
-- secreto resuelto exclusivamente en servidor.
+El webhook usa `profileId`, HMAC-SHA256, timestamp anti-replay e idempotencia. Perfil y secreto se resuelven exclusivamente en servidor y por tenant/instalación.
 
 ### 4. Archivo cero-código
 
 CSV y XLSX reutilizan exactamente el mismo `MappingProfile` y preflight.
 
 ```text
-archivo existente -> inspección -> mapping asistido -> preflight -> perfil guardado
+archivo existente -> inspección -> mapping asistido -> preflight
 ```
 
 El lector XLSX es read-only, sin dependencias externas y con límites defensivos. El asistente clasifica propuestas como automáticas o pendientes de revisión y nunca convierte una coincidencia dudosa en decisión fiscal silenciosa.
@@ -54,15 +48,13 @@ El wizard de `apps/onboarding` convierte este contrato en una experiencia visual
 subir archivo -> elegir hoja -> confirmar columnas -> datos fijos -> validar sin enviar
 ```
 
-El navegador no procesa la lógica fiscal ni XLSX. El backend crea una sesión temporal, inspecciona el archivo y devuelve únicamente el contrato necesario para la interfaz.
+El navegador no procesa la lógica fiscal ni XLSX.
 
 ### 5. Conector nativo
 
-WooCommerce, PrestaShop y futuros ERP/CRM reutilizarán el SDK y el mismo contrato; ningún conector implementará lógica fiscal propia.
+WooCommerce, PrestaShop y futuros ERP/CRM reutilizan el SDK y el mismo contrato; ningún conector implementa lógica fiscal propia. Cada conector puede comprobarse con `packages/connector-contract-suite`.
 
-Cada conector puede comprobarse con `packages/connector-contract-suite` antes de integrarse.
-
-## API v1 inicial
+## API v1
 
 - `POST /v1/imports/inspect`
 - `POST /v1/imports/{importId}/preflight`
@@ -91,28 +83,19 @@ Esos valores se derivan del contexto autenticado y sobrescriben cualquier valor 
 
 La misma clave + mismo contenido devuelve el mismo recurso. La misma clave + contenido distinto devuelve `409 VF_API_IDEMPOTENCY_CONFLICT`.
 
-Una reserva de idempotencia que falla antes de completar la operación se libera para permitir un reintento legítimo.
+`duplicate` es metadata de la respuesta, no estado durable del recurso. Esto permite reconstruir de forma segura la respuesta después de un reinicio sin alterar el registro persistido.
+
+En el runtime single-node, las reservas HTTP pendientes que quedaron huérfanas por una caída de proceso se liberan durante el arranque. La idempotencia fiscal independiente garantiza que el retry reconstruya el mismo registro en lugar de fiscalizar dos veces.
 
 ## Multi-tenant
 
 La consulta de un `recordId` siempre se filtra por el tenant autenticado. Un tenant distinto recibe `404`, evitando revelar incluso la existencia del recurso.
 
-Las sesiones del wizard añaden además aislamiento por `organizationId + installationId`.
+Las sesiones del wizard añaden aislamiento por `organizationId + installationId`. Los perfiles de integración y secretos webhook del runtime también se resuelven por esa misma pareja.
 
 ## SDK
 
-`packages/sdk` encapsula:
-
-- autenticación del conector;
-- versión del conector;
-- rutas v1;
-- `Idempotency-Key`;
-- errores normalizados con `correlationId`;
-- preflight canónico/mapeado;
-- envío canónico/mapeado;
-- consulta de estado.
-
-El SDK es **server-side only**.
+`packages/sdk` encapsula autenticación de conector, versión, rutas v1, idempotencia, errores normalizados, preflight, envío y consulta de estado. Es **server-side only**.
 
 ## Mapping Assistant
 
@@ -122,44 +105,30 @@ El SDK es **server-side only**.
 - auto-mapping solo en coincidencias fuertes;
 - confirmación explícita para sugerencias `review`;
 - overrides manuales limitados a destinos conocidos;
-- detección de campos esenciales pendientes;
-- detección de configuración fija del negocio pendiente;
+- detección de campos esenciales/configuración fija pendiente;
 - borrador de `MappingProfile` reutilizable.
 
-El core también rechaza rutas peligrosas (`__proto__`, `prototype`, `constructor`) y perfiles que intenten mapear destinos no permitidos.
+El core rechaza rutas peligrosas (`__proto__`, `prototype`, `constructor`) y perfiles que intenten mapear destinos no permitidos.
 
 ## Wizard visual
 
-`apps/onboarding` es una app web ligera y responsive:
+`apps/onboarding` es una app web ligera y responsive ES/EN con carga CSV/XLSX, selector de hoja, etiquetas humanas, confirmación de mappings, configuración fija y preflight por fila.
 
-- ES/EN completo;
-- carga CSV/XLSX;
-- selector de hoja;
-- etiquetas humanas en lugar de rutas canónicas;
-- confirmación explícita de mappings dudosos;
-- configuración fija del negocio;
-- preflight con resumen y errores por fila;
-- sin envío AEAT.
-
-La implementación de referencia usa sesiones en memoria con TTL de 15 minutos y no conserva el binario original después del parseo.
+La implementación del servicio de importación conserva únicamente los datos parseados necesarios para el preflight; nunca guarda el binario original. En tests/desarrollo puede usar memoria y en el runtime concreto usa el store SQLite durable con TTL.
 
 ## Connector Contract Suite
 
-`packages/connector-contract-suite` es un runner framework-neutral para integradores externos.
-
-Comprueba automáticamente:
+`packages/connector-contract-suite` es un runner framework-neutral para integradores externos. Comprueba:
 
 - `preflight / send / status`;
 - ausencia de fiscalización durante preflight;
 - `eventId` obligatorio;
-- clave de idempotencia estable para el mismo evento y distinta para otro evento;
-- no mutación del payload de origen;
+- clave de idempotencia estable para el mismo evento y distinta para otro;
+- no mutación del payload;
 - consulta del `recordId` correcto;
-- ausencia de inyección de tenant, certificado, passphrase, entorno AEAT o permisos desde el conector.
+- ausencia de inyección de tenant, certificado, passphrase, entorno AEAT o permisos.
 
-Un tercero solo expone un pequeño factory y puede ejecutar el runner en su propio CI. El exit code es `0` cuando cumple y `1` cuando falla.
-
-Nuestro conector de referencia usa exactamente el mismo gate mediante:
+Nuestro conector de referencia usa exactamente el mismo gate:
 
 ```bash
 npm run contract:reference
@@ -167,35 +136,56 @@ npm run contract:reference
 
 La suite valida compatibilidad de integración; no constituye certificación regulatoria ni sustituye las pruebas AEAT.
 
-## Conector de referencia
+## Runtime HTTP single-node
 
-`connectors/reference` demuestra el patrón mínimo de integración y es la base contractual para conectores nativos posteriores.
+`apps/server` convierte el handler framework-neutral en un deployment Node ejecutable:
+
+- Basic auth para el wizard detrás de HTTPS;
+- Bearer tokens para API/conectores;
+- credenciales almacenadas solo como hashes/scrypt;
+- contexto organization/installation/source resuelto desde credencial;
+- rate limit por credencial;
+- `healthz` y `readyz`;
+- CSP y cabeceras de seguridad;
+- límites de body;
+- UI y API mismo-origen, sin CORS abierto;
+- perfiles/webhooks cargados desde configuración server-side externa a Git.
+
+El proceso escucha por defecto en `127.0.0.1` y se publica mediante reverse proxy HTTPS.
+
+## Persistencia SQLite
+
+`packages/sqlite-store` implementa el perfil durable simple utilizando `node:sqlite` de Node 22.13+.
+
+Persiste:
+
+- cadena y registros fiscales;
+- operaciones/idempotencia fiscal;
+- recursos API;
+- idempotencia HTTP;
+- sesiones parseadas del onboarding.
+
+La cadena usa `BEGIN IMMEDIATE`, WAL en fichero, `synchronous=FULL`, foreign keys y tablas `STRICT`. Las reglas de encadenamiento siguen viviendo en `core` mediante `assertFiscalAppend()`.
+
+SQLite es deliberadamente un perfil de **una sola instancia**. Multi-réplica/HA, almacenamiento distribuido, backups/restauración automatizados y outbox durable de producción corresponden a Fase 6.
 
 ## Estado de Fase 4
 
-Implementado:
+**Fase 4 completada** a nivel de producto/integración:
 
 - API framework-neutral;
 - identidad server-authoritative;
-- preflight canónico y mapeado;
-- creación/consulta idempotente;
+- preflight y creación/consulta idempotente;
 - webhook firmado;
 - SDK server-side;
-- conector de referencia;
-- CSV;
-- lector XLSX read-only;
-- inspección unificada de archivos;
-- asistente de mapping con confianza y confirmación;
-- wizard visual responsive ES/EN;
-- sesiones temporales de importación aisladas;
-- hardening de mappings y rutas canónicas;
-- suite contractual v1 para terceros con CLI y gate CI de referencia;
-- tests de tenant isolation, idempotencia, XLSX, mapping, onboarding, contrato SDK y contrato de conectores.
+- CSV/XLSX;
+- Mapping Assistant;
+- wizard responsive ES/EN;
+- Connector Contract Suite;
+- runtime HTTP real con autenticación/rate limits;
+- persistencia SQLite durable;
+- tests de reinicio/recuperación y gate CI del runtime.
 
-Pendiente dentro de Fase 4:
+La salida de Fase 4 se cumple: un sistema nuevo puede integrarse sin modificar el motor fiscal.
 
-- persistencia durable de API/estado y store temporal compartido;
-- autenticación real/API keys y rate limits en el deployment;
-- adaptador HTTP concreto para el entorno de despliegue.
-
-El gate externo AEAT de Fase 3 sigue bloqueando cualquier piloto fiscal real/release, pero no el desarrollo de este kit conforme a ADR-0003.
+El gate externo AEAT de Fase 3 sigue bloqueando cualquier piloto fiscal real/release. El runtime de Fase 4 es apto para desarrollo, staging y validación técnica, no para declarar production readiness.
