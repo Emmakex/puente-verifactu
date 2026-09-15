@@ -19,6 +19,7 @@
     "woo:package": "node scripts/release/package-woocommerce.mjs",
     "woo:package:check": "node scripts/ci/woocommerce-package-check.mjs",
     "prestashop:contract": "node scripts/ci/prestashop-connector-check.mjs",
+    "prestashop:fixtures": "php scripts/ci/prestashop-tax-fixtures.php",
     "server": "node apps/server/src/main.mjs",
     "auth:hash": "node scripts/auth/hash-credential.mjs",
     "aeat:gate": "node scripts/aeat/live-gate.mjs"
