@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
-import { AEAT_ENDPOINTS } from '../../packages/aeat-adapter/src/constants.mjs';
+import { AEAT_ENDPOINTS, AEAT_ARTIFACTS } from '../../packages/aeat-adapter/src/constants.mjs';
 import { createAltaFiscalRecord } from '../../packages/core/src/fiscal-records.mjs';
 import { timestampForZone } from '../../packages/core/src/hash.mjs';
+
+const EXPECTED_STATUSES = new Set(['accepted', 'partial', 'rejected', 'fault']);
 
 function required(env, key) {
   const value = String(env?.[key] ?? '').trim();
@@ -16,6 +18,24 @@ function required(env, key) {
 
 function compactTimestamp(date) {
   return date.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+}
+
+function sha256(value) {
+  if (value == null || value === '') return null;
+  return createHash('sha256').update(String(value), 'utf8').digest('hex');
+}
+
+function argValue(argv, flag) {
+  const index = argv.indexOf(flag);
+  if (index < 0) return null;
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) {
+    const error = new Error(`${flag} requires a value`);
+    error.code = 'VF_AEAT_GATE_OPTION_VALUE_REQUIRED';
+    error.field = flag;
+    throw error;
+  }
+  return value;
 }
 
 export function maskTaxId(value) {
@@ -62,7 +82,7 @@ export function buildLiveGateFixture(env = process.env, now = new Date()) {
     number,
     issueDate,
     invoiceType: 'F2',
-    description: 'Puente VeriFactu - prueba controlada de conectividad AEAT',
+    description: String(env.AEAT_TEST_DESCRIPTION || 'Puente VeriFactu - prueba controlada de conectividad AEAT').trim(),
     issuer,
     recipients: [],
     currency: 'EUR',
@@ -86,14 +106,48 @@ export function buildLiveGateFixture(env = process.env, now = new Date()) {
   return { issuer, sif, intent, record, timeZone };
 }
 
-export function assertLiveSendAllowed(argv = [], env = process.env) {
+export function parseLiveGateOptions(argv = [], env = process.env) {
   const send = argv.includes('--send');
+  const showXml = argv.includes('--show-xml');
   if (send && env.AEAT_LIVE_SEND !== 'YES') {
     const error = new Error('Live AEAT submission requires both --send and AEAT_LIVE_SEND=YES');
     error.code = 'VF_AEAT_GATE_SEND_GUARD';
     throw error;
   }
-  return send;
+  if (send && showXml) {
+    const error = new Error('--show-xml is restricted to dry-run executions');
+    error.code = 'VF_AEAT_GATE_XML_WITH_SEND_FORBIDDEN';
+    throw error;
+  }
+
+  const expectedStatus = argValue(argv, '--expect') ?? (send ? 'accepted' : null);
+  if (expectedStatus != null && !EXPECTED_STATUSES.has(expectedStatus)) {
+    const error = new Error(`Unsupported expected AEAT status: ${expectedStatus}`);
+    error.code = 'VF_AEAT_GATE_EXPECT_STATUS_INVALID';
+    error.field = '--expect';
+    throw error;
+  }
+
+  const evidenceOutput = argValue(argv, '--evidence-output');
+  const sourceCommit = argValue(argv, '--source-commit');
+  if (evidenceOutput && !/^[0-9a-f]{40}$/i.test(sourceCommit ?? '')) {
+    const error = new Error('--evidence-output requires --source-commit with a 40-character commit SHA');
+    error.code = 'VF_AEAT_GATE_SOURCE_COMMIT_REQUIRED';
+    error.field = '--source-commit';
+    throw error;
+  }
+
+  return {
+    send,
+    showXml,
+    expectedStatus,
+    evidenceOutput,
+    sourceCommit: sourceCommit?.toLowerCase() ?? null,
+  };
+}
+
+export function assertLiveSendAllowed(argv = [], env = process.env) {
+  return parseLiveGateOptions(argv, env).send;
 }
 
 export function buildLiveGateSummary(fixture, xml) {
@@ -109,5 +163,49 @@ export function buildLiveGateSummary(fixture, xml) {
     recordHash: record.hash,
     xmlBytes: Buffer.byteLength(xml, 'utf8'),
     xmlSha256: createHash('sha256').update(xml, 'utf8').digest('hex'),
+    aeatArtifacts: {
+      verifiedAt: AEAT_ARTIFACTS.verifiedAt,
+      webServiceDocumentVersion: AEAT_ARTIFACTS.webServiceDocumentVersion,
+      validationsDocumentVersion: AEAT_ARTIFACTS.validationsDocumentVersion,
+      schemaGeneration: AEAT_ARTIFACTS.schemaGeneration,
+      recordVersion: AEAT_ARTIFACTS.recordVersion,
+    },
+  };
+}
+
+export function sanitizeLiveGateResult(result) {
+  return {
+    kind: result?.kind ?? null,
+    status: result?.status ?? null,
+    csvPresent: Boolean(result?.csv),
+    csvSha256: sha256(result?.csv),
+    waitSeconds: result?.waitSeconds ?? null,
+    errorCode: result?.errorCode ?? null,
+    messageSha256: sha256(result?.message),
+    records: (result?.records ?? []).map((item) => ({
+      reference: item.reference ?? item.externalReference ?? null,
+      status: item.status ?? null,
+      errorCode: item.errorCode ?? null,
+      errorDescriptionSha256: sha256(item.errorDescription),
+      duplicate: Boolean(item.duplicate),
+    })),
+  };
+}
+
+export function buildLiveGateEvidence({ action, expectedStatus, sourceCommit, summary, result = null, recordedAt = new Date() }) {
+  if (!/^[0-9a-f]{40}$/i.test(sourceCommit ?? '')) {
+    const error = new Error('A 40-character source commit SHA is required for evidence');
+    error.code = 'VF_AEAT_GATE_SOURCE_COMMIT_REQUIRED';
+    throw error;
+  }
+  return {
+    schemaVersion: 1,
+    gate: 'aeat-test-live',
+    recordedAt: recordedAt.toISOString(),
+    action,
+    expectedStatus: expectedStatus ?? null,
+    sourceCommit: sourceCommit.toLowerCase(),
+    summary,
+    result,
   };
 }

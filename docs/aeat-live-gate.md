@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Cerrar el gate externo de Fase 3 con una prueba controlada y repetible contra el entorno oficial de pruebas AEAT, sin almacenar certificados ni claves privadas en el repositorio.
+Cerrar el gate externo de Fase 3 con pruebas controladas y repetibles contra el entorno oficial de pruebas AEAT, sin almacenar certificados, claves privadas, passphrases, XML fiscal ni respuestas SOAP crudas en el repositorio.
 
 El comando es **dry-run por defecto**. La remisión real requiere dos acciones simultáneas:
 
@@ -47,7 +47,7 @@ El dry-run:
 - usa un `NumeroInstalacion` temporal único (`GATE-YYYYMMDDHHMMSS`), salvo que se configure otro;
 - serializa el XML AEAT completo;
 - no abre ninguna conexión de red;
-- muestra únicamente un resumen con NIF enmascarado, tamaño XML y SHA-256 del XML.
+- muestra únicamente un resumen con NIF enmascarado, tamaño XML, SHA-256 del XML y versiones AEAT fijadas por el adaptador.
 
 Para inspección local explícita del XML:
 
@@ -55,34 +55,78 @@ Para inspección local explícita del XML:
 npm run aeat:gate -- --show-xml
 ```
 
-No pegues ese XML en issues, chats o logs públicos porque contiene datos fiscales.
+`--show-xml` está **prohibido junto con `--send`**. No pegues el XML en issues, chats o logs públicos porque contiene datos fiscales.
 
-## Remisión real a pruebas
+## Certificado y passphrase
 
-El certificado se carga desde una ruta local o volumen montado:
+El certificado se carga desde una ruta local o volumen montado. La passphrase puede suministrarse directamente al proceso o, preferiblemente, mediante un fichero secreto independiente.
+
+Opción con fichero secreto:
+
+```bash
+export AEAT_TEST_PFX_PATH='/run/secrets/aeat-test.pfx'
+export AEAT_TEST_PFX_PASSPHRASE_FILE='/run/secrets/aeat-test.passphrase'
+```
+
+Alternativa:
 
 ```bash
 export AEAT_TEST_PFX_PATH='/run/secrets/aeat-test.pfx'
 export AEAT_TEST_PFX_PASSPHRASE='...'
-export AEAT_LIVE_SEND=YES
-npm run aeat:gate -- --send
 ```
 
-Nunca guardes la passphrase en un `.env` versionado, historial de shell compartido, CI público o ticket.
+No configures simultáneamente ambas fuentes de passphrase. El harness valida que el PFX puede abrirse **antes** de iniciar la conexión de red. Nunca guardes el PFX o la passphrase en Git, `.env` versionado, CI público, issue, ticket o chat.
 
-## Resultado
+## Caso aceptado
 
-La herramienta imprime únicamente campos normalizados:
+La ejecución normal espera `accepted`:
 
-- `status`;
-- `CSV` cuando exista;
+```bash
+export AEAT_LIVE_SEND=YES
+npm run aeat:gate -- --send --expect accepted
+```
+
+Para crear evidencia no sensible ligada al commit probado:
+
+```bash
+npm run aeat:gate -- \
+  --send \
+  --expect accepted \
+  --source-commit <SHA40> \
+  --evidence-output ./private-evidence/aeat-accepted.json
+```
+
+El fichero de evidencia se crea sin sobrescritura y con permisos restrictivos. No contiene certificado, passphrase, XML, respuesta SOAP cruda ni CSV completo.
+
+## Rechazo controlado
+
+El harness permite que un rechazo esperado cuente como prueba correcta del mecanismo de diagnóstico:
+
+```bash
+npm run aeat:gate -- \
+  --send \
+  --expect rejected \
+  --source-commit <SHA40> \
+  --evidence-output ./private-evidence/aeat-rejected.json
+```
+
+El dato utilizado para provocar el rechazo debe elegirse deliberadamente conforme a una validación oficial vigente y documentarse fuera del repositorio si contiene información sensible. El harness **no inventa ni altera automáticamente** una regla fiscal para forzar el rechazo.
+
+Estados aceptados por `--expect`: `accepted`, `partial`, `rejected` y `fault`. Si AEAT devuelve un estado distinto del esperado, el proceso falla con `VF_AEAT_GATE_UNEXPECTED_STATUS`.
+
+## Evidencia sanitizada
+
+La salida/evidencia conserva únicamente datos útiles para demostrar el resultado:
+
+- estado global normalizado;
+- presencia del CSV + SHA-256 del CSV, nunca el valor completo;
 - `TiempoEsperaEnvio`;
-- estado por registro;
-- código/descripción funcional de error.
-
-No imprime el PFX, clave privada, passphrase ni la respuesta SOAP cruda.
-
-El proceso termina con código 0 solo cuando la respuesta global queda `accepted`. Otros resultados deben revisarse antes de marcar el gate como cerrado.
+- estado y código de error por registro;
+- SHA-256 de descripciones/mensajes cuando existan, no el texto potencialmente sensible;
+- indicador de duplicado;
+- commit probado;
+- versiones AEAT (`WSDL`, validaciones, esquema y registro) fijadas en el adaptador;
+- SHA-256 del XML, no el XML.
 
 ## Cadena de prueba
 
@@ -92,14 +136,15 @@ Para pruebas específicas de encadenamiento se deberá configurar un número de 
 
 ## Cierre de Fase 3
 
-Tras una ejecución aceptada se debe actualizar el issue del gate con evidencia **no sensible**:
+El issue #6 solo puede cerrarse cuando exista evidencia no sensible de:
 
-- fecha/hora;
-- commit probado;
-- versiones WSDL/XSD;
-- estado normalizado;
-- CSV parcialmente redactado si se decide conservarlo;
-- `TiempoEsperaEnvio`;
-- hash del XML (`xmlSha256`), no el XML completo.
+- remisión aceptada;
+- rechazo funcional controlado con diagnóstico esperado;
+- `TiempoEsperaEnvio`/comportamiento de control de flujo observado;
+- reconciliación comprobada para el escenario elegido;
+- fecha/hora y commit exacto;
+- versiones WSDL/XSD/validaciones usadas;
+- hashes de XML/evidencia, sin payload fiscal;
+- CI final verde sobre el estado de código que se va a declarar candidato.
 
-Después se ejecuta CI de nuevo y solo entonces se marca Fase 3 como ✅.
+Después se actualizan roadmap y `config/release-gates.json`; solo entonces `release_status` puede pasar de `release_blocked` a `release_candidate` y se prepara la declaración responsable definitiva de esa versión.

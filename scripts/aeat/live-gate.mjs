@@ -1,45 +1,68 @@
-import { readFile } from 'node:fs/promises';
+import { createSecureContext } from 'node:tls';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { AeatVerifactuAdapter } from '../../packages/aeat-adapter/src/adapter.mjs';
 import { serializeAeatSoapRequest } from '../../packages/aeat-adapter/src/serialize.mjs';
 import { createHttpsMtlsTransport } from '../../packages/aeat-adapter/src/transport.mjs';
-import { assertLiveSendAllowed, buildLiveGateFixture, buildLiveGateSummary } from './live-gate-lib.mjs';
+import {
+  buildLiveGateEvidence,
+  buildLiveGateFixture,
+  buildLiveGateSummary,
+  parseLiveGateOptions,
+  sanitizeLiveGateResult,
+} from './live-gate-lib.mjs';
 
-function sanitizeResult(result) {
-  return {
-    kind: result?.kind ?? null,
-    status: result?.status ?? null,
-    csv: result?.csv ?? null,
-    waitSeconds: result?.waitSeconds ?? null,
-    errorCode: result?.errorCode ?? null,
-    message: result?.message ?? null,
-    records: (result?.records ?? []).map((item) => ({
-      reference: item.reference ?? null,
-      status: item.status ?? null,
-      errorCode: item.errorCode ?? null,
-      errorDescription: item.errorDescription ?? null,
-    })),
-  };
+async function resolvePfxPassphrase(env) {
+  const direct = env.AEAT_TEST_PFX_PASSPHRASE;
+  const secretPath = String(env.AEAT_TEST_PFX_PASSPHRASE_FILE ?? '').trim();
+  if (direct != null && secretPath) {
+    const error = new Error('Configure only one PFX passphrase source');
+    error.code = 'VF_AEAT_GATE_PFX_PASSPHRASE_AMBIGUOUS';
+    throw error;
+  }
+  if (!secretPath) return direct;
+  const secret = await readFile(secretPath, 'utf8');
+  return secret.replace(/\r?\n$/, '');
+}
+
+async function writeEvidence(path, evidence) {
+  const target = resolve(path);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, `${JSON.stringify(evidence, null, 2)}\n`, {
+    flag: 'wx',
+    mode: 0o600,
+  });
 }
 
 async function main() {
   const argv = process.argv.slice(2);
-  const send = assertLiveSendAllowed(argv, process.env);
+  const options = parseLiveGateOptions(argv, process.env);
   const fixture = buildLiveGateFixture(process.env, new Date());
   const entries = [{ intent: fixture.intent, record: fixture.record }];
   const xml = serializeAeatSoapRequest({ issuer: fixture.issuer, entries, sif: fixture.sif });
   const summary = buildLiveGateSummary(fixture, xml);
+  const action = options.send ? 'submit' : 'dry-run';
 
   console.log(JSON.stringify({
     gate: 'aeat-test-live',
-    action: send ? 'submit' : 'dry-run',
+    action,
+    expectedStatus: options.expectedStatus,
     summary,
   }, null, 2));
 
-  if (argv.includes('--show-xml')) {
+  if (options.showXml) {
     console.log(xml);
   }
 
-  if (!send) {
+  if (!options.send) {
+    if (options.evidenceOutput) {
+      await writeEvidence(options.evidenceOutput, buildLiveGateEvidence({
+        action,
+        expectedStatus: options.expectedStatus,
+        sourceCommit: options.sourceCommit,
+        summary,
+      }));
+    }
     console.log('Dry-run only. To submit, provision the certificate locally and run with --send plus AEAT_LIVE_SEND=YES.');
     return;
   }
@@ -52,11 +75,17 @@ async function main() {
   }
 
   const pfx = await readFile(pfxPath);
+  const passphrase = await resolvePfxPassphrase(process.env);
+  try {
+    createSecureContext({ pfx, passphrase });
+  } catch {
+    const error = new Error('The configured PFX cannot be opened with the supplied passphrase');
+    error.code = 'VF_AEAT_GATE_PFX_INVALID';
+    throw error;
+  }
+
   const transport = createHttpsMtlsTransport({
-    tls: {
-      pfx,
-      passphrase: process.env.AEAT_TEST_PFX_PASSPHRASE,
-    },
+    tls: { pfx, passphrase },
   });
   const adapter = new AeatVerifactuAdapter({
     sif: fixture.sif,
@@ -65,11 +94,23 @@ async function main() {
   });
 
   const result = await adapter.submit({ issuer: fixture.issuer, entries });
-  const sanitized = sanitizeResult(result);
+  const sanitized = sanitizeLiveGateResult(result);
   console.log(JSON.stringify({ gate: 'aeat-test-live-result', result: sanitized }, null, 2));
 
-  if (result?.status !== 'accepted') {
-    process.exitCode = 1;
+  if (options.evidenceOutput) {
+    await writeEvidence(options.evidenceOutput, buildLiveGateEvidence({
+      action,
+      expectedStatus: options.expectedStatus,
+      sourceCommit: options.sourceCommit,
+      summary,
+      result: sanitized,
+    }));
+  }
+
+  if (options.expectedStatus && result?.status !== options.expectedStatus) {
+    const error = new Error(`Expected AEAT status ${options.expectedStatus}, got ${result?.status ?? 'unknown'}`);
+    error.code = 'VF_AEAT_GATE_UNEXPECTED_STATUS';
+    throw error;
   }
 }
 
