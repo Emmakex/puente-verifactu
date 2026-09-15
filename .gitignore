@@ -7,3 +7,12 @@ dist/
 .tmp/
 .DS_Store
 *.log
+
+# Certificates / private key material must never enter the repository.
+*.p12
+*.pfx
+*.key
+*.pem
+certs/
+certificates/
+secrets/
