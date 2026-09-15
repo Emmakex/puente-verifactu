@@ -1,0 +1,21 @@
+# Índice documental
+
+Este directorio es la fuente de verdad funcional, técnica y normativa de Puente VeriFactu.
+
+| Documento | Propósito |
+|---|---|
+| `product-scope.md` | Problema, usuarios, alcance MVP y exclusiones |
+| `architecture.md` | Arquitectura, componentes, límites y flujos |
+| `compliance.md` | Marco normativo, obligaciones y checklist de release |
+| `api-contract.md` | Modelo canónico, idempotencia y contratos |
+| `connectors.md` | Contrato de adaptadores y estrategia por plataforma |
+| `security.md` | Credenciales, tenants, secretos, amenazas y privacidad |
+| `testing-quality.md` | Pirámide de pruebas y gates |
+| `operations-observability.md` | Logs, métricas, trazas, reintentos y diagnósticos |
+| `roadmap.md` | Fases de implementación y criterios de salida |
+| `engineering-rules.md` | Reglas globales de ingeniería |
+| `adr/` | Decisiones arquitectónicas persistentes |
+
+## Regla documental
+
+Todo cambio que altere un contrato, comportamiento fiscal, flujo de datos, requisito regulatorio o decisión arquitectónica debe actualizar la documentación correspondiente en el mismo PR.
