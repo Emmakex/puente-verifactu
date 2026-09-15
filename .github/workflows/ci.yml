@@ -139,7 +139,7 @@ jobs:
             image: 'prestashop/prestashop-flashlight:8.1.7-8.1'
           - prestashop: '8.2.7'
             php: '8.1'
-            image: 'prestashop/prestashop-flashlight:8.2.7-8.1'
+            image: 'prestashop/prestashop-flashlight:8.2.7-8.1-fpm-alpine3.21-nginx'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
