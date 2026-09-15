@@ -64,6 +64,9 @@ jobs:
       - name: PrestaShop fiscal fixtures
         run: npm run prestashop:fixtures
 
+      - name: PrestaShop reproducible release package
+        run: npm run prestashop:package:check
+
       - name: PrestaShop PHP syntax
         run: find connectors/prestashop -name '*.php' -print0 | xargs -0 -n1 php -l
 
@@ -144,9 +147,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install module and build real invoice payload
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install reproducible ZIP and build real invoice payload
         env:
           PRESTASHOP_IMAGE: ${{ matrix.image }}
           PRESTASHOP_VERSION: ${{ matrix.prestashop }}
           PRESTASHOP_PHP: ${{ matrix.php }}
         run: bash scripts/ci/prestashop-compatibility-smoke.sh
+
+  prestashop-upgrade:
+    name: PrestaShop package upgrade / PS 8.2.7 / PHP 8.1
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Upgrade package and preserve local sync state
+        env:
+          PRESTASHOP_IMAGE: 'prestashop/prestashop-flashlight:8.2.7-8.1-fpm-alpine3.21-nginx'
+          PRESTASHOP_VERSION: '8.2.7'
+          PRESTASHOP_PHP: '8.1'
+        run: bash scripts/ci/prestashop-upgrade-smoke.sh

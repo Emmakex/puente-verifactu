@@ -133,17 +133,17 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Reconciliación al céntimo y fallback explícito para base residual al 0 %, sin inventar cuotas.
 - [x] Fixtures de descuentos, portes, wrapping, múltiples tipos de IVA, envío gratuito y redondeo.
 - [x] Matriz real de CI con instalación del módulo y payload desde factura nativa en PrestaShop 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1.
+- [x] Paquete ZIP reproducible con allowlist de runtime, SHA-256, layout legacy compatible y gate real de instalación/upgrade preservando estado local.
 - [ ] Estado/semáforo integrado en la ficha nativa del pedido.
 - [ ] Abonos/rectificativas idempotentes con perfil fiscal separado.
 - [ ] Automatización opt-in de eventos solo después de validar el flujo manual.
-- [ ] Paquete ZIP reproducible y gate de instalación/upgrade.
 
 ### Aceptación transversal
 
 - [ ] Reconciliación/fallback end-to-end común entre conectores.
 - [ ] Tests de compatibilidad y Connector Contract Suite para cada extensión.
 
-**Estado:** WooCommerce queda técnicamente cerrado dentro de Fase 5. PrestaShop tiene foundation, extractor fiscal reforzado, fixtures deterministas y matriz real de instalación validada en 1.7.8.11, 8.1.7 y 8.2.7. El siguiente gate es el paquete ZIP reproducible con instalación/upgrade smoke. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
+**Estado:** WooCommerce queda técnicamente cerrado dentro de Fase 5. PrestaShop tiene foundation, extractor fiscal reforzado, fixtures deterministas, matriz real validada en 1.7.8.11/8.1.7/8.2.7 y un ZIP reproducible que esas tres versiones instalan directamente. El upgrade real 0.0.9 → 0.1.0 preserva el estado local de sincronización. El siguiente bloque es el estado/semáforo integrado en la ficha nativa del pedido. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
 
 **Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre previo del gate AEAT #6 antes de cualquier piloto fiscal real.
 

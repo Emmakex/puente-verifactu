@@ -12,7 +12,6 @@ NETWORK="pvf-presta-${SUFFIX}"
 DB_CONTAINER="pvf-db-${SUFFIX}"
 PS_CONTAINER="pvf-ps-${SUFFIX}"
 MODULES_DIR="$TMP/modules"
-PACKAGE_DIR="$TMP/package"
 PORT="8080"
 
 cleanup() {
@@ -36,12 +35,8 @@ fail() {
   exit 1
 }
 
-mkdir -p "$MODULES_DIR" "$PACKAGE_DIR/puenteverifactu"
-cp -R "$ROOT/connectors/prestashop/." "$PACKAGE_DIR/puenteverifactu/"
-(
-  cd "$PACKAGE_DIR"
-  zip -qr "$MODULES_DIR/puenteverifactu.zip" puenteverifactu
-)
+mkdir -p "$MODULES_DIR"
+node "$ROOT/scripts/release/package-prestashop.mjs" --output "$MODULES_DIR/puenteverifactu.zip" >/dev/null
 chmod -R a+rX "$MODULES_DIR"
 
 cat >"$TMP/verify.php" <<'PHP'
@@ -173,7 +168,7 @@ if (!isset($payload['total_amount']) || !isset($payload['tax_amount']) || !isset
 fwrite(STDOUT, json_encode(array(
     'schema_version' => 1,
     'status' => 'ok',
-    'check' => 'prestashop-real-install-smoke',
+    'check' => 'prestashop-real-release-install-smoke',
     'prestashop' => (string) _PS_VERSION_,
     'php' => $actualPhp,
     'module' => (string) $module->version,
@@ -242,4 +237,4 @@ docker exec \
   -e EXPECTED_PHP_VERSION="$PRESTASHOP_PHP" \
   "$PS_CONTAINER" php /tmp/pvf-verify.php
 
-echo "[presta-ci] compatibility smoke passed for PrestaShop ${PRESTASHOP_VERSION} / PHP ${PRESTASHOP_PHP}"
+echo "[presta-ci] release-package compatibility smoke passed for PrestaShop ${PRESTASHOP_VERSION} / PHP ${PRESTASHOP_PHP}"
