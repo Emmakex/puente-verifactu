@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyMapping, validateMappingProfile } from '../src/mapping.mjs';
+import { validateInvoiceIntent } from '../src/validation.mjs';
 
 const profile = {
   profileVersion: 1,
@@ -8,7 +9,7 @@ const profile = {
   name: 'WooCommerce v1',
   sourceType: 'native',
   fields: {
-    order_number: 'number',
+    invoice_number: 'number',
     order_date: 'issueDate',
     description: 'description',
     currency: 'currency',
@@ -32,13 +33,13 @@ const profile = {
   defaults: {},
 };
 
-test('native tax lines preserve multiple rates while fiscal classification stays server-side', () => {
-  const source = {
+function source(currency = 'EUR') {
+  return {
     source_invoice_id: 'woo:1:order:10',
-    order_number: '10',
+    invoice_number: 'INV-10',
     order_date: '2026-09-15',
     description: 'WooCommerce order 10',
-    currency: ' usd ',
+    currency,
     customer_name: 'Demo customer',
     customer_tax_id: 'TESTCUSTOMER',
     total_amount: '154.00',
@@ -47,19 +48,32 @@ test('native tax lines preserve multiple rates while fiscal classification stays
       { rate: '10', baseAmount: '30.00', taxAmount: '3.00' },
     ],
   };
-  const mapped = applyMapping(source, profile);
-  assert.equal(mapped.currency, 'USD');
+}
+
+test('native tax lines preserve multiple rates while fiscal classification stays server-side', () => {
+  const mapped = applyMapping(source(' eur '), profile);
+  assert.equal(mapped.number, 'INV-10');
+  assert.equal(mapped.currency, 'EUR');
   assert.equal(mapped.taxBreakdown.length, 2);
   assert.deepEqual(mapped.taxBreakdown[0], {
     taxCode: '01', regimeKey: '01', operationClass: 'S1', rate: '21', baseAmount: '100.00', taxAmount: '21.00',
   });
   assert.equal(mapped.totals.baseAmount, '130.00');
   assert.equal(mapped.totals.taxAmount, '24.00');
+  assert.equal(validateInvoiceIntent(mapped).ok, true);
+});
+
+test('non-EUR native input is preserved but blocked before fiscalization until explicit EUR conversion exists', () => {
+  const mapped = applyMapping(source(' usd '), profile);
+  assert.equal(mapped.currency, 'USD');
+  const validation = validateInvoiceIntent(mapped);
+  assert.equal(validation.ok, false);
+  assert.equal(validation.errors.some((item) => item.code === 'VF_VALIDATION_NON_EUR_CONVERSION_REQUIRED'), true);
 });
 
 test('native source cannot inject fiscal classification into tax lines', () => {
   assert.throws(() => applyMapping({
-    order_number: '10',
+    invoice_number: 'INV-10',
     tax_lines: [{ rate: '21', baseAmount: '100.00', taxAmount: '21.00', regimeKey: '99' }],
   }, profile), /Unsupported native tax line field regimeKey/);
 });
