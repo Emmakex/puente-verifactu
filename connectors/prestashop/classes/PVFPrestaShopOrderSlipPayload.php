@@ -9,6 +9,8 @@ require_once __DIR__ . '/PVFPrestaShopOrderPayload.php';
 
 final class PVFPrestaShopOrderSlipPayload
 {
+    const TAX_TOLERANCE_CENTS = 2;
+
     public static function build(OrderSlip $slip, Order $order, array $settings)
     {
         if (!Validate::isLoadedObject($slip) || !Validate::isLoadedObject($order)) {
@@ -59,7 +61,7 @@ final class PVFPrestaShopOrderSlipPayload
             'original_invoice_date' => PVFPrestaShopOrderPayload::invoiceDate($invoice),
             'total_amount' => self::negativeMoney($totalIncl),
             'tax_amount' => self::negativeMoney($totalTax),
-            'tax_lines' => self::taxLines($slip),
+            'tax_lines' => self::taxLines($slip, $order),
             'source_metadata' => array(
                 'order_slip_type' => (string) (int) $slip->order_slip_type,
                 'partial' => (bool) $slip->partial,
@@ -88,7 +90,7 @@ final class PVFPrestaShopOrderSlipPayload
         return substr($date, 0, 10);
     }
 
-    public static function taxLines(OrderSlip $slip)
+    public static function taxLines(OrderSlip $slip, Order $order)
     {
         $productRows = array();
         $detailBaseCents = 0;
@@ -98,6 +100,13 @@ final class PVFPrestaShopOrderSlipPayload
             if (!is_array($detail)) {
                 continue;
             }
+
+            $orderDetailId = isset($detail['id_order_detail']) ? (int) $detail['id_order_detail'] : 0;
+            $orderDetail = new OrderDetail($orderDetailId);
+            if ($orderDetailId <= 0 || !Validate::isLoadedObject($orderDetail) || (int) $orderDetail->id_order !== (int) $order->id) {
+                throw new RuntimeException('A PrestaShop credit-slip line cannot be linked safely to its original order detail.');
+            }
+
             $base = isset($detail['amount_tax_excl']) ? (float) $detail['amount_tax_excl'] : 0.0;
             $incl = isset($detail['amount_tax_incl']) ? (float) $detail['amount_tax_incl'] : 0.0;
             $tax = $incl - $base;
@@ -107,16 +116,20 @@ final class PVFPrestaShopOrderSlipPayload
             if ($base < 0.0 || $tax < -0.01) {
                 throw new RuntimeException('A PrestaShop credit-slip product line contains invalid refund amounts.');
             }
-            if (abs($base) < 0.00001 && abs($tax) >= 0.00001) {
-                throw new RuntimeException('A PrestaShop credit-slip tax amount cannot be attributed to a taxable base.');
-            }
 
             $baseCents = self::cents($base);
             $taxCents = self::cents($tax);
+            if ($baseCents === 0 && $taxCents !== 0) {
+                throw new RuntimeException('A PrestaShop credit-slip tax amount cannot be attributed to a taxable base.');
+            }
+
+            $rate = self::orderDetailRate($orderDetail);
+            self::assertObservedTaxMatchesRate($baseCents, $taxCents, $rate, 'product');
+
             $detailBaseCents += $baseCents;
             $detailTaxCents += $taxCents;
             $productRows[] = array(
-                'rate' => self::rateFromCents($baseCents, $taxCents),
+                'rate' => $rate,
                 'total_price_tax_excl' => $base,
                 'total_amount' => $tax,
             );
@@ -135,8 +148,11 @@ final class PVFPrestaShopOrderSlipPayload
             if ($shippingBaseCents === 0 && $shippingTaxCents !== 0) {
                 throw new RuntimeException('The PrestaShop credit-slip shipping tax cannot be attributed to a taxable base.');
             }
+
+            $shippingRate = self::shippingRate($order);
+            self::assertObservedTaxMatchesRate($shippingBaseCents, $shippingTaxCents, $shippingRate, 'shipping');
             $shippingRows[] = array(
-                'rate' => self::rateFromCents($shippingBaseCents, $shippingTaxCents),
+                'rate' => $shippingRate,
                 'total_tax_excl' => $shippingBase,
                 'total_amount' => $shippingTax,
             );
@@ -176,12 +192,39 @@ final class PVFPrestaShopOrderSlipPayload
         return $negative;
     }
 
-    private static function rateFromCents($baseCents, $taxCents)
+    private static function orderDetailRate(OrderDetail $orderDetail)
     {
-        if ((int) $baseCents === 0) {
-            return '0';
+        $calculator = $orderDetail->getTaxCalculator();
+        if (!($calculator instanceof TaxCalculator) || !method_exists($calculator, 'getTotalRate')) {
+            throw new RuntimeException('The historical PrestaShop product tax rate could not be loaded.');
         }
-        return PVFPrestaShopTaxBreakdown::rate(((float) $taxCents * 100.0) / (float) $baseCents);
+        return PVFPrestaShopTaxBreakdown::rate($calculator->getTotalRate());
+    }
+
+    private static function shippingRate(Order $order)
+    {
+        $carrier = new Carrier((int) $order->id_carrier);
+        $address = Address::initialize((int) $order->id_address_delivery, false);
+        if (!Validate::isLoadedObject($carrier) || !Validate::isLoadedObject($address)) {
+            throw new RuntimeException('The PrestaShop shipping tax context could not be loaded.');
+        }
+
+        $calculator = $carrier->getTaxCalculator($address);
+        if (!($calculator instanceof TaxCalculator) || !method_exists($calculator, 'getTotalRate')) {
+            throw new RuntimeException('The PrestaShop shipping tax rate could not be loaded.');
+        }
+        return PVFPrestaShopTaxBreakdown::rate($calculator->getTotalRate());
+    }
+
+    private static function assertObservedTaxMatchesRate($baseCents, $taxCents, $rate, $scope)
+    {
+        $expected = (int) round(((float) $baseCents) * ((float) $rate) / 100.0, 0, PHP_ROUND_HALF_UP);
+        if (abs($expected - (int) $taxCents) > self::TAX_TOLERANCE_CENTS) {
+            throw new RuntimeException(
+                'The PrestaShop credit-slip ' . (string) $scope
+                . ' tax does not match its native historical tax rate. Fiscal attribution is blocked.'
+            );
+        }
     }
 
     private static function negativeMoney($value)
