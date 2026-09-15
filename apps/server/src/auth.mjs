@@ -1,6 +1,8 @@
 import { createHash, scryptSync, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
+const ALLOWED_PERMISSIONS = new Set(['ops:read']);
+
 function authError(code, message = 'Unauthorized') {
   return Object.assign(new Error(message), { code, status: 401 });
 }
@@ -22,6 +24,19 @@ function safeHexEqual(left, right) {
   return timingSafeEqual(Buffer.from(left, 'hex'), Buffer.from(right, 'hex'));
 }
 
+function normalizePermissions(value, prefix) {
+  if (value == null) return Object.freeze([]);
+  if (!Array.isArray(value)) throw new TypeError(`${prefix}.permissions must be an array`);
+  const unique = new Set();
+  for (const permission of value) {
+    if (typeof permission !== 'string' || !ALLOWED_PERMISSIONS.has(permission)) {
+      throw new TypeError(`${prefix}.permissions contains unsupported permission: ${String(permission)}`);
+    }
+    unique.add(permission);
+  }
+  return Object.freeze([...unique].sort());
+}
+
 function contextFor(credential) {
   return Object.freeze({
     credentialId: credential.id,
@@ -30,6 +45,7 @@ function contextFor(credential) {
     sourceSystem: credential.sourceSystem,
     authType: credential.type,
     rateLimitPerMinute: credential.rateLimitPerMinute,
+    permissions: credential.permissions,
   });
 }
 
@@ -50,7 +66,7 @@ function validateCredential(credential, index) {
     if (!validHex(credential.passwordSalt, 16)) throw new TypeError(`${prefix}.passwordSalt must be 16-byte hex`);
     if (!validHex(credential.passwordScrypt, 64)) throw new TypeError(`${prefix}.passwordScrypt must be 64-byte hex`);
   }
-  return credential;
+  return Object.freeze({ ...credential, permissions: normalizePermissions(credential.permissions, prefix) });
 }
 
 export function validateAuthConfig(config) {
@@ -60,14 +76,14 @@ export function validateAuthConfig(config) {
   const ids = new Set();
   const basicUsers = new Set();
   const credentials = config.credentials.map((credential, index) => {
-    validateCredential(credential, index);
-    if (ids.has(credential.id)) throw new TypeError(`duplicate credential id: ${credential.id}`);
-    ids.add(credential.id);
-    if (credential.type === 'basic') {
-      if (basicUsers.has(credential.username)) throw new TypeError(`duplicate basic username: ${credential.username}`);
-      basicUsers.add(credential.username);
+    const validated = validateCredential(credential, index);
+    if (ids.has(validated.id)) throw new TypeError(`duplicate credential id: ${validated.id}`);
+    ids.add(validated.id);
+    if (validated.type === 'basic') {
+      if (basicUsers.has(validated.username)) throw new TypeError(`duplicate basic username: ${validated.username}`);
+      basicUsers.add(validated.username);
     }
-    return Object.freeze({ ...credential });
+    return validated;
   });
   return Object.freeze({ credentials: Object.freeze(credentials) });
 }
