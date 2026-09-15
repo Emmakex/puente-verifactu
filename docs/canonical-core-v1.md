@@ -77,11 +77,28 @@ Un perfil contiene:
 - columnas/campos de origen → rutas canónicas;
 - transformaciones permitidas y explícitas;
 - constantes de instalación;
-- defaults no fiscales.
+- defaults no fiscales;
+- opcionalmente `taxLineDefaults` para completar clasificación fiscal server-side cuando un conector nativo aporta varias líneas tributarias.
 
 Transformaciones v1: `trim`, `upper`, `lower`, `decimal_comma`, `date_dmy`.
 
 No hay expresiones arbitrarias ni JavaScript configurable: un mapping nunca debe convertirse en una vía para alterar invariantes o ejecutar código.
+
+### Desglose multirate desde conectores nativos
+
+Un perfil `sourceType: native` puede mapear un array de origen a `taxBreakdown`. Es útil para ecommerce como WooCommerce donde una misma operación puede contener varios tipos de IVA.
+
+En esa ruta el sistema origen solo puede aportar hechos de cálculo:
+
+- `rate`;
+- `baseAmount`;
+- `taxAmount`;
+- `surchargeRate`;
+- `surchargeAmount`.
+
+El conector **no puede** introducir `taxCode`, `regimeKey` u `operationClass`. Esos tres campos deben existir en `MappingProfile.taxLineDefaults` y, por tanto, se resuelven server-side. La entrada está limitada a 12 líneas, coherente con el límite estructural del contrato canónico/adapter actual.
+
+También se admite mapear `currency` desde el origen. La normalización puede convertirla a mayúsculas, pero un conector no calcula ni inventa conversiones a EUR; cuando sean necesarias, las exige el motor fiscal.
 
 ## Inferencia de cabeceras
 
@@ -109,4 +126,4 @@ Misma identidad + contenido fiscal diferente → `conflict`.
 
 ## Persistencia de referencia
 
-`InMemoryIntentStore` es una especificación ejecutable del comportamiento append-only, no almacenamiento productivo. La persistencia real llegará con la API/infraestructura, manteniendo exactamente el mismo contrato de duplicado/conflicto.
+`InMemoryIntentStore` es una especificación ejecutable del comportamiento append-only, no almacenamiento productivo. La persistencia real mantiene exactamente el mismo contrato de duplicado/conflicto; el runtime single-node durable de Fase 4 usa SQLite detrás de interfaces de store inyectables.
