@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "max_local_backup_age_hours": 26,
+  "remote_copy_required": true,
+  "remote_encryption_required": true,
+  "restore_drill_max_age_days": 90,
+  "retention": {
+    "daily": 7,
+    "weekly": 5,
+    "monthly": 12
+  }
+}
