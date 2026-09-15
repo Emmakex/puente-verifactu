@@ -197,7 +197,7 @@ export class SqliteIntegrationStore {
 
   reserve(key, payload) {
     const fingerprint = integrationFingerprint(payload);
-    this.insertRequest.run(key, fingerprint);
+    const inserted = this.insertRequest.run(key, fingerprint).changes === 1;
     const existing = this.selectRequest.get(key);
     if (!existing) throw Object.assign(new Error('Idempotency reservation was not persisted'), { code: 'VF_API_IDEMPOTENCY_STORE_ERROR' });
     if (existing.fingerprint !== fingerprint) {
@@ -205,7 +205,7 @@ export class SqliteIntegrationStore {
     }
     return {
       existing: { fingerprint: existing.fingerprint, recordId: existing.record_id ?? null },
-      duplicate: existing.record_id != null || this.insertRequest.run(key, fingerprint).changes === 0,
+      duplicate: !inserted,
     };
   }
 
