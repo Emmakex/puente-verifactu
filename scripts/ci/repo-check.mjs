@@ -10,6 +10,7 @@ const requiredPaths = [
   'docs/engineering-rules.md',
   'docs/aeat-test-adapter-v1.md',
   'docs/universal-integration-kit-v1.md',
+  'docs/mapping-assistant-v1.md',
   'docs/adr/0001-verifactu-only-mvp.md',
   'docs/adr/0002-chameleon-integration.md',
   'docs/adr/0003-defer-external-gates-with-release-block.md',
@@ -20,7 +21,9 @@ const requiredPaths = [
   'packages/aeat-adapter/README.md',
   'packages/sdk/README.md',
   'connectors/reference/README.md',
-  'connectors/file-import/README.md'
+  'connectors/file-import/README.md',
+  'connectors/file-import/src/xlsx.mjs',
+  'packages/core/src/mapping-assistant.mjs'
 ];
 
 const failures = [];
