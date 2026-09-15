@@ -8,8 +8,11 @@ const required = [
   `${root}/includes/class-pv-woo-settings.php`,
   `${root}/includes/class-pv-woo-client.php`,
   `${root}/includes/class-pv-woo-order-payload.php`,
+  `${root}/includes/class-pv-woo-refund-payload.php`,
+  `${root}/includes/class-pv-woo-admin-status.php`,
   `${root}/includes/class-pv-woo-connector.php`,
   `${root}/examples/mapping-profile.json`,
+  `${root}/examples/refund-mapping-profile.json`,
   `${root}/languages/puente-verifactu-woocommerce-es_ES.po`,
   `${root}/languages/puente-verifactu-woocommerce-es_ES.mo`,
   `${root}/README.md`,
@@ -38,6 +41,7 @@ const bootstrap = text(`${root}/puente-verifactu-woocommerce.php`);
 if (!bootstrap.includes("declare_compatibility( 'custom_order_tables'")) failures.push({ code: 'WOO_HPOS_DECLARATION_MISSING' });
 if (!bootstrap.includes('WC tested up to: 11.1')) failures.push({ code: 'WOO_TESTED_VERSION_MISSING', expected: '11.1' });
 if (!bootstrap.includes('Requires PHP: 7.4')) failures.push({ code: 'WOO_PHP_CONTRACT_MISSING', expected: '7.4' });
+if (!bootstrap.includes('Version: 0.2.0')) failures.push({ code: 'WOO_VERSION_CONTRACT_MISSING', expected: '0.2.0' });
 if (!bootstrap.includes('load_plugin_textdomain')) failures.push({ code: 'WOO_I18N_LOAD_MISSING' });
 
 const forbiddenStorage = [
@@ -58,6 +62,7 @@ for (const path of phpFiles(root)) {
   const source = text(path);
   for (const pattern of forbiddenStorage) if (pattern.test(source)) failures.push({ code: 'WOO_BYPASSES_WC_CRUD', path, pattern: String(pattern) });
   for (const pattern of forbiddenFiscal) if (pattern.test(source)) failures.push({ code: 'WOO_DUPLICATES_FISCAL_CORE', path, pattern: String(pattern) });
+  if (/!\s+\$[A-Za-z_][A-Za-z0-9_]*\s+instanceof\b/.test(source)) failures.push({ code: 'WOO_AMBIGUOUS_INSTANCEOF_GUARD', path });
 }
 
 const client = text(`${root}/includes/class-pv-woo-client.php`);
@@ -70,6 +75,9 @@ const connector = text(`${root}/includes/class-pv-woo-connector.php`);
 for (const marker of ['as_enqueue_async_action', 'as_schedule_single_action', 'preflight_order', 'META_RECORD_ID', 'idempotency_key']) {
   if (!connector.includes(marker)) failures.push({ code: 'WOO_FLOW_CONTRACT_MISSING', marker });
 }
+for (const marker of ['woocommerce_order_refunded', 'pv_woo_process_refund', 'process_refund', 'refund_idempotency_key', 'refund_profile_id', 'WC_Order_Refund']) {
+  if (!connector.includes(marker)) failures.push({ code: 'WOO_REFUND_FLOW_CONTRACT_MISSING', marker });
+}
 const preflightIndex = connector.indexOf('$client->preflight');
 const issueIndex = connector.indexOf('$client->issue');
 if (preflightIndex < 0 || issueIndex < 0 || preflightIndex > issueIndex) failures.push({ code: 'WOO_PREFLIGHT_MUST_PRECEDE_ISSUE' });
@@ -78,10 +86,24 @@ const settings = text(`${root}/includes/class-pv-woo-settings.php`);
 for (const marker of ['invoice_number_source', 'invoice_number_meta_key', "'order_number'", "'meta'"]) {
   if (!settings.includes(marker)) failures.push({ code: 'WOO_INVOICE_NUMBER_SOURCE_MISSING', marker });
 }
+for (const marker of ['refund_profile_id', 'refund_invoice_number_meta_key', 'auto_refunds']) {
+  if (!settings.includes(marker)) failures.push({ code: 'WOO_REFUND_SETTING_MISSING', marker });
+}
 
 const payload = text(`${root}/includes/class-pv-woo-order-payload.php`);
 for (const marker of ['get_taxes()', 'get_items(', "'tax_lines'", "'source_invoice_id'", "'invoice_number'", 'get_currency()', 'pv_woo_invoice_number']) {
   if (!payload.includes(marker)) failures.push({ code: 'WOO_PAYLOAD_CONTRACT_MISSING', marker });
+}
+
+const refundPayload = text(`${root}/includes/class-pv-woo-refund-payload.php`);
+for (const marker of ['WC_Order_Refund', "'refund_invoice_number'", "'original_invoice_number'", "'original_invoice_date'", "'tax_lines'", 'pv_woo_refund_invoice_number']) {
+  if (!refundPayload.includes(marker)) failures.push({ code: 'WOO_REFUND_PAYLOAD_CONTRACT_MISSING', marker });
+}
+if (/invoiceType|rectification.*type/.test(refundPayload)) failures.push({ code: 'WOO_REFUND_PAYLOAD_FISCAL_AUTHORITY_FORBIDDEN' });
+
+const adminStatus = text(`${root}/includes/class-pv-woo-admin-status.php`);
+for (const marker of ['manage_woocommerce_page_wc-orders_columns', 'manage_woocommerce_page_wc-orders_custom_column', 'manage_edit-shop_order_columns', 'manage_shop_order_posts_custom_column', "'green'", "'amber'", "'red'", 'META_LAST_ERROR', "self::weight( 'amber' )"]) {
+  if (!adminStatus.includes(marker)) failures.push({ code: 'WOO_STATUS_COLUMN_CONTRACT_MISSING', marker });
 }
 
 try {
@@ -95,6 +117,19 @@ try {
   }
 } catch (error) {
   failures.push({ code: 'WOO_PROFILE_JSON_INVALID', message: error.message });
+}
+
+try {
+  const profile = JSON.parse(text(`${root}/examples/refund-mapping-profile.json`));
+  if (profile?.sourceType !== 'native') failures.push({ code: 'WOO_REFUND_PROFILE_SOURCE_INVALID' });
+  if (profile?.fields?.refund_invoice_number !== 'number') failures.push({ code: 'WOO_REFUND_PROFILE_NUMBER_INVALID' });
+  if (profile?.fields?.tax_lines !== 'taxBreakdown') failures.push({ code: 'WOO_REFUND_PROFILE_TAX_LINES_INVALID' });
+  if (profile?.fields?.original_invoice_number !== 'rectification.originalInvoices.0.number') failures.push({ code: 'WOO_REFUND_PROFILE_ORIGINAL_NUMBER_INVALID' });
+  if (profile?.fields?.original_invoice_date !== 'rectification.originalInvoices.0.issueDate') failures.push({ code: 'WOO_REFUND_PROFILE_ORIGINAL_DATE_INVALID' });
+  if (!String(profile?.constants?.invoiceType ?? '').startsWith('CONFIGURE_')) failures.push({ code: 'WOO_REFUND_PROFILE_MUST_NOT_ASSUME_RX' });
+  if (!String(profile?.constants?.rectification?.type ?? '').startsWith('CONFIGURE_')) failures.push({ code: 'WOO_REFUND_PROFILE_MUST_NOT_ASSUME_SI' });
+} catch (error) {
+  failures.push({ code: 'WOO_REFUND_PROFILE_JSON_INVALID', message: error.message });
 }
 
 if (failures.length) {
@@ -117,6 +152,6 @@ if (failures.length) {
 console.log(JSON.stringify({
   schema_version: 1,
   status: 'ok',
-  check: 'woocommerce-connector-v1',
+  check: 'woocommerce-connector-v2',
   php_files: phpFiles(root).length,
 }, null, 2));

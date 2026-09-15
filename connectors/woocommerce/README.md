@@ -6,14 +6,15 @@ Conector nativo ligero entre WooCommerce y Puente VeriFactu.
 
 WooCommerce **no implementa lógica AEAT**. El plugin:
 
-1. lee el pedido mediante WooCommerce CRUD;
-2. construye un payload neutral;
+1. lee pedidos y reembolsos mediante WooCommerce CRUD;
+2. construye payloads neutrales;
 3. ejecuta preflight en Puente VeriFactu;
 4. envía con idempotencia;
-5. guarda `recordId` y estado normalizado en el pedido;
-6. reconcilia el estado posteriormente.
+5. guarda `recordId` y estado normalizado en el objeto Woo correspondiente;
+6. reconcilia el estado posteriormente;
+7. muestra un semáforo operativo en el listado de pedidos.
 
-XML AEAT, certificados, hash, cadena, `invoiceType`, régimen y clasificación fiscal permanecen en el Puente.
+XML AEAT, certificados, hash, cadena, `invoiceType`, `R1–R5`, `S/I`, régimen y clasificación fiscal permanecen en el Puente.
 
 ## Compatibilidad
 
@@ -22,45 +23,61 @@ XML AEAT, certificados, hash, cadena, `invoiceType`, régimen y clasificación f
 - WooCommerce 8.2+;
 - validado inicialmente contra WooCommerce 11.1;
 - HPOS declarado compatible;
+- columnas de estado compatibles con HPOS y tabla legacy;
 - no usa `get_post_meta`, `update_post_meta` ni acceso directo a tablas de pedidos.
 
-WooCommerce 11.1 es la versión estable de referencia usada al iniciar este conector en septiembre de 2026. La compatibilidad debe volver a verificarse antes de cada release.
+WooCommerce recomienda CRUD para mantener compatibilidad con HPOS; el conector sigue esa regla en pedidos y `WC_Order_Refund`.
 
 ## Configuración
 
 En `WooCommerce → Puente VeriFactu`:
 
 - URL HTTPS del Puente;
-- `MappingProfile` server-side;
+- `MappingProfile` server-side para facturas ordinarias;
+- `MappingProfile` server-side independiente para rectificativas de refunds;
 - token Bearer del conector;
-- fuente explícita del número de factura;
+- fuente explícita del número de factura original;
+- meta-key explícita del número fiscal de la rectificativa/refund;
 - estados Woo que disparan envío automático;
+- activación separada de refunds automáticos;
 - meta-key opcional donde otro plugin guarda NIF/CIF del cliente;
 - timeout HTTP.
 
 El token se almacena cifrado usando las salts de WordPress. Nunca se incluye en logs, notas de pedido o payloads.
 
-### Número de factura
+## Número de factura ordinaria
 
 WooCommerce core crea pedidos, no una numeración fiscal que Puente pueda asumir automáticamente. Por eso el plugin obliga a elegir una fuente:
 
-- **meta-key de un plugin de facturación existente** — opción recomendada cuando la tienda ya genera facturas;
-- **número de pedido** — solo si el comercio confirma explícitamente que ese número es también su numeración de factura;
-- **sin configurar** — `invoice_number` queda vacío y el preflight bloquea cualquier emisión.
+- **meta-key de un plugin de facturación existente** — recomendada cuando la tienda ya genera facturas;
+- **número de pedido** — solo si el comercio confirma explícitamente que también es su número fiscal;
+- **sin configurar** — `invoice_number` queda vacío y preflight bloquea cualquier emisión.
 
-También existe el filtro `pv_woo_invoice_number` para integraciones específicas. El `MappingProfile` de referencia mapea `invoice_number → number`; nunca mapea `order_number` silenciosamente.
+También existe el filtro `pv_woo_invoice_number`. El perfil de referencia mapea `invoice_number → number`; nunca usa `order_number` silenciosamente.
 
-## Modo manual primero
+La fecha de factura se obtiene inicialmente de la fecha de creación del pedido y puede adaptarse con `pv_woo_invoice_date` cuando el sistema de facturación existente tenga otra fecha real de expedición.
 
-Si no se marca ningún estado automático, el plugin queda en modo manual. Desde las acciones del pedido se puede:
+## Reembolsos y facturas rectificativas
 
-- validar sin enviar;
-- enviar;
-- refrescar estado cuando ya existe `recordId`.
+WooCommerce expone un refund como `WC_Order_Refund`, pero **un refund no determina por sí mismo la clasificación fiscal de la factura rectificativa**.
 
-Esto permite probar mapping y datos antes de automatizar.
+Por eso:
 
-## Flujo automático
+- `woocommerce_order_refunded` solo dispara una operación neutral;
+- cada refund tiene su propia idempotencia `woo:{blogId}:refund:{refundId}:issue:v1`;
+- la factura original debe tener `recordId` antes de procesar su refund;
+- la rectificativa necesita su propio número fiscal mediante `refund_invoice_number_meta_key` o filtro `pv_woo_refund_invoice_number`;
+- la fecha puede adaptarse con `pv_woo_refund_invoice_date`;
+- los importes y signos reales del refund se preservan;
+- el `refund_profile_id` server-side decide `R1–R5`, `S/I`, emisor, régimen y clasificación fiscal;
+- si preflight falla, el refund queda `blocked` y no se fiscaliza;
+- `auto_refunds` está desactivado por defecto.
+
+La AEAT distingue rectificativas `R1–R5` y modalidades por sustitución/diferencias, por lo que el plugin no transforma automáticamente “refund” en una categoría fiscal concreta.
+
+Ver `examples/refund-mapping-profile.json`. Sus valores `CONFIGURE_*` son intencionadamente inválidos hasta que el perfil se configure correctamente en servidor.
+
+## Flujo de factura ordinaria
 
 ```text
 Woo status change
@@ -69,38 +86,78 @@ Woo status change
 Action Scheduler
       |
       v
-build neutral source payload
+neutral order payload
       |
       v
 POST /v1/preflight
       |
-      +-- invalid --> blocked; no fiscalization
+      +-- invalid --> blocked
       |
       v
 POST /v1/fiscal-records + Idempotency-Key
       |
       v
-store recordId/status on WC_Order metadata
+store recordId/status on WC_Order
       |
       v
-GET /v1/fiscal-records/{recordId} for reconciliation
+GET /v1/fiscal-records/{recordId}
 ```
 
-Action Scheduler se usa cuando está inicializado. Existe fallback a un evento único de WP-Cron para no ejecutar HTTP dentro del cambio de estado del pedido.
-
-## Idempotencia
-
-La clave v1 es estable por sitio + pedido:
+## Flujo de refund
 
 ```text
-woo:{blogId}:order:{orderId}:issue:v1
+woocommerce_order_refunded
+      |
+      v
+Action Scheduler
+      |
+      v
+WC_Order_Refund + parent WC_Order
+      |
+      +-- original without recordId --> blocked
+      |
+      v
+neutral refund payload
+      |
+      v
+refund MappingProfile server-side
+      |
+      v
+preflight -> issue -> reconcile
+      |
+      v
+store status on WC_Order_Refund
 ```
 
-Si Woo dispara varias veces el mismo evento, Puente devuelve el mismo recurso. Si el contenido del pedido cambia después de fiscalizarse, el conector **no crea otra factura silenciosamente**: al existir `recordId`, solo reconcilia. Las rectificaciones/reembolsos se implementarán como operaciones explícitas separadas.
+Action Scheduler se usa cuando está inicializado; existe fallback a WP-Cron para no ejecutar HTTP dentro del evento síncrono de WooCommerce.
 
-## Payload neutral
+## Semáforo operativo
 
-Campos principales:
+El listado de pedidos añade una columna `VeriFactu` tanto en HPOS como en la tabla legacy:
+
+- **verde — Synced:** operación aceptada;
+- **ámbar — Pending / review:** preflight válido, fiscalizado, en cola, enviando, reintento, aceptado con avisos o refund pendiente;
+- **rojo — Action required:** bloqueado, rechazado o fallo final;
+- **gris — Not sent:** aún no existe operación.
+
+El estado agregado considera la factura principal y sus refunds. Un refund bloqueado vuelve rojo el pedido aunque la factura original esté aceptada.
+
+El semáforo es operativo; nunca convierte un rechazo en aceptación ni sustituye el estado detallado de Puente.
+
+## Modo manual primero
+
+Si no se seleccionan estados automáticos, la factura ordinaria queda en modo manual. Desde las acciones del pedido se puede:
+
+- validar sin enviar;
+- enviar;
+- refrescar estado;
+- procesar los refunds existentes.
+
+Los refunds automáticos requieren activación independiente y configuración previa del perfil rectificativo y numeración fiscal.
+
+## Payloads neutrales
+
+Factura ordinaria:
 
 - `source_invoice_id`;
 - `order_id` / `order_number`;
@@ -108,31 +165,33 @@ Campos principales:
 - `order_date`;
 - `description`;
 - `currency`;
-- `customer_name`;
-- `customer_tax_id` opcional;
+- `customer_name` / `customer_tax_id`;
 - `total_amount`;
-- `discount_amount`;
-- `shipping_amount`;
-- `tax_amount`;
 - `tax_lines[]`.
 
-La moneda viene del propio pedido y se mapea de forma dinámica. **En v1, una moneda distinta de EUR queda bloqueada por preflight** hasta que exista un contrato explícito para proporcionar importes fiscales convertidos a EUR. El plugin nunca inventa tipos de cambio.
+Refund:
 
-`tax_lines[]` puede contener varias líneas con `rate`, `baseAmount` y `taxAmount`. El origen **no puede introducir** `taxCode`, `regimeKey` u `operationClass`: esos campos se añaden server-side mediante `taxLineDefaults` del `MappingProfile`.
+- `source_invoice_id`;
+- `refund_id` / `parent_order_id`;
+- `refund_invoice_number`;
+- `refund_date`;
+- `original_invoice_number` / `original_invoice_date`;
+- `currency`;
+- destinatario;
+- `total_amount`;
+- `tax_lines[]`.
 
-## MappingProfile
+`tax_lines[]` puede contener varios tipos impositivos. El origen no puede introducir `taxCode`, `regimeKey`, `operationClass` ni `invoiceType`; estos datos permanecen server-side.
 
-Ver `examples/mapping-profile.json`.
-
-Es solo un ejemplo estructural. Antes de activarlo se deben configurar en servidor los datos fiscales reales de la organización y validar por preflight. No copiar identificadores de ejemplo a producción.
+La moneda viene del objeto Woo. En la versión actual una moneda distinta de EUR queda bloqueada por preflight hasta existir un contrato explícito de conversión; el plugin no inventa tipos de cambio.
 
 ## Reintentos
 
-Los fallos marcados `retryable` se reintentan hasta cinco intentos con backoff. Los errores de validación/preflight quedan bloqueados para intervención humana y no se reenvían automáticamente. Cuando se agotan los reintentos, el estado pasa expresamente a `blocked`.
+Los fallos técnicos marcados `retryable` se reintentan hasta cinco intentos con backoff. Los errores de validación/preflight quedan bloqueados para intervención humana. Al agotar reintentos, el estado pasa a `blocked`.
 
-## Datos guardados en el pedido
+## Metadata WooCommerce
 
-Se usa exclusivamente CRUD de WooCommerce:
+En pedido y refund se usa exclusivamente CRUD:
 
 - `_pv_record_id`;
 - `_pv_status`;
@@ -140,16 +199,15 @@ Se usa exclusivamente CRUD de WooCommerce:
 - `_pv_last_synced_at`;
 - `_pv_payload_sha256`.
 
-No se guarda certificado AEAT ni secreto del Puente en metadata del pedido.
+No se guarda certificado AEAT ni secreto del Puente en metadata WooCommerce.
 
 ## Fallback
 
-Si el plugin deja de ser compatible temporalmente con una actualización de WooCommerce, el negocio puede seguir usando CSV/XLSX a través del wizard universal. El conector nativo es una optimización, no una dependencia del motor fiscal.
+Si una actualización de WooCommerce rompe temporalmente el conector, el negocio puede seguir usando CSV/XLSX mediante el wizard universal. El conector nativo es una optimización, no una dependencia del motor fiscal.
 
-## Fuera de este primer bloque
+## Pendiente dentro de Fase 5
 
-- rectificaciones/reembolsos explícitos;
-- panel visual de tráfico verde/ámbar/rojo en listado de pedidos;
+- matriz automatizada de compatibilidad WordPress/WooCommerce;
+- ZIP/release reproducible del plugin;
 - contrato de conversión EUR para pedidos en moneda extranjera;
-- paquete ZIP/release WordPress;
-- matriz automatizada de compatibilidad WordPress/WooCommerce.
+- conector PrestaShop.

@@ -7,13 +7,16 @@ final class PV_Woo_Settings {
 
     public static function get() {
         $defaults = array(
-            'endpoint'                => '',
-            'profile_id'              => '',
-            'auto_statuses'           => array(),
-            'tax_id_meta_key'         => '',
-            'invoice_number_source'   => '',
-            'invoice_number_meta_key' => '',
-            'request_timeout'         => 15,
+            'endpoint'                       => '',
+            'profile_id'                     => '',
+            'refund_profile_id'              => '',
+            'auto_statuses'                  => array(),
+            'auto_refunds'                   => false,
+            'tax_id_meta_key'                => '',
+            'invoice_number_source'          => '',
+            'invoice_number_meta_key'        => '',
+            'refund_invoice_number_meta_key' => '',
+            'request_timeout'                => 15,
         );
         $settings = get_option( self::OPTION, array() );
         return wp_parse_args( is_array( $settings ) ? $settings : array(), $defaults );
@@ -50,15 +53,23 @@ final class PV_Woo_Settings {
             exit;
         }
 
-        $profile_id = isset( $_POST['profile_id'] ) ? sanitize_key( wp_unslash( $_POST['profile_id'] ) ) : '';
-        $tax_id_key = isset( $_POST['tax_id_meta_key'] ) ? sanitize_key( wp_unslash( $_POST['tax_id_meta_key'] ) ) : '';
-        $number_key = isset( $_POST['invoice_number_meta_key'] ) ? sanitize_key( wp_unslash( $_POST['invoice_number_meta_key'] ) ) : '';
-        $number_source = isset( $_POST['invoice_number_source'] ) ? sanitize_key( wp_unslash( $_POST['invoice_number_source'] ) ) : '';
+        $profile_id         = isset( $_POST['profile_id'] ) ? sanitize_key( wp_unslash( $_POST['profile_id'] ) ) : '';
+        $refund_profile_id  = isset( $_POST['refund_profile_id'] ) ? sanitize_key( wp_unslash( $_POST['refund_profile_id'] ) ) : '';
+        $tax_id_key         = isset( $_POST['tax_id_meta_key'] ) ? sanitize_key( wp_unslash( $_POST['tax_id_meta_key'] ) ) : '';
+        $number_key         = isset( $_POST['invoice_number_meta_key'] ) ? sanitize_key( wp_unslash( $_POST['invoice_number_meta_key'] ) ) : '';
+        $refund_number_key  = isset( $_POST['refund_invoice_number_meta_key'] ) ? sanitize_key( wp_unslash( $_POST['refund_invoice_number_meta_key'] ) ) : '';
+        $number_source      = isset( $_POST['invoice_number_source'] ) ? sanitize_key( wp_unslash( $_POST['invoice_number_source'] ) ) : '';
+        $auto_refunds       = ! empty( $_POST['auto_refunds'] );
+
         if ( ! in_array( $number_source, array( '', 'order_number', 'meta' ), true ) ) {
             $number_source = '';
         }
         if ( 'meta' === $number_source && '' === $number_key ) {
             add_settings_error( 'pv_woo', 'invoice_number', __( 'Invoice number meta key is required when that source is selected.', 'puente-verifactu-woocommerce' ), 'error' );
+        }
+        if ( $auto_refunds && ( '' === $refund_profile_id || '' === $refund_number_key ) ) {
+            add_settings_error( 'pv_woo', 'refunds', __( 'Automatic refunds require a refund mapping profile and refund invoice number meta key.', 'puente-verifactu-woocommerce' ), 'error' );
+            $auto_refunds = false;
         }
 
         $statuses = isset( $_POST['auto_statuses'] ) ? array_map( 'sanitize_key', (array) wp_unslash( $_POST['auto_statuses'] ) ) : array();
@@ -70,13 +81,16 @@ final class PV_Woo_Settings {
         update_option(
             self::OPTION,
             array(
-                'endpoint'                => untrailingslashit( $endpoint ),
-                'profile_id'              => $profile_id,
-                'auto_statuses'           => $statuses,
-                'tax_id_meta_key'         => $tax_id_key,
-                'invoice_number_source'   => $number_source,
-                'invoice_number_meta_key' => $number_key,
-                'request_timeout'         => $timeout,
+                'endpoint'                       => untrailingslashit( $endpoint ),
+                'profile_id'                     => $profile_id,
+                'refund_profile_id'              => $refund_profile_id,
+                'auto_statuses'                  => $statuses,
+                'auto_refunds'                   => $auto_refunds,
+                'tax_id_meta_key'                => $tax_id_key,
+                'invoice_number_source'          => $number_source,
+                'invoice_number_meta_key'        => $number_key,
+                'refund_invoice_number_meta_key' => $refund_number_key,
+                'request_timeout'                => $timeout,
             ),
             false
         );
@@ -114,6 +128,7 @@ final class PV_Woo_Settings {
                 <table class="form-table" role="presentation">
                     <tr><th><label for="pv-endpoint"><?php esc_html_e( 'Puente URL', 'puente-verifactu-woocommerce' ); ?></label></th><td><input class="regular-text" id="pv-endpoint" name="endpoint" type="url" required value="<?php echo esc_attr( $settings['endpoint'] ); ?>" placeholder="https://verifactu.example.com"></td></tr>
                     <tr><th><label for="pv-profile"><?php esc_html_e( 'Mapping profile ID', 'puente-verifactu-woocommerce' ); ?></label></th><td><input class="regular-text" id="pv-profile" name="profile_id" type="text" required value="<?php echo esc_attr( $settings['profile_id'] ); ?>"></td></tr>
+                    <tr><th><label for="pv-refund-profile"><?php esc_html_e( 'Refund mapping profile ID', 'puente-verifactu-woocommerce' ); ?></label></th><td><input class="regular-text" id="pv-refund-profile" name="refund_profile_id" type="text" value="<?php echo esc_attr( $settings['refund_profile_id'] ); ?>"><p class="description"><?php esc_html_e( 'Use a separate server-side profile for corrective invoices. WooCommerce never selects R1–R5 or S/I.', 'puente-verifactu-woocommerce' ); ?></p></td></tr>
                     <tr><th><label for="pv-token"><?php esc_html_e( 'API token', 'puente-verifactu-woocommerce' ); ?></label></th><td><input class="regular-text" id="pv-token" name="api_token" type="password" autocomplete="new-password" value="" placeholder="<?php echo esc_attr( PV_Woo_Secret_Store::get() ? __( 'Stored securely — leave blank to keep it', 'puente-verifactu-woocommerce' ) : __( 'Not configured', 'puente-verifactu-woocommerce' ) ); ?>"><br><label><input type="checkbox" name="clear_api_token" value="1"> <?php esc_html_e( 'Remove stored token', 'puente-verifactu-woocommerce' ); ?></label></td></tr>
                     <tr>
                         <th><label for="pv-number-source"><?php esc_html_e( 'Invoice number source', 'puente-verifactu-woocommerce' ); ?></label></th>
@@ -127,7 +142,9 @@ final class PV_Woo_Settings {
                         </td>
                     </tr>
                     <tr><th><label for="pv-number-meta"><?php esc_html_e( 'Invoice number meta key', 'puente-verifactu-woocommerce' ); ?></label></th><td><input class="regular-text" id="pv-number-meta" name="invoice_number_meta_key" type="text" value="<?php echo esc_attr( $settings['invoice_number_meta_key'] ); ?>"><p class="description"><?php esc_html_e( 'Required only when using an existing invoice plugin/meta field.', 'puente-verifactu-woocommerce' ); ?></p></td></tr>
+                    <tr><th><label for="pv-refund-number-meta"><?php esc_html_e( 'Refund invoice number meta key', 'puente-verifactu-woocommerce' ); ?></label></th><td><input class="regular-text" id="pv-refund-number-meta" name="refund_invoice_number_meta_key" type="text" value="<?php echo esc_attr( $settings['refund_invoice_number_meta_key'] ); ?>"><p class="description"><?php esc_html_e( 'The corrective invoice must have its own fiscal number. No WooCommerce refund ID is used automatically.', 'puente-verifactu-woocommerce' ); ?></p></td></tr>
                     <tr><th><?php esc_html_e( 'Automatic statuses', 'puente-verifactu-woocommerce' ); ?></th><td><?php foreach ( $statuses as $key => $label ) : $slug = preg_replace( '/^wc-/', '', $key ); ?><label style="display:block"><input type="checkbox" name="auto_statuses[]" value="<?php echo esc_attr( $key ); ?>" <?php checked( in_array( $slug, $settings['auto_statuses'], true ) ); ?>> <?php echo esc_html( $label ); ?></label><?php endforeach; ?><p class="description"><?php esc_html_e( 'Leave all unchecked for manual-only mode.', 'puente-verifactu-woocommerce' ); ?></p></td></tr>
+                    <tr><th><?php esc_html_e( 'Automatic refunds', 'puente-verifactu-woocommerce' ); ?></th><td><label><input type="checkbox" name="auto_refunds" value="1" <?php checked( ! empty( $settings['auto_refunds'] ) ); ?>> <?php esc_html_e( 'Queue new WooCommerce refunds for corrective-invoice preflight and submission.', 'puente-verifactu-woocommerce' ); ?></label><p class="description"><?php esc_html_e( 'Disabled by default. Enable only after the corrective mapping profile and refund invoice numbering are validated.', 'puente-verifactu-woocommerce' ); ?></p></td></tr>
                     <tr><th><label for="pv-tax-meta"><?php esc_html_e( 'Customer tax ID meta key', 'puente-verifactu-woocommerce' ); ?></label></th><td><input class="regular-text" id="pv-tax-meta" name="tax_id_meta_key" type="text" value="<?php echo esc_attr( $settings['tax_id_meta_key'] ); ?>"><p class="description"><?php esc_html_e( 'Optional. Use the meta key already used by your VAT/NIF plugin. The connector never assumes a third-party field name.', 'puente-verifactu-woocommerce' ); ?></p></td></tr>
                     <tr><th><label for="pv-timeout"><?php esc_html_e( 'HTTP timeout (seconds)', 'puente-verifactu-woocommerce' ); ?></label></th><td><input id="pv-timeout" name="request_timeout" type="number" min="5" max="30" value="<?php echo esc_attr( $settings['request_timeout'] ); ?>"></td></tr>
                 </table>

@@ -111,9 +111,13 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Moneda dinámica desde el pedido sin inventar conversión EUR.
 - [x] ES/EN y traducción española empaquetada.
 - [x] Gate CI HPOS/CRUD/seguridad + sintaxis PHP 7.4.
-- [ ] Rectificaciones/reembolsos explícitos.
-- [ ] Semáforo verde/ámbar/rojo y acciones de soporte en administración.
+- [x] Refunds como operaciones rectificativas explícitas e idempotentes.
+- [x] Perfil rectificativo separado; Woo no decide `R1–R5` ni `S/I`.
+- [x] Numeración fiscal propia obligatoria para cada rectificativa/refund.
+- [x] Relación segura con la factura original y preflight previo al envío.
+- [x] Semáforo verde/ámbar/rojo agregado para factura + refunds, compatible con HPOS/legacy.
 - [ ] Matriz automatizada WordPress/WooCommerce + paquete ZIP/release.
+- [ ] Contrato explícito de conversión EUR para operaciones en moneda extranjera.
 
 ### PrestaShop y aceptación transversal
 
@@ -121,7 +125,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [ ] Reconciliación/fallback end-to-end común entre conectores.
 - [ ] Tests de compatibilidad y Connector Contract Suite para cada extensión.
 
-**Estado:** primera base de WooCommerce implementada. Fase 5 continúa abierta hasta cubrir rectificaciones/reembolsos, UX operativa, compatibilidad empaquetada y PrestaShop.
+**Estado:** WooCommerce cubre ya facturas ordinarias, refunds rectificativos y UX operativa básica. Fase 5 continúa abierta por compatibilidad empaquetada, conversión no-EUR y PrestaShop.
 
 **Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre previo del gate AEAT #6 antes de cualquier piloto fiscal real.
 

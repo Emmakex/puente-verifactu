@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Puente VeriFactu for WooCommerce 0.1.0\n"
+"Project-Id-Version: Puente VeriFactu for WooCommerce 0.2.0\n"
 "Language: es_ES\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -21,6 +21,9 @@ msgstr "La URL de Puente debe usar HTTPS."
 msgid "Invoice number meta key is required when that source is selected."
 msgstr "La meta-key del número de factura es obligatoria cuando se selecciona esa fuente."
 
+msgid "Automatic refunds require a refund mapping profile and refund invoice number meta key."
+msgstr "Los reembolsos automáticos requieren un perfil de mapeo rectificativo y la meta-key del número de factura rectificativa."
+
 msgid "The API token could not be encrypted on this server."
 msgstr "No se pudo cifrar el token de API en este servidor."
 
@@ -35,6 +38,12 @@ msgstr "URL de Puente"
 
 msgid "Mapping profile ID"
 msgstr "ID del perfil de mapeo"
+
+msgid "Refund mapping profile ID"
+msgstr "ID del perfil de mapeo para rectificativas"
+
+msgid "Use a separate server-side profile for corrective invoices. WooCommerce never selects R1–R5 or S/I."
+msgstr "Usa un perfil server-side independiente para facturas rectificativas. WooCommerce nunca selecciona R1–R5 ni S/I."
 
 msgid "API token"
 msgstr "Token de API"
@@ -69,11 +78,26 @@ msgstr "Meta-key del número de factura"
 msgid "Required only when using an existing invoice plugin/meta field."
 msgstr "Solo es obligatoria cuando se utiliza un plugin de facturación o campo meta existente."
 
+msgid "Refund invoice number meta key"
+msgstr "Meta-key del número de factura rectificativa"
+
+msgid "The corrective invoice must have its own fiscal number. No WooCommerce refund ID is used automatically."
+msgstr "La factura rectificativa debe tener su propio número fiscal. El ID de reembolso de WooCommerce nunca se usa automáticamente."
+
 msgid "Automatic statuses"
 msgstr "Estados automáticos"
 
 msgid "Leave all unchecked for manual-only mode."
 msgstr "Déjalos todos sin marcar para usar solo el modo manual."
+
+msgid "Automatic refunds"
+msgstr "Reembolsos automáticos"
+
+msgid "Queue new WooCommerce refunds for corrective-invoice preflight and submission."
+msgstr "Encola los nuevos reembolsos de WooCommerce para preflight y envío como factura rectificativa."
+
+msgid "Disabled by default. Enable only after the corrective mapping profile and refund invoice numbering are validated."
+msgstr "Desactivado por defecto. Actívalo solo después de validar el perfil rectificativo y la numeración fiscal de los reembolsos."
 
 msgid "Customer tax ID meta key"
 msgstr "Meta-key del NIF/CIF del cliente"
@@ -114,6 +138,9 @@ msgstr "Puente VeriFactu: actualizar estado"
 msgid "Puente VeriFactu: send"
 msgstr "Puente VeriFactu: enviar"
 
+msgid "Puente VeriFactu: process refunds"
+msgstr "Puente VeriFactu: procesar reembolsos"
+
 msgid "Puente VeriFactu preflight found data that must be corrected before sending."
 msgstr "El preflight de Puente VeriFactu encontró datos que deben corregirse antes de enviar."
 
@@ -123,6 +150,9 @@ msgstr "El preflight de Puente VeriFactu se superó. No se envió nada a AEAT."
 msgid "Puente VeriFactu send queued."
 msgstr "Envío a Puente VeriFactu encolado."
 
+msgid "Puente VeriFactu refund processing queued."
+msgstr "Procesamiento de reembolsos de Puente VeriFactu encolado."
+
 msgid "Preflight failed. The order was not fiscalized."
 msgstr "El preflight falló. El pedido no se fiscalizó."
 
@@ -131,3 +161,44 @@ msgstr "Puente VeriFactu no devolvió un ID de registro."
 
 msgid "Puente VeriFactu created record %s."
 msgstr "Puente VeriFactu creó el registro %s."
+
+msgid "The original invoice must be fiscalized before its refund can be processed."
+msgstr "La factura original debe estar fiscalizada antes de procesar su reembolso."
+
+msgid "Refund mapping profile is not configured."
+msgstr "El perfil de mapeo para rectificativas no está configurado."
+
+msgid "Corrective-invoice preflight failed. The refund was not fiscalized."
+msgstr "El preflight de la factura rectificativa falló. El reembolso no se fiscalizó."
+
+msgid "Puente VeriFactu did not return a corrective record ID."
+msgstr "Puente VeriFactu no devolvió un ID de registro rectificativo."
+
+msgid "Puente VeriFactu created corrective record %1$s for refund #%2$d."
+msgstr "Puente VeriFactu creó el registro rectificativo %1$s para el reembolso #%2$d."
+
+msgid "VeriFactu"
+msgstr "VeriFactu"
+
+msgid "Not available"
+msgstr "No disponible"
+
+msgid "Synced"
+msgstr "Sincronizado"
+
+msgid "Pending / review"
+msgstr "Pendiente / revisar"
+
+msgid "Action required"
+msgstr "Requiere acción"
+
+msgid "Not sent"
+msgstr "No enviado"
+
+msgid "No Puente VeriFactu operation exists yet."
+msgstr "Todavía no existe ninguna operación de Puente VeriFactu."
+
+msgid "%d refund"
+msgid_plural "%d refunds"
+msgstr[0] "%d reembolso"
+msgstr[1] "%d reembolsos"
