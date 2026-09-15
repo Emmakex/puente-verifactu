@@ -39,8 +39,8 @@ function sendJson(res, status, payload, headers = {}) {
   });
 }
 
-function publicError(code, message, status) {
-  return { error: { code, message, retryable: false, details: [] }, status };
+function errorEnvelope(code, message, retryable = false) {
+  return { error: { code, message, retryable, details: [] } };
 }
 
 function pathname(req) {
@@ -126,9 +126,7 @@ export function createPuenteHttpServer({
     const method = String(req.method ?? 'GET').toUpperCase();
 
     try {
-      if (path === '/healthz') {
-        return sendJson(res, 200, { status: 'ok' });
-      }
+      if (path === '/healthz') return sendJson(res, 200, { status: 'ok' });
       if (path === '/readyz') {
         const state = await readiness();
         return sendJson(res, state?.ok ? 200 : 503, { status: state?.ok ? 'ready' : 'not_ready' });
@@ -140,21 +138,14 @@ export function createPuenteHttpServer({
       } catch (error) {
         const status = error?.status === 401 ? 401 : 500;
         const code = status === 401 ? (error.code ?? 'VF_AUTH_REQUIRED') : 'VF_AUTH_INTERNAL';
-        return sendJson(res, status, publicError(code, status === 401 ? 'Unauthorized' : 'Authentication error', status).error, {
+        return sendJson(res, status, errorEnvelope(code, status === 401 ? 'Unauthorized' : 'Authentication error'), {
           ...(status === 401 ? { 'www-authenticate': authChallenge(path) } : {}),
         });
       }
 
       const rate = rateLimiter.consume(authContext);
       if (!rate.allowed) {
-        return sendJson(res, 429, {
-          error: {
-            code: 'VF_RATE_LIMITED',
-            message: 'Too many requests',
-            retryable: true,
-            details: [],
-          },
-        }, {
+        return sendJson(res, 429, errorEnvelope('VF_RATE_LIMITED', 'Too many requests', true), {
           'retry-after': String(rate.retryAfterSeconds),
           'x-ratelimit-limit': String(rate.limit),
           'x-ratelimit-remaining': '0',
@@ -164,9 +155,7 @@ export function createPuenteHttpServer({
 
       if ((method === 'GET' || method === 'HEAD') && await serveStatic(res, onboardingDir, path, method)) return;
 
-      if (!path.startsWith('/v1/')) {
-        return sendJson(res, 404, { error: { code: 'VF_HTTP_ROUTE_NOT_FOUND', message: 'Route not found', retryable: false, details: [] } });
-      }
+      if (!path.startsWith('/v1/')) return sendJson(res, 404, errorEnvelope('VF_HTTP_ROUTE_NOT_FOUND', 'Route not found'));
 
       const body = ['POST', 'PUT', 'PATCH'].includes(method) ? await readBody(req, maxBodyBytes) : Buffer.alloc(0);
       const response = await apiHandler({
@@ -181,14 +170,11 @@ export function createPuenteHttpServer({
       sendJson(res, normalized.status, normalized.payload, normalized.headers);
     } catch (error) {
       const status = Number.isInteger(error?.status) ? error.status : 500;
-      sendJson(res, status, {
-        error: {
-          code: error?.code ?? 'VF_HTTP_INTERNAL',
-          message: status >= 500 ? 'Internal error' : error.message,
-          retryable: status >= 500,
-          details: [],
-        },
-      });
+      sendJson(res, status, errorEnvelope(
+        error?.code ?? 'VF_HTTP_INTERNAL',
+        status >= 500 ? 'Internal error' : error.message,
+        status >= 500,
+      ));
     }
   });
 }
