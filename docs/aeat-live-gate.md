@@ -147,6 +147,33 @@ La salida/evidencia conserva únicamente datos útiles para demostrar el resulta
 - versiones AEAT (`WSDL`, validaciones, esquema y registro) fijadas en el adaptador;
 - SHA-256 del XML, no el XML.
 
+### Verificar el bundle aceptado + rechazo
+
+Cuando existan ambos ficheros sanitizados, valida que pertenecen al mismo candidato y a las versiones AEAT actuales:
+
+```bash
+npm run aeat:evidence:verify -- \
+  --accepted ./private-evidence/aeat-accepted.json \
+  --rejected ./private-evidence/aeat-rejected.json \
+  --source-commit <SHA40>
+```
+
+El verificador falla cerrado si detecta, entre otros casos:
+
+- evidencia de `dry-run` en lugar de remisión real;
+- commits diferentes o distintos del commit candidato indicado;
+- versiones WSDL/validaciones/esquema/registro diferentes de las fijadas actualmente en el adaptador;
+- estado aceptado/rechazado distinto del esperado;
+- aceptación sin fingerprint SHA-256 del CSV;
+- rechazo sin código de diagnóstico normalizado;
+- ausencia de un `TiempoEsperaEnvio` no negativo en ambas respuestas;
+- hashes XML/registro inválidos;
+- campos sensibles crudos como `xml`, `csv`, `passphrase`, `pfx` o descripciones de error sin sanitizar.
+
+La salida del verificador es deliberadamente reducida: commit, versiones AEAT, hashes de evidencia y valores observados de `TiempoEsperaEnvio`. No reproduce los cuerpos de las evidencias.
+
+Aunque todas estas comprobaciones pasen, el resultado es **`status: partial`**, mantiene `releaseUnblocked: false` y declara `remainingExternalEvidence: ["reconciliation"]`. Este comando acredita el bundle de transmisión; **no sustituye la comprobación externa de reconciliación ni puede cerrar el issue #6**.
+
 ## Cadena de prueba
 
 Por defecto cada ejecución usa un `NumeroInstalacion` temporal nuevo y genera `PrimerRegistro=S`. Esto evita que dos ejecuciones independientes dependan de un estado previo desconocido.
