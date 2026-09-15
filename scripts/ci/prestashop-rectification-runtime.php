@@ -42,10 +42,13 @@ if ((string) _PS_VERSION_ !== $expectedPs || $actualPhp !== $expectedPhp) {
 }
 
 $module = Module::getInstanceByName('puenteverifactu');
-if (!$module || empty($module->active) || (string) $module->version !== '0.3.0') {
-    pvfRectFail('PRESTA_RECT_MODULE_INVALID', 'Puente VeriFactu 0.3.0 must be active.');
+if (!$module || empty($module->active) || (string) $module->version !== '0.4.0') {
+    pvfRectFail('PRESTA_RECT_MODULE_INVALID', 'Puente VeriFactu 0.4.0 must be active.');
 }
-if (!class_exists('PVFPrestaShopOrderSlipPayload') || !class_exists('PVFPrestaShopRectifications')) {
+if (!$module->isRegisteredInHook('actionOrderSlipAdd')) {
+    pvfRectFail('PRESTA_RECT_AUTO_HOOK_MISSING', 'actionOrderSlipAdd must be registered.');
+}
+if (!class_exists('PVFPrestaShopOrderSlipPayload') || !class_exists('PVFPrestaShopRectifications') || !class_exists('PVFPrestaShopAutomation')) {
     pvfRectFail('PRESTA_RECT_RUNTIME_CLASSES_MISSING', 'Corrective runtime classes were not loaded.');
 }
 
@@ -73,6 +76,10 @@ if (!Validate::isLoadedObject($order)) {
     pvfRectFail('PRESTA_RECT_ORDER_INVALID', 'Corrective smoke order could not be loaded.');
 }
 pvfRectHydrateContext($order);
+
+if ((int) Configuration::get(PVFPrestaShopAutomation::CONFIG_AUTO_RECTIFICATIONS, null, null, (int) $order->id_shop) !== 0) {
+    pvfRectFail('PRESTA_RECT_AUTOMATION_DEFAULT_NOT_OFF', 'Corrective automation must be disabled by default.');
+}
 
 $detail = Db::getInstance()->getRow(
     'SELECT * FROM `' . _DB_PREFIX_ . 'order_detail` WHERE `id_order` = ' . (int) $order->id
@@ -120,6 +127,14 @@ $slipId = (int) Db::getInstance()->getValue(
 );
 if ($slipId <= $beforeSlipId) {
     pvfRectFail('PRESTA_RECT_ORDER_SLIP_ID_MISSING', 'Native credit slip was not persisted.');
+}
+
+$autoRows = (int) Db::getInstance()->getValue(
+    'SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'pvf_order_slip_sync` WHERE `id_shop` = ' . (int) $order->id_shop
+    . ' AND `id_order_slip` = ' . $slipId
+);
+if ($autoRows !== 0) {
+    pvfRectFail('PRESTA_RECT_AUTOMATION_DEFAULT_SIDE_EFFECT', 'Disabled corrective automation created local synchronization state.');
 }
 
 $slip = new OrderSlip($slipId);
@@ -196,4 +211,5 @@ fwrite(STDOUT, json_encode(array(
     'native_tax_rate' => $expectedRate,
     'tax_lines' => count($payload['tax_lines']),
     'corrective_status_card' => true,
+    'automation_default_off' => true,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
