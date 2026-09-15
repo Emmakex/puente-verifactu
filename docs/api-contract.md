@@ -2,9 +2,9 @@
 
 ## Principio
 
-Los conectores no envían XML AEAT. Producen un **modelo canónico versionado**. Solo el adaptador AEAT podrá construir o interpretar formatos oficiales.
+Los conectores no envían XML AEAT. Producen un **modelo canónico versionado**. Solo el adaptador AEAT construye o interpreta formatos oficiales.
 
-La especificación ejecutable de Fase 1 está en [`canonical-core-v1.md`](canonical-core-v1.md) y en `packages/contracts/schemas/`.
+La especificación canónica está en [`canonical-core-v1.md`](canonical-core-v1.md) y `packages/contracts/schemas/`. La primera superficie ejecutable de integración está documentada en [`universal-integration-kit-v1.md`](universal-integration-kit-v1.md).
 
 ## Entidades principales
 
@@ -28,50 +28,93 @@ Los tipos v1 son `F1`, `F2`, `F3`, `R1`, `R2`, `R3`, `R4` y `R5`.
 
 ### FiscalRecord
 
-Se implementará en Fase 2. Será la representación inmutable resultante de fiscalización: tipo de registro, material normalizado, huella, encadenamiento, versión del motor y artefactos de transmisión.
+Representación inmutable resultante de fiscalización: tipo de registro, material normalizado, huella, encadenamiento, versión del motor y datos necesarios para transmisión.
 
 ### DeliveryAttempt
 
-Se implementará con el adaptador AEAT. Cada intento conservará timestamps, resultado normalizado, códigos AEAT y referencia al payload exacto.
+Cada intento de entrega conserva estado normalizado, códigos AEAT y metadatos operativos sin exponer secretos. La persistencia durable de intentos pertenece al hardening posterior.
 
-## Endpoint conceptual
+## Identidad y autorización
 
-`POST /v1/fiscal-records`
+La API es **server-authoritative**. El contexto autenticado resuelve como mínimo:
+
+- `organizationId`;
+- `installationId`;
+- `sourceSystem`.
+
+Cualquier valor equivalente enviado por el cliente se sobrescribe. El payload nunca selecciona tenant, certificado, entorno AEAT ni permisos.
+
+## Endpoints v1
+
+### `POST /v1/preflight`
+
+Validación sin efectos.
+
+Modo canónico:
+
+```json
+{ "intent": { "sourceInvoiceId": "..." } }
+```
+
+Modo mapeado:
+
+```json
+{
+  "profileId": "erp-cliente-v1",
+  "source": { "NUM_FACTURA": "2026-100" }
+}
+```
+
+### `POST /v1/fiscal-records`
 
 Cabeceras:
 
 - autenticación server-to-server;
 - `Idempotency-Key` obligatoria;
-- `X-Connector-Version`.
+- `X-Connector-Version` recomendada.
 
-Respuesta inicial sugerida:
+Acepta modo canónico o mapeado igual que preflight.
+
+Respuesta inicial:
 
 ```json
 {
   "recordId": "fr_...",
-  "status": "queued",
+  "status": "fiscalized",
   "sourceInvoiceId": "...",
   "duplicate": false
 }
 ```
 
-`GET /v1/fiscal-records/{recordId}` devuelve estado normalizado y nunca secretos.
+Si existe una cola de entrega inyectada, `status` puede ser `queued` u otro estado normalizado.
 
-La superficie HTTP no se considera implementada hasta Fase 4; Fase 1 define el comportamiento de dominio que dicha API deberá respetar.
+### `GET /v1/fiscal-records/{recordId}`
+
+Devuelve estado normalizado y nunca secretos. Si el recurso existe en otro tenant se responde `404` para no filtrar su existencia.
+
+### `POST /v1/webhooks/{profileId}`
+
+Entrada low-code firmada con HMAC-SHA256. Requiere timestamp anti-replay y `Idempotency-Key` o `X-Event-Id`.
 
 ## Idempotencia
 
-La clave lógica v1 combina tenant + instalación + sistema origen + `sourceInvoiceId` + operación. La misma clave con la misma huella devuelve el recurso existente; la misma clave con contenido fiscal diferente genera conflicto y nunca sobrescribe el anterior.
+La capa HTTP reserva `organization + installation + Idempotency-Key`.
+
+- misma clave + mismo contenido: devuelve el mismo recurso;
+- misma clave + contenido distinto: `409 VF_API_IDEMPOTENCY_CONFLICT`;
+- una operación fallida libera la reserva para permitir un reintento legítimo.
+
+La capa fiscal conserva además su propia idempotencia por identidad de factura/origen.
 
 ## Errores
 
-Formato estable previsto:
+Formato estable:
 
 ```json
 {
   "error": {
-    "code": "VF_VALIDATION_...",
-    "message": "...",
+    "code": "VF_API_VALIDATION_FAILED",
+    "message": "InvoiceIntent validation failed",
     "retryable": false,
     "correlationId": "...",
     "details": []
@@ -79,11 +122,23 @@ Formato estable previsto:
 }
 ```
 
-La validación de dominio ya devuelve códigos estables y mensajes ES/EN. Categorías de API previstas: `AUTH`, `VALIDATION`, `CONFLICT`, `FISCALIZATION`, `AEAT_REJECTED`, `AEAT_UNAVAILABLE`, `CERTIFICATE`, `RATE_LIMIT`, `INTERNAL`.
+El `correlationId` se devuelve en JSON y en `X-Correlation-Id`.
 
 ## Webhooks
 
-Los webhooks serán opcionales. Deberán estar firmados, ser reintentables y usar `eventId` idempotente. El consumidor podrá reconciliar siempre mediante polling.
+Firma:
+
+```text
+HMAC-SHA256(secret, "<unix_timestamp>.<raw_body>")
+```
+
+Cabeceras:
+
+- `X-PV-Timestamp`;
+- `X-PV-Signature: sha256=<hex>`;
+- `Idempotency-Key` o `X-Event-Id`.
+
+La ventana anti-replay por defecto es de 300 segundos. El secreto y el perfil se resuelven server-side.
 
 ## Datos monetarios
 
