@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateAltaHash, calculateAnulacionHash, timestampForZone } from '../src/hash.mjs';
-import { createAltaFiscalRecord } from '../src/fiscal-records.mjs';
+import { createAltaFiscalRecord, deriveEuroAmounts } from '../src/fiscal-records.mjs';
 import { FiscalRecordService, verifyFiscalChain } from '../src/fiscal-record-service.mjs';
 
 const officialFirstHash = '3C464DAF61ACB827C65FDA19F352A4E3BDC2C640E9E9FC4CC058073F38F12F60';
@@ -106,12 +106,21 @@ test('parallel issues are serialized into one chain', async () => {
   assert.equal(new Set([a.record.hash, b.record.hash]).size, 2);
 });
 
-test('non-EUR fiscalization requires explicit EUR values', () => {
+test('non-EUR intent is rejected before fiscalization by canonical validation', () => {
   const nonEuro = { ...intent('usd', 'USD-1'), currency: 'USD' };
   assert.throws(() => createAltaFiscalRecord(nonEuro, {
     sif: { systemId: 'PV', installationNumber: '001' },
     generatedAt: '2026-09-15T10:00:00+02:00',
-  }), { code: 'VF_FISCAL_EUR_CONVERSION_REQUIRED' });
+  }), { code: 'VF_FISCAL_INTENT_INVALID' });
+});
+
+test('EUR conversion helper still requires and accepts explicit converted amounts for future conversion workflows', () => {
+  const nonEuro = { ...intent('usd-helper', 'USD-2'), currency: 'USD' };
+  assert.throws(() => deriveEuroAmounts(nonEuro), { code: 'VF_FISCAL_EUR_CONVERSION_REQUIRED' });
+  assert.deepEqual(deriveEuroAmounts(nonEuro, { quotaTotal: '19.50', totalAmount: '112.40' }), {
+    quotaTotal: '19.50',
+    totalAmount: '112.40',
+  });
 });
 
 test('timestamp helper applies configured IANA zone', () => {
