@@ -4,7 +4,7 @@ Conector nativo y deliberadamente fino para **PrestaShop 1.7.8.x y 8.x**. Su tra
 
 ## Estado
 
-Foundation v1 implementada en modo manual seguro, extractor fiscal reforzado y matriz real de compatibilidad validada:
+Foundation v1 implementada en modo manual seguro, extractor fiscal reforzado, matriz real de compatibilidad y paquete reproducible validados:
 
 - configuración por tienda para endpoint HTTPS y `MappingProfile` server-side;
 - Bearer token cifrado localmente con AES-256-GCM usando una clave derivada de `_COOKIE_KEY_`;
@@ -14,13 +14,15 @@ Foundation v1 implementada en modo manual seguro, extractor fiscal reforzado y m
 - idempotencia estable por tienda + pedido + número de factura;
 - persistencia local mínima de `recordId`, estado y último error;
 - aislamiento básico multitienda;
-- gate CI contractual, sintaxis PHP 7.4, fixtures fiscales ejecutables y smoke con instalaciones reales de PrestaShop.
+- gate CI contractual, sintaxis PHP 7.4, fixtures fiscales ejecutables y smoke con instalaciones reales de PrestaShop;
+- ZIP reproducible con allowlist de runtime, SHA-256 y layout compatible con instaladores legacy;
+- smoke real de upgrade preservando estado local de sincronización.
 
-Todavía **no** activa envíos automáticos ni rectificativas. El siguiente gate es el paquete ZIP reproducible con instalación/upgrade smoke antes de continuar con UX operativa y rectificativas.
+Todavía **no** activa envíos automáticos ni rectificativas. El siguiente incremento es integrar el estado/semáforo directamente en la ficha nativa del pedido antes de continuar con rectificativas y automatización opt-in.
 
 ## Compatibilidad validada
 
-La matriz real de CI instala el módulo dentro de tiendas efímeras PrestaShop Flashlight y valida una factura creada mediante la API nativa `Order::setInvoice()` antes de construir el payload del conector.
+La matriz real de CI instala el **ZIP reproducible de distribución** dentro de tiendas efímeras PrestaShop Flashlight y valida una factura creada mediante la API nativa `Order::setInvoice()` antes de construir el payload del conector.
 
 Combinaciones validadas el **15 de septiembre de 2026**:
 
@@ -72,6 +74,44 @@ En **Configurar** introduce:
 4. timeout.
 
 El token no vuelve a mostrarse después de guardarlo.
+
+## Paquete reproducible
+
+El artefacto de distribución se construye con:
+
+```bash
+npm run prestashop:package
+```
+
+El gate de reproducibilidad se ejecuta con:
+
+```bash
+npm run prestashop:package:check
+```
+
+El empaquetador:
+
+- genera una raíz única `puenteverifactu/`;
+- incluye solo el módulo, clases PHP runtime, README y migraciones de upgrade;
+- excluye `examples/`, `fixtures/` y tooling de desarrollo;
+- fija orden, timestamps, permisos y estructura ZIP para obtener el mismo binario a partir del mismo árbol fuente;
+- calcula SHA-256 del artefacto;
+- incluye entradas explícitas de directorio para mantener compatibilidad con los instaladores de PrestaShop 1.7/8.1, que inspeccionan la primera entrada del ZIP.
+
+El CI construye el ZIP dos veces y exige igualdad byte-a-byte antes de usarlo en las instalaciones reales.
+
+## Upgrade validado
+
+`scripts/ci/prestashop-upgrade-smoke.sh` valida el mecanismo real de actualización en PrestaShop 8.2.7:
+
+1. instala una baseline sintética `0.0.9` derivada del mismo runtime;
+2. crea una fila centinela en `pvf_order_sync`;
+3. sustituye el módulo por el ZIP objetivo `0.1.0`;
+4. ejecuta `prestashop:module upgrade puenteverifactu`;
+5. exige que la versión quede en `0.1.0`;
+6. confirma que `record_id`, `idempotency_key`, estado y error local permanecen intactos.
+
+La baseline `0.0.9` existe únicamente para probar el mecanismo de upgrade antes de una release pública previa; no representa una versión distribuida.
 
 ## Flujo manual v1
 
@@ -127,15 +167,15 @@ Los fixtures están en `fixtures/tax-breakdown-v1.json` y forman parte del CI ob
 
 `scripts/ci/prestashop-compatibility-smoke.sh` usa PrestaShop Flashlight y MariaDB en contenedores efímeros. El smoke:
 
-1. empaqueta temporalmente el módulo con raíz `puenteverifactu`;
+1. construye el ZIP reproducible de release con raíz `puenteverifactu/`;
 2. arranca una tienda PrestaShop real;
-3. auto-instala el módulo mediante el mecanismo de Flashlight;
+3. auto-instala exactamente ese ZIP mediante el mecanismo de Flashlight;
 4. valida versión de PrestaShop/PHP y que el módulo está activo;
 5. comprueba la tabla local del conector;
 6. crea una factura de prueba mediante la API nativa cuando el dataset no trae una;
 7. construye el payload real y exige `tax_lines`, identidad fiscal, moneda y totales.
 
-El ZIP utilizado aquí es únicamente un paquete temporal de CI. El ZIP reproducible de release y su gate de upgrade son el siguiente incremento separado.
+Esto se ejecuta en 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1. Por tanto, la compatibilidad declarada se prueba contra el mismo artefacto que se distribuiría, no contra una copia distinta del árbol de desarrollo.
 
 ## Límites conocidos
 
@@ -148,7 +188,7 @@ El ZIP utilizado aquí es únicamente un paquete temporal de CI. El ZIP reproduc
 
 ## Siguiente incremento
 
-1. paquete ZIP reproducible e instalación/upgrade smoke;
-2. integración del estado en la ficha de pedido;
-3. rectificativas/abonos idempotentes;
-4. automatización opt-in después de validar el flujo manual.
+1. integración del estado/semáforo en la ficha nativa del pedido;
+2. rectificativas/abonos idempotentes;
+3. automatización opt-in después de validar el flujo manual;
+4. aceptación transversal de reconciliación/fallback común entre conectores.
