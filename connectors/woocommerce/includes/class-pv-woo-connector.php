@@ -41,7 +41,7 @@ final class PV_Woo_Connector {
         if ( ! in_array( sanitize_key( $to ), $settings['auto_statuses'], true ) ) {
             return;
         }
-        if ( ! $order instanceof WC_Order ) {
+        if ( ! ( $order instanceof WC_Order ) ) {
             $order = wc_get_order( $order_id );
         }
         if ( ! $order ) {
@@ -69,14 +69,14 @@ final class PV_Woo_Connector {
         } else {
             $actions['pv_woo_send'] = __( 'Puente VeriFactu: send', 'puente-verifactu-woocommerce' );
         }
-        if ( $order instanceof WC_Order && ! $order instanceof WC_Order_Refund && count( $order->get_refunds() ) > 0 ) {
+        if ( $order instanceof WC_Order && ! ( $order instanceof WC_Order_Refund ) && count( $order->get_refunds() ) > 0 ) {
             $actions['pv_woo_refunds'] = __( 'Puente VeriFactu: process refunds', 'puente-verifactu-woocommerce' );
         }
         return $actions;
     }
 
     public function manual_preflight( $order ) {
-        if ( ! $order instanceof WC_Order ) {
+        if ( ! ( $order instanceof WC_Order ) ) {
             return;
         }
         $result = $this->preflight_order( $order );
@@ -97,7 +97,7 @@ final class PV_Woo_Connector {
     }
 
     public function manual_send( $order ) {
-        if ( ! $order instanceof WC_Order ) {
+        if ( ! ( $order instanceof WC_Order ) ) {
             return;
         }
         $this->enqueue( 'pv_woo_process_order', array( (int) $order->get_id(), 0 ) );
@@ -111,7 +111,7 @@ final class PV_Woo_Connector {
     }
 
     public function manual_refunds( $order ) {
-        if ( ! $order instanceof WC_Order || $order instanceof WC_Order_Refund ) {
+        if ( ! ( $order instanceof WC_Order ) || $order instanceof WC_Order_Refund ) {
             return;
         }
         foreach ( $order->get_refunds() as $refund ) {
@@ -165,7 +165,7 @@ final class PV_Woo_Connector {
 
     public function process_refund( $refund_id, $attempt = 0 ) {
         $refund = wc_get_order( $refund_id );
-        if ( ! $refund instanceof WC_Order_Refund ) {
+        if ( ! ( $refund instanceof WC_Order_Refund ) ) {
             return;
         }
         if ( $refund->get_meta( self::META_RECORD_ID, true ) ) {
@@ -174,7 +174,7 @@ final class PV_Woo_Connector {
         }
 
         $order = wc_get_order( $refund->get_parent_id() );
-        if ( ! $order instanceof WC_Order || $order instanceof WC_Order_Refund ) {
+        if ( ! ( $order instanceof WC_Order ) || $order instanceof WC_Order_Refund ) {
             return;
         }
         if ( ! $order->get_meta( self::META_RECORD_ID, true ) ) {
@@ -226,7 +226,7 @@ final class PV_Woo_Connector {
 
     public function reconcile_refund( $refund_id ) {
         $refund = wc_get_order( $refund_id );
-        if ( ! $refund instanceof WC_Order_Refund ) {
+        if ( ! ( $refund instanceof WC_Order_Refund ) ) {
             return;
         }
         $settings = PV_Woo_Settings::get();
