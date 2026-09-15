@@ -86,6 +86,18 @@ export async function assertExistingDatabase(path, { statFn = stat } = {}) {
   }
 }
 
+export async function assertEvidenceDestinationAvailable(path, { statFn = stat } = {}) {
+  if (!path) return;
+  try {
+    await statFn(resolve(path));
+    throw cliError('VF_AEAT_RECONCILIATION_EVIDENCE_EXISTS', 'Evidence output already exists and will not be overwritten');
+  } catch (error) {
+    if (error?.code === 'ENOENT') return;
+    if (error?.code === 'VF_AEAT_RECONCILIATION_EVIDENCE_EXISTS') throw error;
+    throw cliError('VF_AEAT_RECONCILIATION_EVIDENCE_PATH_UNREADABLE', 'Evidence output destination cannot be validated');
+  }
+}
+
 function rowToJob(row) {
   if (!row) return null;
   return Object.freeze({
@@ -192,6 +204,7 @@ export async function runLiveReconciliation({
 } = {}) {
   const options = parseLiveReconciliationOptions(argv, env);
   const assertDatabase = dependencies.assertExistingDatabase ?? assertExistingDatabase;
+  const assertEvidence = dependencies.assertEvidenceDestinationAvailable ?? assertEvidenceDestinationAvailable;
   const loadCredentials = dependencies.loadPfxCredentials ?? loadPfxCredentials;
   const makeTransport = dependencies.createHttpsMtlsTransport ?? createHttpsMtlsTransport;
   const makePersistence = dependencies.createSqlitePersistence ?? createSqlitePersistence;
@@ -216,6 +229,7 @@ export async function runLiveReconciliation({
 
     const outbox = options.apply ? resource.aeatOutbox : resource;
     const beforeJob = validateTargetJob(outbox.get(options.jobId));
+    await assertEvidence(options.evidenceOutput);
     const { pfx, passphrase, summary: certificateSummary } = await loadCredentials(env);
     const transport = makeTransport({ tls: { pfx, passphrase } });
     const sif = beforeJob.payload.entries[0]?.record?.sif ?? { systemId: 'PV' };
