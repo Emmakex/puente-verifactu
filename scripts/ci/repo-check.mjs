@@ -13,6 +13,7 @@ const requiredPaths = [
   'docs/universal-integration-kit-v1.md',
   'docs/mapping-assistant-v1.md',
   'docs/canonical-core-v1.md',
+  'docs/woocommerce-compatibility.md',
   'docs/adr/0001-verifactu-only-mvp.md',
   'docs/adr/0002-chameleon-integration.md',
   'docs/adr/0003-defer-external-gates-with-release-block.md',
@@ -39,6 +40,7 @@ const requiredPaths = [
   'connectors/file-import/README.md',
   'connectors/file-import/src/xlsx.mjs',
   'connectors/woocommerce/README.md',
+  'connectors/woocommerce/readme.txt',
   'connectors/woocommerce/puente-verifactu-woocommerce.php',
   'connectors/woocommerce/includes/class-pv-woo-refund-payload.php',
   'connectors/woocommerce/includes/class-pv-woo-admin-status.php',
@@ -49,7 +51,10 @@ const requiredPaths = [
   'packages/core/src/mapping-assistant.mjs',
   'scripts/auth/hash-credential.mjs',
   'scripts/ci/onboarding-smoke.mjs',
-  'scripts/ci/woocommerce-connector-check.mjs'
+  'scripts/ci/woocommerce-connector-check.mjs',
+  'scripts/ci/woocommerce-package-check.mjs',
+  'scripts/ci/woocommerce-compatibility-smoke.sh',
+  'scripts/release/package-woocommerce.mjs'
 ];
 
 const failures = [];
@@ -74,6 +79,12 @@ try {
   }
   if (pkg?.scripts?.['woo:contract'] !== 'node scripts/ci/woocommerce-connector-check.mjs') {
     failures.push({ code: 'REPO_WOO_CONTRACT_GATE_MISSING', expected: 'woo:contract script' });
+  }
+  if (pkg?.scripts?.['woo:package'] !== 'node scripts/release/package-woocommerce.mjs') {
+    failures.push({ code: 'REPO_WOO_PACKAGE_SCRIPT_MISSING', expected: 'woo:package script' });
+  }
+  if (pkg?.scripts?.['woo:package:check'] !== 'node scripts/ci/woocommerce-package-check.mjs') {
+    failures.push({ code: 'REPO_WOO_PACKAGE_GATE_MISSING', expected: 'woo:package:check script' });
   }
   if (pkg?.scripts?.server !== 'node apps/server/src/main.mjs') {
     failures.push({ code: 'REPO_SERVER_ENTRYPOINT_MISSING', expected: 'server script' });

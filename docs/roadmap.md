@@ -116,7 +116,8 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Numeración fiscal propia obligatoria para cada rectificativa/refund.
 - [x] Relación segura con la factura original y preflight previo al envío.
 - [x] Semáforo verde/ámbar/rojo agregado para factura + refunds, compatible con HPOS/legacy.
-- [ ] Matriz automatizada WordPress/WooCommerce + paquete ZIP/release.
+- [x] Matriz automatizada WordPress/WooCommerce/PHP con instalación real, HPOS y smoke CRUD.
+- [x] Paquete ZIP reproducible del plugin con allowlist de runtime y SHA-256.
 - [ ] Contrato explícito de conversión EUR para operaciones en moneda extranjera.
 
 ### PrestaShop y aceptación transversal
@@ -125,7 +126,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [ ] Reconciliación/fallback end-to-end común entre conectores.
 - [ ] Tests de compatibilidad y Connector Contract Suite para cada extensión.
 
-**Estado:** WooCommerce cubre ya facturas ordinarias, refunds rectificativos y UX operativa básica. Fase 5 continúa abierta por compatibilidad empaquetada, conversión no-EUR y PrestaShop.
+**Estado:** WooCommerce cubre facturas ordinarias, refunds rectificativos, UX operativa y compatibilidad empaquetada verificada en CI. Fase 5 continúa abierta por conversión no-EUR y PrestaShop.
 
 **Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre previo del gate AEAT #6 antes de cualquier piloto fiscal real.
 

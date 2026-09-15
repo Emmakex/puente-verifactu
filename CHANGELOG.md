@@ -6,6 +6,9 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- ZIP reproducible del conector WooCommerce v0.2 con allowlist de runtime, SHA-256 y gate byte-a-byte.
+- Matriz CI real WordPress/WooCommerce/PHP con MySQL, instalación del ZIP, HPOS, hooks y smoke CRUD.
+- Documento de compatibilidad WooCommerce con versiones oficiales revisadas el 15/09/2026.
 - WooCommerce Connector v0.2: refunds tratados como operaciones rectificativas explícitas e idempotentes mediante un `MappingProfile` server-side separado.
 - Numeración fiscal propia para cada refund/rectificativa, relación con factura original y preflight obligatorio antes de emitir.
 - Semáforo operativo verde/ámbar/rojo en listados HPOS y legacy, agregado entre factura principal y refunds.
@@ -32,7 +35,7 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 - Protección DTD/XXE para XML recibido.
 - Control de flujo mediante `TiempoEsperaEnvio` y outbox/reintentos técnicos de referencia.
 - Recargo de equivalencia a nivel de línea en `InvoiceIntent v1`, mapping, validación, cuota total y XML AEAT.
-- Tests contractuales del adaptador sin certificados ni secretos.
+- Tests contractuales del adaptador sin secretos.
 - Registros fiscales internos de alta y anulación.
 - Huella AEAT SHA-256 (`TipoHuella=01`) con material exacto y salida hexadecimal en mayúsculas.
 - Fixtures oficiales AEAT para primer alta, alta encadenada y anulación encadenada.

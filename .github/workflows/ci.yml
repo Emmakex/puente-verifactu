@@ -52,5 +52,64 @@ jobs:
       - name: WooCommerce connector contract
         run: npm run woo:contract
 
+      - name: WooCommerce release package
+        run: npm run woo:package:check
+
       - name: WooCommerce PHP syntax
         run: find connectors/woocommerce -name '*.php' -print0 | xargs -0 -n1 php -l
+
+  woocommerce-compatibility:
+    name: Woo compatibility / WP ${{ matrix.wordpress }} / WC ${{ matrix.woocommerce }} / PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - wordpress: '6.5'
+            woocommerce: '8.2.0'
+            php: '7.4'
+          - wordpress: '7.0.4'
+            woocommerce: '11.0.1'
+            php: '8.2'
+          - wordpress: '7.1'
+            woocommerce: '11.1.0'
+            php: '8.3'
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_ROOT_HOST: '%'
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PHP ${{ matrix.php }} and WP-CLI
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: wp-cli
+
+      - name: Build reproducible plugin package
+        run: npm run woo:package:check
+
+      - name: Install and smoke-test real WordPress + WooCommerce
+        env:
+          WP_VERSION: ${{ matrix.wordpress }}
+          WOO_VERSION: ${{ matrix.woocommerce }}
+        run: bash scripts/ci/woocommerce-compatibility-smoke.sh
