@@ -4,9 +4,7 @@
   "private": true,
   "description": "Chameleon integration bridge for VERI*FACTU / AEAT",
   "type": "module",
-  "engines": {
-    "node": ">=22.13.0"
-  },
+  "engines": { "node": ">=22.13.0" },
   "scripts": {
     "check": "node scripts/ci/repo-check.mjs && node scripts/ci/runbooks-check.mjs",
     "test": "node --test",
@@ -19,6 +17,9 @@
     "ops:smoke": "node --test apps/server/test/observability.test.mjs apps/server/test/ops-status.test.mjs",
     "runbooks:check": "node scripts/ci/runbooks-check.mjs",
     "sqlite:backup:smoke": "node --test packages/sqlite-store/test/backup-restore.test.mjs",
+    "backup:lifecycle:smoke": "node --test packages/sqlite-store/test/backup-lifecycle.test.mjs",
+    "backup:lifecycle:check": "node scripts/ops/backup-lifecycle.mjs check",
+    "backup:restore-drill": "node scripts/ops/backup-lifecycle.mjs restore-drill",
     "sqlite:backup": "node scripts/ops/sqlite-maintenance.mjs backup",
     "sqlite:verify-backup": "node scripts/ops/sqlite-maintenance.mjs verify",
     "sqlite:restore": "node scripts/ops/sqlite-maintenance.mjs restore",
