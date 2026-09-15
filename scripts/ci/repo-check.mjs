@@ -16,6 +16,7 @@ const requiredPaths = [
   'docs/canonical-core-v1.md',
   'docs/woocommerce-compatibility.md',
   'docs/production-readiness.md',
+  'docs/operations-observability.md',
   'docs/adr/0001-verifactu-only-mvp.md',
   'docs/adr/0002-chameleon-integration.md',
   'docs/adr/0003-defer-external-gates-with-release-block.md',
@@ -28,6 +29,9 @@ const requiredPaths = [
   'apps/server/src/main.mjs',
   'apps/server/src/runtime.mjs',
   'apps/server/src/auth.mjs',
+  'apps/server/src/observability.mjs',
+  'apps/server/test/observability.test.mjs',
+  'apps/server/test/ops-status.test.mjs',
   'packages/contracts/README.md',
   'packages/core/README.md',
   'packages/diagnostics/README.md',
@@ -109,6 +113,9 @@ try {
   if (pkg?.scripts?.['runtime:smoke'] !== 'node --test apps/server/test/*.test.mjs packages/sqlite-store/test/*.test.mjs') {
     failures.push({ code: 'REPO_RUNTIME_GATE_MISSING', expected: 'runtime:smoke script' });
   }
+  if (pkg?.scripts?.['ops:smoke'] !== 'node --test apps/server/test/observability.test.mjs apps/server/test/ops-status.test.mjs') {
+    failures.push({ code: 'REPO_OBSERVABILITY_GATE_MISSING', expected: 'ops:smoke script' });
+  }
   if (pkg?.scripts?.['sqlite:backup:smoke'] !== 'node --test packages/sqlite-store/test/backup-restore.test.mjs') {
     failures.push({ code: 'REPO_SQLITE_BACKUP_GATE_MISSING', expected: 'sqlite:backup:smoke script' });
   }
@@ -157,12 +164,18 @@ if (!readme.includes('Principio Camaleón')) {
 }
 
 const readiness = existsSync('docs/production-readiness.md') ? readFileSync('docs/production-readiness.md', 'utf8') : '';
-for (const marker of ['Backup/restore', 'Outbox durable', 'reconciliation_required', 'Observabilidad', 'Perfil HA', 'gate AEAT #6']) {
+for (const marker of ['Backup/restore', 'Outbox durable', 'reconciliation_required', 'Observabilidad', '/v1/ops/status', 'ops:read', 'Perfil HA', 'gate AEAT #6']) {
   if (!readiness.includes(marker)) failures.push({ code: 'REPO_PRODUCTION_READINESS_DOC_INCOMPLETE', marker });
+}
+
+const operations = existsSync('docs/operations-observability.md') ? readFileSync('docs/operations-observability.md', 'utf8') : '';
+for (const marker of ['VF_OBS_AEAT_RECONCILIATION_REQUIRED', 'VF_OBS_BACKUP_AGE_CRITICAL', 'ops:read']) {
+  if (!operations.includes(marker)) failures.push({ code: 'REPO_OBSERVABILITY_DOC_INCOMPLETE', marker });
 }
 
 const ci = existsSync('.github/workflows/ci.yml') ? readFileSync('.github/workflows/ci.yml', 'utf8') : '';
 for (const marker of [
+  'npm run ops:smoke',
   'npm run sqlite:backup:smoke',
   'npm run aeat:outbox:smoke',
   'prestashop-compatibility:',
@@ -177,11 +190,13 @@ for (const marker of [
 ]) {
   if (!ci.includes(marker)) {
     failures.push({
-      code: marker.includes('aeat:outbox')
-        ? 'REPO_AEAT_OUTBOX_GATE_MISSING'
-        : marker.includes('sqlite')
-          ? 'REPO_SQLITE_BACKUP_GATE_MISSING'
-          : 'REPO_PRESTASHOP_RELEASE_GATE_MISSING',
+      code: marker.includes('ops:smoke')
+        ? 'REPO_OBSERVABILITY_GATE_MISSING'
+        : marker.includes('aeat:outbox')
+          ? 'REPO_AEAT_OUTBOX_GATE_MISSING'
+          : marker.includes('sqlite')
+            ? 'REPO_SQLITE_BACKUP_GATE_MISSING'
+            : 'REPO_PRESTASHOP_RELEASE_GATE_MISSING',
       marker,
     });
   }

@@ -16,6 +16,7 @@
     "contract:reference": "node packages/connector-contract-suite/src/cli.mjs --module ./connectors/reference/contract.mjs",
     "native:contract:v2": "node scripts/ci/native-connector-contract-v2-check.mjs",
     "runtime:smoke": "node --test apps/server/test/*.test.mjs packages/sqlite-store/test/*.test.mjs",
+    "ops:smoke": "node --test apps/server/test/observability.test.mjs apps/server/test/ops-status.test.mjs",
     "sqlite:backup:smoke": "node --test packages/sqlite-store/test/backup-restore.test.mjs",
     "sqlite:backup": "node scripts/ops/sqlite-maintenance.mjs backup",
     "sqlite:verify-backup": "node scripts/ops/sqlite-maintenance.mjs verify",

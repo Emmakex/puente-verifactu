@@ -60,6 +60,20 @@ export class SqliteAeatOutboxStore {
 
     this.select = this.db.prepare('SELECT * FROM aeat_outbox WHERE id = ?');
     this.selectAll = this.db.prepare('SELECT * FROM aeat_outbox ORDER BY available_at_ms ASC, id ASC');
+    this.selectStats = this.db.prepare(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN state = 'pending' THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN state = 'processing' THEN 1 ELSE 0 END) AS processing,
+        SUM(CASE WHEN state = 'reconciliation_required' THEN 1 ELSE 0 END) AS reconciliation_required,
+        SUM(CASE WHEN state = 'completed' THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN state = 'blocked' THEN 1 ELSE 0 END) AS blocked,
+        SUM(CASE WHEN state = 'pending' AND available_at_ms <= ? THEN 1 ELSE 0 END) AS due_pending,
+        SUM(CASE WHEN state = 'processing' AND lease_until_ms IS NOT NULL AND lease_until_ms <= ? THEN 1 ELSE 0 END) AS expired_processing,
+        MIN(CASE WHEN state = 'pending' THEN created_at_ms ELSE NULL END) AS oldest_pending_created_at_ms,
+        MIN(CASE WHEN state = 'reconciliation_required' THEN updated_at_ms ELSE NULL END) AS oldest_reconciliation_at_ms
+      FROM aeat_outbox
+    `);
     this.insert = this.db.prepare(`
       INSERT OR IGNORE INTO aeat_outbox (
         id, payload_json, state, attempts, available_at_ms, last_result_json,
@@ -114,6 +128,26 @@ export class SqliteAeatOutboxStore {
 
   list() {
     return this.selectAll.all().map(rowToJob);
+  }
+
+  stats(now = Date.now()) {
+    const row = this.selectStats.get(now, now);
+    const oldestPendingAt = row?.oldest_pending_created_at_ms == null ? null : Number(row.oldest_pending_created_at_ms);
+    const oldestReconciliationAt = row?.oldest_reconciliation_at_ms == null ? null : Number(row.oldest_reconciliation_at_ms);
+    return Object.freeze({
+      total: Number(row?.total ?? 0),
+      pending: Number(row?.pending ?? 0),
+      processing: Number(row?.processing ?? 0),
+      reconciliationRequired: Number(row?.reconciliation_required ?? 0),
+      completed: Number(row?.completed ?? 0),
+      blocked: Number(row?.blocked ?? 0),
+      duePending: Number(row?.due_pending ?? 0),
+      expiredProcessing: Number(row?.expired_processing ?? 0),
+      oldestPendingAt,
+      oldestPendingAgeMs: oldestPendingAt == null ? null : Math.max(0, now - oldestPendingAt),
+      oldestReconciliationAt,
+      oldestReconciliationAgeMs: oldestReconciliationAt == null ? null : Math.max(0, now - oldestReconciliationAt),
+    });
   }
 
   claim(id, { owner, now, leaseMs }) {

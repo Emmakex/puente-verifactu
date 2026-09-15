@@ -158,13 +158,13 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Backup/restore SQLite verificable: snapshot WAL consistente, SHA-256 + manifest, `integrity_check`, `foreign_key_check`, restore staging y reemplazo offline protegido.
 - [ ] Política operacional de almacenamiento remoto, cifrado, retención, antigüedad y ejercicio periódico de restore.
 - [x] Outbox durable AEAT para el perfil single-node: persistencia de estado/backoff/intentos, leases, recuperación tras reinicio y `reconciliation_required` para resultados inciertos sin reemisión ciega.
-- [ ] Observabilidad y alertas operativas para colas, reintentos, fallos, edad de pendientes, disponibilidad y backups.
+- [x] Observabilidad y alertas operativas v1: endpoint agregado protegido por `ops:read`, métricas de outbox/backup y códigos `VF_OBS_*` estables sin datos fiscales.
 - [ ] Runbooks completos de deploy, rollback, incidente, recuperación y rotación de credenciales.
 - [ ] Perfil HA/multi-réplica con store/locking/rate limiting compartidos cuando el despliegue lo requiera.
 - [ ] Verificación regulatoria final y evidencia de release por versión.
 - [ ] Piloto progresivo con rollback y monitorización activa.
 
-**Estado:** Fase 6 en curso con dos gates internos ya cubiertos por CI: recuperación backup/restore SQLite y outbox AEAT durable single-node. Los resultados remotos ambiguos quedan en `reconciliation_required` hasta resolución explícita; no se reemiten de forma automática. Esto **no** convierte SQLite en HA ni resuelve por sí solo retención/storage remoto, observabilidad o operación multi-réplica. Ver `docs/production-readiness.md` y `packages/sqlite-store/README.md`.
+**Estado:** Fase 6 en curso con tres gates internos cubiertos por CI para el perfil single-node: backup/restore SQLite, outbox AEAT durable y observabilidad/alertas v1. Los resultados remotos ambiguos quedan en `reconciliation_required` hasta resolución explícita; el estado operativo global requiere una credencial separada con `ops:read` y expone solo agregados. Esto **no** convierte SQLite en HA ni resuelve por sí solo retención/storage remoto, runbooks completos u operación multi-réplica. Ver `docs/production-readiness.md`, `docs/operations-observability.md` y `packages/sqlite-store/README.md`.
 
 **Gate de entrada a release/piloto:** Fase 3 externa cerrada (#6), además de todos los gates propios de Fase 6 aplicables al perfil de despliegue.
 
