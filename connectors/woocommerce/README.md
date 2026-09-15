@@ -28,6 +28,8 @@ XML AEAT, certificados, hash, cadena, `invoiceType`, `R1–R5`, `S/I`, régimen 
 
 WooCommerce recomienda CRUD para mantener compatibilidad con HPOS; el conector sigue esa regla en pedidos y `WC_Order_Refund`.
 
+La matriz CI completa y las versiones vigentes se documentan en `docs/woocommerce-compatibility.md`. El gate instala el ZIP real sobre WordPress + WooCommerce, activa HPOS y ejecuta un smoke de pedido CRUD.
+
 ## Configuración
 
 En `WooCommerce → Puente VeriFactu`:
@@ -135,12 +137,12 @@ Action Scheduler se usa cuando está inicializado; existe fallback a WP-Cron par
 
 El listado de pedidos añade una columna `VeriFactu` tanto en HPOS como en la tabla legacy:
 
-- **verde — Synced:** operación aceptada;
-- **ámbar — Pending / review:** preflight válido, fiscalizado, en cola, enviando, reintento, aceptado con avisos o refund pendiente;
+- **verde — Synced:** operación aceptada y sin error de sincronización pendiente;
+- **ámbar — Pending / review:** preflight válido, fiscalizado, en cola, enviando, reintento, aceptado con avisos, refund pendiente o último intento de reconciliación fallido;
 - **rojo — Action required:** bloqueado, rechazado o fallo final;
 - **gris — Not sent:** aún no existe operación.
 
-El estado agregado considera la factura principal y sus refunds. Un refund bloqueado vuelve rojo el pedido aunque la factura original esté aceptada.
+El estado agregado considera la factura principal y sus refunds. Un refund bloqueado vuelve rojo el pedido aunque la factura original esté aceptada. Un `_pv_last_error` degrada un verde a ámbar hasta que una reconciliación posterior tenga éxito y limpie el error.
 
 El semáforo es operativo; nunca convierte un rechazo en aceptación ni sustituye el estado detallado de Puente.
 
@@ -201,13 +203,23 @@ En pedido y refund se usa exclusivamente CRUD:
 
 No se guarda certificado AEAT ni secreto del Puente en metadata WooCommerce.
 
+## ZIP reproducible
+
+El artefacto instalable se construye desde una allowlist de runtime:
+
+```bash
+npm run woo:package
+```
+
+El ZIP queda en `dist/puente-verifactu-woocommerce-0.2.0.zip`. `npm run woo:package:check` lo construye dos veces y exige identidad byte a byte, estructura segura y exclusión de perfiles server-side, scripts y secretos.
+
+El CI instala ese ZIP real en la matriz WordPress/WooCommerce antes de considerar compatible el conector.
+
 ## Fallback
 
 Si una actualización de WooCommerce rompe temporalmente el conector, el negocio puede seguir usando CSV/XLSX mediante el wizard universal. El conector nativo es una optimización, no una dependencia del motor fiscal.
 
 ## Pendiente dentro de Fase 5
 
-- matriz automatizada de compatibilidad WordPress/WooCommerce;
-- ZIP/release reproducible del plugin;
-- contrato de conversión EUR para pedidos en moneda extranjera;
+- contrato explícito de conversión EUR para pedidos en moneda extranjera;
 - conector PrestaShop.
