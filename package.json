@@ -8,7 +8,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "check": "node scripts/ci/repo-check.mjs",
+    "check": "node scripts/ci/repo-check.mjs && node scripts/ci/runbooks-check.mjs",
     "test": "node --test",
     "preflight:demo": "node connectors/file-import/src/cli.mjs --csv examples/file-import/facturas.csv --profile examples/file-import/mapping.json",
     "mapping:demo": "node connectors/file-import/src/cli.mjs --file examples/file-import/facturas.csv --infer",
