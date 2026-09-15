@@ -16,7 +16,7 @@ No utilizar contra producción todavía.
 - usar certificado cliente mediante mTLS;
 - normalizar respuesta global, líneas, errores y SOAP Faults;
 - respetar `TiempoEsperaEnvio`;
-- separar fallos técnicos reintentables de rechazos funcionales;
+- separar respuestas retryable conocidas de resultados de transporte inciertos;
 - proteger contra DTD/entidades en XML de respuesta;
 - mantener certificado/clave fuera de browser, modelos, logs y repositorio.
 
@@ -48,11 +48,32 @@ Por defecto el adaptador usa el endpoint oficial **de pruebas**. El endpoint de 
 
 El uso de certificado de sello se selecciona mediante `useSealEndpoint` y tiene endpoint separado, tal como publica el WSDL oficial.
 
-## Reintentos
+## Outbox y reintentos
 
-Los fallos de transporte/HTTP temporal se pueden reintentar mediante outbox. Un rechazo AEAT no se reintenta ciegamente: se completa el intento y se genera después una operación de corrección/subsanación cuando corresponda.
+`AeatOutboxWorker` separa cuatro situaciones:
+
+- respuesta final AEAT: termina el job como `completed`;
+- respuesta retryable conocida: vuelve a `pending` con backoff;
+- fallo no retryable: queda `blocked`;
+- resultado incierto tras iniciar dispatch: queda `reconciliation_required` y **no se reenvía automáticamente**.
+
+Se considera resultado incierto, como mínimo, un `transport_error`, una excepción inesperada durante el dispatch o un lease de procesamiento que vence tras crash/reinicio. El motivo es deliberadamente conservador: si no podemos demostrar que AEAT no recibió la petición, repetirla de forma ciega puede crear una duplicidad operacional.
+
+Una reconciliación explícita debe decidir una de estas acciones:
+
+- `complete`: se confirma que la operación ya quedó resuelta;
+- `block`: requiere corrección o intervención;
+- `retry`: solo cuando se ha confirmado que una nueva remisión es segura.
+
+El store en memoria sigue disponible para tests. El perfil durable single-node usa `SqliteAeatOutboxStore` desde `packages/sqlite-store`, con persistencia de estado, backoff, intentos y leases.
 
 `TiempoEsperaEnvio` bloquea una nueva remisión hasta que se cumpla el intervalo indicado por AEAT.
+
+Gate específico:
+
+```bash
+npm run aeat:outbox:smoke
+```
 
 ## Gate externo pendiente
 
