@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Puente VeriFactu — Conecta tus facturas</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#main" aria-label="Puente VeriFactu">Puente VeriFactu</a>
+    <div class="language" role="group" aria-label="Idioma / Language">
+      <button type="button" data-lang="es" class="is-active">ES</button>
+      <button type="button" data-lang="en">EN</button>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <section class="hero" aria-labelledby="page-title">
+      <p class="eyebrow">Principio Camaleón</p>
+      <h1 id="page-title" data-i18n="title">Conecta tus facturas</h1>
+      <p class="lead" data-i18n="subtitle">Usa el Excel o CSV que ya tienes. Puente VeriFactu te ayuda a encajar las columnas sin enviar nada a AEAT.</p>
+      <div class="safety-note" role="note">✓ <span data-i18n="validateHelp">Comprobamos todas las filas y te indicamos qué corregir. Este paso no contacta con AEAT.</span></div>
+    </section>
+
+    <section class="card" aria-labelledby="upload-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="upload-title" data-i18n="uploadTitle">1. Sube tu archivo</h2>
+          <p data-i18n="uploadHelp">CSV o XLSX. No modifiques tu plantilla para adaptarte al puente.</p>
+        </div>
+      </div>
+      <label class="dropzone" for="invoice-file">
+        <span class="dropzone-icon" aria-hidden="true">↑</span>
+        <strong data-i18n="chooseFile">Elegir archivo</strong>
+        <span>CSV · XLSX · máx. 5 MB</span>
+        <input id="invoice-file" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+      </label>
+      <div id="file-meta" class="file-meta" hidden></div>
+      <label id="sheet-field" class="field compact" hidden>
+        <span data-i18n="sheet">Hoja</span>
+        <select id="sheet-select"></select>
+      </label>
+    </section>
+
+    <section id="mapping-section" class="card" aria-labelledby="mapping-title" hidden>
+      <h2 id="mapping-title" data-i18n="mappingTitle">2. Confirma las columnas</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="source">Tu columna</th>
+              <th data-i18n="destination">Qué significa</th>
+              <th data-i18n="confidence">Detección</th>
+              <th data-i18n="confirm">Confirmar</th>
+            </tr>
+          </thead>
+          <tbody id="mapping-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="config-section" class="card" aria-labelledby="config-title" hidden>
+      <h2 id="config-title" data-i18n="configTitle">3. Datos que se guardan una sola vez</h2>
+      <p data-i18n="configHelp">Estos datos normalmente no cambian factura a factura.</p>
+      <div id="config-grid" class="form-grid"></div>
+    </section>
+
+    <section id="validate-section" class="card action-card" aria-labelledby="validate-title" hidden>
+      <div>
+        <h2 id="validate-title" data-i18n="validate">4. Validar sin enviar</h2>
+        <p data-i18n="validateHelp">Comprobamos todas las filas y te indicamos qué corregir. Este paso no contacta con AEAT.</p>
+      </div>
+      <button id="validate-button" class="primary" type="button" data-i18n="validateButton">Validar archivo</button>
+    </section>
+
+    <section id="result-section" class="card results" aria-live="polite" hidden>
+      <div id="result-summary"></div>
+      <div id="result-errors"></div>
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
