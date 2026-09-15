@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "deployment_profile": "sqlite-single-node",
+  "release_status": "release_blocked",
+  "blockers": [
+    {
+      "id": "AEAT_EXTERNAL_GATE_6",
+      "type": "external",
+      "status": "open",
+      "github_issue": 6,
+      "required_before": ["release", "real_fiscal_pilot"],
+      "evidence_document": "docs/aeat-live-gate.md",
+      "reason": "Falta remision real controlada al entorno oficial de pruebas con certificado valido y evidencia no sensible."
+    }
+  ],
+  "profile_decisions": [
+    {
+      "id": "HA_MULTI_REPLICA",
+      "status": "not_applicable",
+      "reason": "El perfil objetivo actual es single-node. HA se activa solo si el despliegue real exige multiples replicas escritoras."
+    }
+  ]
+}
