@@ -19,4 +19,23 @@ export class ReferenceConnector {
   status(recordId) {
     return this.client.getFiscalRecord(recordId);
   }
+
+  async sync(source, { eventId, recordId } = {}) {
+    if (recordId) {
+      return this.status(recordId);
+    }
+    if (!eventId) {
+      throw new TypeError('eventId is required when no recordId exists');
+    }
+
+    const preflight = await this.preflight(source);
+    if (!preflight?.ok) {
+      return {
+        status: 'blocked',
+        preflight,
+      };
+    }
+
+    return this.send(source, { eventId });
+  }
 }
