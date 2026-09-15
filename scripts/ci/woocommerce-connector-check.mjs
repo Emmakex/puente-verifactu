@@ -62,6 +62,7 @@ for (const path of phpFiles(root)) {
   const source = text(path);
   for (const pattern of forbiddenStorage) if (pattern.test(source)) failures.push({ code: 'WOO_BYPASSES_WC_CRUD', path, pattern: String(pattern) });
   for (const pattern of forbiddenFiscal) if (pattern.test(source)) failures.push({ code: 'WOO_DUPLICATES_FISCAL_CORE', path, pattern: String(pattern) });
+  if (/!\s+\$[A-Za-z_][A-Za-z0-9_]*\s+instanceof\b/.test(source)) failures.push({ code: 'WOO_AMBIGUOUS_INSTANCEOF_GUARD', path });
 }
 
 const client = text(`${root}/includes/class-pv-woo-client.php`);
@@ -101,7 +102,7 @@ for (const marker of ['WC_Order_Refund', "'refund_invoice_number'", "'original_i
 if (/invoiceType|rectification.*type/.test(refundPayload)) failures.push({ code: 'WOO_REFUND_PAYLOAD_FISCAL_AUTHORITY_FORBIDDEN' });
 
 const adminStatus = text(`${root}/includes/class-pv-woo-admin-status.php`);
-for (const marker of ['manage_woocommerce_page_wc-orders_columns', 'manage_woocommerce_page_wc-orders_custom_column', 'manage_edit-shop_order_columns', 'manage_shop_order_posts_custom_column', "'green'", "'amber'", "'red'"]) {
+for (const marker of ['manage_woocommerce_page_wc-orders_columns', 'manage_woocommerce_page_wc-orders_custom_column', 'manage_edit-shop_order_columns', 'manage_shop_order_posts_custom_column', "'green'", "'amber'", "'red'", 'META_LAST_ERROR', "self::weight( 'amber' )"]) {
   if (!adminStatus.includes(marker)) failures.push({ code: 'WOO_STATUS_COLUMN_CONTRACT_MISSING', marker });
 }
 
