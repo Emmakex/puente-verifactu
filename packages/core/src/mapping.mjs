@@ -7,6 +7,7 @@ export const MAPPING_ALIASES = Object.freeze({
   issueDate: ['fecha', 'fecha factura', 'fecha expedicion', 'invoice date', 'issue date'],
   invoiceType: ['tipo factura', 'tipo', 'invoice type'],
   description: ['descripcion', 'concepto', 'description'],
+  currency: ['moneda', 'currency', 'currency code'],
   'recipients.0.taxId': ['nif cliente', 'cif cliente', 'nif destinatario', 'customer tax id', 'vat number'],
   'recipients.0.name': ['cliente', 'nombre cliente', 'razon social cliente', 'destinatario', 'customer'],
   'taxBreakdown.0.baseAmount': ['base imponible', 'base', 'tax base', 'net amount'],
@@ -218,7 +219,7 @@ export function inferMapping(headers) {
 
     const steps = ['trim'];
     if (target === 'issueDate') steps.push('date_dmy');
-    if (target === 'invoiceType') steps.push('upper');
+    if (target === 'invoiceType' || target === 'currency') steps.push('upper');
     if (target.includes('Amount') || target.endsWith('.rate') || target.endsWith('Rate')) steps.push('decimal_comma');
     transforms[source] = steps;
   }
