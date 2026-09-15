@@ -24,7 +24,10 @@ const requiredPaths = [
   'packages/diagnostics/README.md',
   'packages/aeat-adapter/README.md',
   'packages/sdk/README.md',
+  'packages/connector-contract-suite/README.md',
+  'packages/connector-contract-suite/src/suite.mjs',
   'connectors/reference/README.md',
+  'connectors/reference/contract.mjs',
   'connectors/file-import/README.md',
   'connectors/file-import/src/xlsx.mjs',
   'packages/core/src/mapping-assistant.mjs',
@@ -44,6 +47,9 @@ try {
   }
   if (pkg?.scripts?.['onboarding:smoke'] !== 'node scripts/ci/onboarding-smoke.mjs') {
     failures.push({ code: 'REPO_ONBOARDING_GATE_MISSING', expected: 'onboarding:smoke script' });
+  }
+  if (pkg?.scripts?.['contract:reference'] !== 'node packages/connector-contract-suite/src/cli.mjs --module ./connectors/reference/contract.mjs') {
+    failures.push({ code: 'REPO_CONNECTOR_CONTRACT_GATE_MISSING', expected: 'contract:reference script' });
   }
 } catch (error) {
   failures.push({ code: 'REPO_PACKAGE_JSON_INVALID', message: error.message });
