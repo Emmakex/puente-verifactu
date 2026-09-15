@@ -10,6 +10,16 @@ Reglas de dominio, normalización, decimales, validadores, idempotencia, estado 
 
 Modelo canónico, conectores, adaptador AEAT, serialización y normalización de respuestas.
 
+Los conectores externos disponen además de `packages/connector-contract-suite`, un runner framework-neutral que valida la interfaz mínima, preflight, idempotencia estable, `eventId`, status, no mutación y ausencia de autoridad sensible inyectada por el conector.
+
+Nuestro gate de referencia es:
+
+```bash
+npm run contract:reference
+```
+
+Un nuevo conector nativo no se considera compatible hasta pasar la versión de suite contractual aplicable.
+
 ### Fixtures regulatorios
 
 Vectores conocidos para hash/encadenamiento y ejemplos oficiales versionados. Un cambio en fixtures reguladores requiere revisión explícita.
@@ -47,6 +57,7 @@ Flujo extremo a extremo desde un conector de referencia hasta estado final y rec
 - typecheck cuando exista contrato tipado aplicable;
 - unit;
 - contract;
+- connector contract suite para conectores nuevos/modificados;
 - integration afectada;
 - UX/responsive/ES-EN para cambios customer-facing;
 - security checks relevantes;

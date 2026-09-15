@@ -87,11 +87,11 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Wizard visual responsive ES/EN de upload → mapping → configuración → preflight.
 - [x] Sesiones temporales de importación aisladas por tenant/instalación.
 - [x] Allowlist de mappings/configuración y protección prototype-pollution.
-- [ ] Suite contractual empaquetada para terceros.
+- [x] Suite contractual empaquetada para terceros con CLI y gate CI de referencia.
 - [ ] Adaptador HTTP/deployment concreto con autenticación real y rate limits.
 - [ ] Persistencia durable del estado API y store temporal compartido.
 
-**Estado:** onboarding cero-código ya está implementado de extremo a extremo hasta preflight. La fase continúa abierta por deployment, suite contractual y persistencia durable.
+**Estado:** las vías cero-código, low-code, API/SDK y el contrato de conectores ya están cubiertos. La fase continúa abierta únicamente por deployment real y persistencia durable/compartida.
 
 **Salida:** sistema nuevo integrable sin tocar el motor fiscal.
 

@@ -42,3 +42,15 @@ await connector.status(created.recordId);
 ```
 
 Este patrón es la base para los futuros conectores WooCommerce, PrestaShop y ERP/CRM.
+
+## Contract Suite
+
+El adaptador `contract.mjs` permite ejecutar este conector contra la misma suite pública que usarán terceros:
+
+```bash
+npm run contract:reference
+```
+
+La suite valida interfaz, preflight, idempotencia estable, `eventId`, consulta de estado, ausencia de mutación del payload y que el conector no inyecte autoridad/tenant/certificados en los datos de negocio.
+
+La documentación para integradores está en `packages/connector-contract-suite/README.md`.

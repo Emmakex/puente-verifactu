@@ -2,7 +2,7 @@
 
 **Puente VeriFactu** es la capa de integración fiscal de Kairoseth Extensions para conectar sistemas de facturación, ERP, CRM, ecommerce, hojas de cálculo y software propio con **VERI*FACTU / AEAT** sin obligar al negocio a sustituir lo que ya utiliza.
 
-> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 en desarrollo con API/SDK/webhook, CSV/XLSX, mapping asistido y wizard cero-código ES/EN ya implementados hasta preflight. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
+> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 en desarrollo con API/SDK/webhook, CSV/XLSX, mapping asistido, wizard cero-código ES/EN y suite contractual para terceros ya implementados. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
 
 ## Principio Camaleón
 
@@ -14,7 +14,7 @@ Un autónomo o pyme debe poder empezar desde el nivel técnico que ya tenga:
 2. **Low-code:** webhook configurable y perfiles de mapeo.
 3. **API universal:** REST con contrato canónico versionado.
 4. **SDK:** integración para desarrolladores sin conocer XML AEAT.
-5. **Conector nativo:** WordPress/WooCommerce, PrestaShop y sistemas prioritarios.
+5. **Conector nativo:** WordPress/WooCommerce, PrestaShop y sistemas prioritarios, validados con una suite contractual común.
 
 Todos los caminos terminan en el mismo modelo canónico y el mismo motor fiscal. Ningún conector replica la lógica regulatoria.
 
@@ -40,22 +40,23 @@ La primera etapa será **solo VERI*FACTU**. El modo NO VERI*FACTU queda fuera de
 ## Estructura
 
 ```text
-apps/api/                 API/ingress universal del puente
-apps/onboarding/          Wizard cero-código responsive ES/EN
-packages/contracts/       Contrato canónico público
-packages/core/            Motor fiscal + registros/hash + mapping assistant
-packages/aeat-adapter/    SOAP/XML, mTLS, respuestas y reintentos AEAT
-packages/sdk/             SDK server-side para integradores
-packages/diagnostics/     Diagnóstico estructurado
-connectors/reference/     Conector de referencia
-connectors/file-import/   Entrada cero-código CSV/XLSX
-scripts/aeat/             Gate seguro de pruebas AEAT
-scripts/ci/               Gates y diagnóstico CI
+apps/api/                         API/ingress universal del puente
+apps/onboarding/                  Wizard cero-código responsive ES/EN
+packages/contracts/               Contrato canónico público
+packages/core/                    Motor fiscal + registros/hash + mapping assistant
+packages/aeat-adapter/            SOAP/XML, mTLS, respuestas y reintentos AEAT
+packages/sdk/                     SDK server-side para integradores
+packages/connector-contract-suite/ Gate de compatibilidad para conectores terceros
+packages/diagnostics/             Diagnóstico estructurado
+connectors/reference/             Conector de referencia
+connectors/file-import/           Entrada cero-código CSV/XLSX
+scripts/aeat/                     Gate seguro de pruebas AEAT
+scripts/ci/                       Gates y diagnóstico CI
 ```
 
 ## Documentación
 
-Consulta [docs/README.md](docs/README.md). Para integrar un sistema, empieza por [universal-integration-kit-v1.md](docs/universal-integration-kit-v1.md), [mapping-assistant-v1.md](docs/mapping-assistant-v1.md), [integration-strategy.md](docs/integration-strategy.md) y [onboarding-integration.md](docs/onboarding-integration.md). El wizard visual está documentado en `apps/onboarding/README.md`.
+Consulta [docs/README.md](docs/README.md). Para integrar un sistema, empieza por [universal-integration-kit-v1.md](docs/universal-integration-kit-v1.md), [mapping-assistant-v1.md](docs/mapping-assistant-v1.md), [integration-strategy.md](docs/integration-strategy.md) y [onboarding-integration.md](docs/onboarding-integration.md). El wizard visual está documentado en `apps/onboarding/README.md` y la validación de conectores en `packages/connector-contract-suite/README.md`.
 
 ## Estado normativo de referencia
 
@@ -71,6 +72,7 @@ npm test
 npm run preflight:demo
 npm run mapping:demo
 npm run onboarding:smoke
+npm run contract:reference
 npm run aeat:gate
 ```
 

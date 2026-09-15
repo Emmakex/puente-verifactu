@@ -60,6 +60,8 @@ El navegador no procesa la lógica fiscal ni XLSX. El backend crea una sesión t
 
 WooCommerce, PrestaShop y futuros ERP/CRM reutilizarán el SDK y el mismo contrato; ningún conector implementará lógica fiscal propia.
 
+Cada conector puede comprobarse con `packages/connector-contract-suite` antes de integrarse.
+
 ## API v1 inicial
 
 - `POST /v1/imports/inspect`
@@ -141,9 +143,33 @@ El core también rechaza rutas peligrosas (`__proto__`, `prototype`, `constructo
 
 La implementación de referencia usa sesiones en memoria con TTL de 15 minutos y no conserva el binario original después del parseo.
 
+## Connector Contract Suite
+
+`packages/connector-contract-suite` es un runner framework-neutral para integradores externos.
+
+Comprueba automáticamente:
+
+- `preflight / send / status`;
+- ausencia de fiscalización durante preflight;
+- `eventId` obligatorio;
+- clave de idempotencia estable para el mismo evento y distinta para otro evento;
+- no mutación del payload de origen;
+- consulta del `recordId` correcto;
+- ausencia de inyección de tenant, certificado, passphrase, entorno AEAT o permisos desde el conector.
+
+Un tercero solo expone un pequeño factory y puede ejecutar el runner en su propio CI. El exit code es `0` cuando cumple y `1` cuando falla.
+
+Nuestro conector de referencia usa exactamente el mismo gate mediante:
+
+```bash
+npm run contract:reference
+```
+
+La suite valida compatibilidad de integración; no constituye certificación regulatoria ni sustituye las pruebas AEAT.
+
 ## Conector de referencia
 
-`connectors/reference` demuestra el patrón mínimo de integración y será la base contractual para conectores nativos posteriores.
+`connectors/reference` demuestra el patrón mínimo de integración y es la base contractual para conectores nativos posteriores.
 
 ## Estado de Fase 4
 
@@ -163,13 +189,13 @@ Implementado:
 - wizard visual responsive ES/EN;
 - sesiones temporales de importación aisladas;
 - hardening de mappings y rutas canónicas;
-- tests de tenant isolation, idempotencia, XLSX, mapping, onboarding y contrato SDK.
+- suite contractual v1 para terceros con CLI y gate CI de referencia;
+- tests de tenant isolation, idempotencia, XLSX, mapping, onboarding, contrato SDK y contrato de conectores.
 
 Pendiente dentro de Fase 4:
 
 - persistencia durable de API/estado y store temporal compartido;
 - autenticación real/API keys y rate limits en el deployment;
-- suite contractual empaquetada para terceros;
 - adaptador HTTP concreto para el entorno de despliegue.
 
 El gate externo AEAT de Fase 3 sigue bloqueando cualquier piloto fiscal real/release, pero no el desarrollo de este kit conforme a ADR-0003.
