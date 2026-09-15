@@ -12,6 +12,13 @@ export {
   restoreSqliteBackup,
   verifySqliteBackup,
 } from './backup.mjs';
+export {
+  BACKUP_LIFECYCLE_EVIDENCE_KINDS,
+  buildBackupRetentionPlan,
+  evaluateBackupLifecycle,
+  loadBackupLifecyclePolicy,
+  validateBackupLifecyclePolicy,
+} from './backup-lifecycle.mjs';
 export { SqliteAeatOutboxStore } from './aeat-outbox.mjs';
 
 function parseJson(text) {
