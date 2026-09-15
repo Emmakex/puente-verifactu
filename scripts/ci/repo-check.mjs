@@ -48,12 +48,19 @@ const requiredPaths = [
   'connectors/woocommerce/examples/refund-mapping-profile.json',
   'connectors/woocommerce/languages/puente-verifactu-woocommerce-es_ES.po',
   'connectors/woocommerce/languages/puente-verifactu-woocommerce-es_ES.mo',
+  'connectors/prestashop/README.md',
+  'connectors/prestashop/puenteverifactu.php',
+  'connectors/prestashop/classes/PVFPrestaShopSecretStore.php',
+  'connectors/prestashop/classes/PVFPrestaShopClient.php',
+  'connectors/prestashop/classes/PVFPrestaShopOrderPayload.php',
+  'connectors/prestashop/examples/mapping-profile.json',
   'packages/core/src/mapping-assistant.mjs',
   'scripts/auth/hash-credential.mjs',
   'scripts/ci/onboarding-smoke.mjs',
   'scripts/ci/woocommerce-connector-check.mjs',
   'scripts/ci/woocommerce-package-check.mjs',
   'scripts/ci/woocommerce-compatibility-smoke.sh',
+  'scripts/ci/prestashop-connector-check.mjs',
   'scripts/release/package-woocommerce.mjs'
 ];
 
@@ -85,6 +92,9 @@ try {
   }
   if (pkg?.scripts?.['woo:package:check'] !== 'node scripts/ci/woocommerce-package-check.mjs') {
     failures.push({ code: 'REPO_WOO_PACKAGE_GATE_MISSING', expected: 'woo:package:check script' });
+  }
+  if (pkg?.scripts?.['prestashop:contract'] !== 'node scripts/ci/prestashop-connector-check.mjs') {
+    failures.push({ code: 'REPO_PRESTASHOP_CONTRACT_GATE_MISSING', expected: 'prestashop:contract script' });
   }
   if (pkg?.scripts?.server !== 'node apps/server/src/main.mjs') {
     failures.push({ code: 'REPO_SERVER_ENTRYPOINT_MISSING', expected: 'server script' });

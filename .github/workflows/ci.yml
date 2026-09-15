@@ -58,6 +58,12 @@ jobs:
       - name: WooCommerce PHP syntax
         run: find connectors/woocommerce -name '*.php' -print0 | xargs -0 -n1 php -l
 
+      - name: PrestaShop connector contract
+        run: npm run prestashop:contract
+
+      - name: PrestaShop PHP syntax
+        run: find connectors/prestashop -name '*.php' -print0 | xargs -0 -n1 php -l
+
   woocommerce-compatibility:
     name: Woo compatibility / WP ${{ matrix.wordpress }} / WC ${{ matrix.woocommerce }} / PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
