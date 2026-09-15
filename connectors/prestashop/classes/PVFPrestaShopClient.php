@@ -4,6 +4,8 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+require_once __DIR__ . '/PVFPrestaShopApiException.php';
+
 final class PVFPrestaShopClient
 {
     private $endpoint;
@@ -48,7 +50,12 @@ final class PVFPrestaShopClient
     {
         $recordId = trim((string) $recordId);
         if (!preg_match('/^fr_[a-f0-9]+$/', $recordId)) {
-            throw new InvalidArgumentException('The Puente VeriFactu record ID is invalid.');
+            throw new PVFPrestaShopApiException(
+                'The Puente VeriFactu record ID is invalid.',
+                'PVF_INVALID_RECORD_ID',
+                0,
+                false
+            );
         }
         return $this->request('GET', '/v1/fiscal-records/' . rawurlencode($recordId));
     }
@@ -56,15 +63,30 @@ final class PVFPrestaShopClient
     private function request($method, $path, array $body = null, array $extraHeaders = array())
     {
         if (!$this->configured()) {
-            throw new RuntimeException('Puente VeriFactu is not fully configured.');
+            throw new PVFPrestaShopApiException(
+                'Puente VeriFactu is not fully configured.',
+                'PVF_NOT_CONFIGURED',
+                0,
+                false
+            );
         }
         if (!function_exists('curl_init')) {
-            throw new RuntimeException('The cURL PHP extension is required.');
+            throw new PVFPrestaShopApiException(
+                'The cURL PHP extension is required.',
+                'PVF_CURL_UNAVAILABLE',
+                0,
+                false
+            );
         }
 
         $url = $this->endpoint . $path;
         if (strpos($url, 'https://') !== 0) {
-            throw new RuntimeException('Puente VeriFactu requires an HTTPS endpoint.');
+            throw new PVFPrestaShopApiException(
+                'Puente VeriFactu requires an HTTPS endpoint.',
+                'PVF_HTTPS_REQUIRED',
+                0,
+                false
+            );
         }
 
         $headers = array_merge(array(
@@ -76,7 +98,12 @@ final class PVFPrestaShopClient
 
         $curl = curl_init($url);
         if ($curl === false) {
-            throw new RuntimeException('Could not initialize the Puente VeriFactu request.');
+            throw new PVFPrestaShopApiException(
+                'Could not initialize the Puente VeriFactu request.',
+                'PVF_CURL_INIT_FAILED',
+                0,
+                true
+            );
         }
 
         $options = array(
@@ -94,7 +121,12 @@ final class PVFPrestaShopClient
             $json = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             if ($json === false) {
                 curl_close($curl);
-                throw new RuntimeException('Could not encode the Puente VeriFactu request.');
+                throw new PVFPrestaShopApiException(
+                    'Could not encode the Puente VeriFactu request.',
+                    'PVF_JSON_ENCODE_FAILED',
+                    0,
+                    false
+                );
             }
             $options[CURLOPT_POSTFIELDS] = $json;
         }
@@ -106,16 +138,36 @@ final class PVFPrestaShopClient
         curl_close($curl);
 
         if ($raw === false) {
-            throw new RuntimeException('Puente VeriFactu could not be reached: ' . $curlError);
+            throw new PVFPrestaShopApiException(
+                'Puente VeriFactu could not be reached: ' . $curlError,
+                'PVF_TRANSPORT_ERROR',
+                0,
+                true
+            );
         }
 
         $decoded = json_decode((string) $raw, true);
         if (!is_array($decoded)) {
-            throw new RuntimeException('Puente VeriFactu returned an invalid JSON response.');
+            throw new PVFPrestaShopApiException(
+                'Puente VeriFactu returned an invalid JSON response.',
+                'PVF_INVALID_RESPONSE',
+                $status,
+                $status === 429 || $status >= 500
+            );
         }
         if ($status < 200 || $status >= 300) {
-            $message = isset($decoded['error']['message']) ? (string) $decoded['error']['message'] : 'Puente VeriFactu rejected the request.';
-            throw new RuntimeException($message . ' [HTTP ' . $status . ']');
+            $error = isset($decoded['error']) && is_array($decoded['error']) ? $decoded['error'] : array();
+            $message = isset($error['message']) ? (string) $error['message'] : 'Puente VeriFactu rejected the request.';
+            $code = isset($error['code']) ? (string) $error['code'] : 'PVF_API_ERROR';
+            $retryable = !empty($error['retryable']) || $status === 429 || $status >= 500;
+            $correlationId = isset($error['correlationId']) ? (string) $error['correlationId'] : '';
+            throw new PVFPrestaShopApiException(
+                $message . ' [HTTP ' . $status . ']',
+                $code,
+                $status,
+                $retryable,
+                $correlationId
+            );
         }
 
         return $decoded;
