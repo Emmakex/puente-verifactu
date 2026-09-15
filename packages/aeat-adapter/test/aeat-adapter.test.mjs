@@ -165,19 +165,19 @@ test('production endpoint has an explicit safety guard', () => {
   assert.throws(() => new AeatVerifactuAdapter({ sif, environment: 'production', transport: async () => ({}) }), { code: 'VF_AEAT_PRODUCTION_GUARD' });
 });
 
-test('outbox retries technical faults but completes business rejection', async () => {
+test('outbox retries known retryable responses but completes business rejection', async () => {
   let now = 0;
   let calls = 0;
   const adapter = {
     submit: async () => {
       calls += 1;
-      if (calls === 1) return { kind: 'transport_error', status: 'fault', retryable: true, errorCode: 'ECONNRESET' };
+      if (calls === 1) return { kind: 'http_error', status: 'fault', retryable: true, errorCode: 'HTTP_503' };
       return { kind: 'aeat_response', status: 'rejected', retryable: false, records: [{ status: 'rejected' }] };
     },
   };
   const outbox = new MemoryAeatOutbox();
   const job = outbox.enqueue({ issuer, entries: [{ intent, record }] }, { availableAt: 0 });
-  const worker = new AeatOutboxWorker({ adapter, outbox, clock: () => now, baseBackoffMs: 10 });
+  const worker = new AeatOutboxWorker({ adapter, outbox, clock: () => now, baseBackoffMs: 10, workerId: 'test-worker' });
   const retried = await worker.run(job.id);
   assert.equal(retried.state, 'pending');
   assert.equal(retried.attempts, 1);
@@ -185,4 +185,22 @@ test('outbox retries technical faults but completes business rejection', async (
   const completed = await worker.run(job.id);
   assert.equal(completed.state, 'completed');
   assert.equal(completed.attempts, 2);
+});
+
+test('outbox quarantines transport uncertainty instead of blindly retrying', async () => {
+  let calls = 0;
+  const adapter = {
+    submit: async () => {
+      calls += 1;
+      return { kind: 'transport_error', status: 'fault', retryable: true, errorCode: 'ETIMEDOUT' };
+    },
+  };
+  const outbox = new MemoryAeatOutbox();
+  const job = outbox.enqueue({ issuer, entries: [{ intent, record }] }, { availableAt: 0 });
+  const worker = new AeatOutboxWorker({ adapter, outbox, clock: () => 0, workerId: 'test-worker' });
+  const uncertain = await worker.run(job.id);
+  assert.equal(uncertain.state, 'reconciliation_required');
+  assert.equal(uncertain.lastResult.reason, 'transport_outcome_unknown');
+  await worker.run(job.id);
+  assert.equal(calls, 1);
 });

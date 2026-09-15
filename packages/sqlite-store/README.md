@@ -10,7 +10,8 @@ Permitir que un autónomo, pyme o instalación de una sola instancia pueda ejecu
 - idempotencia de fiscalización;
 - recursos/estado de API;
 - idempotencia HTTP;
-- sesiones temporales ya parseadas del wizard CSV/XLSX.
+- sesiones temporales ya parseadas del wizard CSV/XLSX;
+- cola/outbox AEAT, backoff, intentos y leases de dispatch.
 
 No almacena certificados, claves privadas, passphrases ni el binario original de los archivos importados.
 
@@ -45,9 +46,47 @@ const persistence = createSqlitePersistence({
 // persistence.fiscalStore
 // persistence.integrationStore
 // persistence.importStore
+// persistence.aeatOutbox
 
 persistence.close();
 ```
+
+## Outbox AEAT durable v1
+
+`persistence.aeatOutbox` implementa el contrato usado por `AeatOutboxWorker`:
+
+- jobs `pending` con `availableAt` persistido;
+- claim atómico bajo `BEGIN IMMEDIATE`;
+- estado `processing` con `leaseOwner` y `leaseUntil`;
+- contador de intentos persistido;
+- `lastResult` persistido;
+- recuperación de leases vencidos hacia `reconciliation_required`;
+- resolución explícita de reconciliación mediante `complete`, `block` o `retry`.
+
+Un crash después de iniciar un dispatch se trata de forma conservadora. Al vencer el lease, el job **no vuelve automáticamente a pending**: queda en `reconciliation_required`. La misma regla se aplica a un `transport_error` sin respuesta remota verificable. Esto evita reemisiones ciegas cuando no podemos demostrar si AEAT llegó a recibir la petición.
+
+Ejemplo de worker:
+
+```js
+import { AeatOutboxWorker } from '../../aeat-adapter/src/outbox.mjs';
+import { createSqlitePersistence } from './src/index.mjs';
+
+const persistence = createSqlitePersistence({ path: '/var/lib/puente-verifactu/puente.sqlite' });
+const worker = new AeatOutboxWorker({
+  adapter,
+  outbox: persistence.aeatOutbox,
+});
+
+await worker.runDue();
+```
+
+Gate específico:
+
+```bash
+npm run aeat:outbox:smoke
+```
+
+La prueba cubre reinicio del proceso, dispatch único, lease activo frente a un segundo worker, expiración del lease tras crash y cuarentena de resultados inciertos hasta reconciliación explícita.
 
 ## Backup verificable v1
 
@@ -157,4 +196,4 @@ La prueba cubre:
 
 SQLite sigue siendo el perfil **single-node**: una instancia de aplicación / un nodo con volumen persistente.
 
-Backup/restore verificable resuelve un gate de Fase 6, pero **no convierte SQLite en una solución HA o multi-réplica**. Un deployment distribuido deberá usar un store transaccional compartido y locking distribuido. Retención remota, cifrado del repositorio de backups, alertas de antigüedad y ejercicios programados de recuperación forman parte del hardening operativo posterior.
+Backup/restore verificable y outbox durable resuelven gates internos de Fase 6, pero **no convierten SQLite en una solución HA o multi-réplica**. Un deployment distribuido deberá usar un store transaccional compartido con locking/claims distribuidos equivalentes. Retención remota, cifrado del repositorio de backups, alertas de antigüedad y ejercicios programados de recuperación forman parte del hardening operativo posterior.

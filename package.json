@@ -20,6 +20,7 @@
     "sqlite:backup": "node scripts/ops/sqlite-maintenance.mjs backup",
     "sqlite:verify-backup": "node scripts/ops/sqlite-maintenance.mjs verify",
     "sqlite:restore": "node scripts/ops/sqlite-maintenance.mjs restore",
+    "aeat:outbox:smoke": "node --test packages/aeat-adapter/test/aeat-adapter.test.mjs packages/sqlite-store/test/aeat-outbox.test.mjs",
     "woo:contract": "node scripts/ci/woocommerce-connector-check.mjs",
     "woo:package": "node scripts/release/package-woocommerce.mjs",
     "woo:package:check": "node scripts/ci/woocommerce-package-check.mjs",

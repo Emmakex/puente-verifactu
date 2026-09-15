@@ -6,6 +6,10 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Fase 6: outbox AEAT durable para el perfil SQLite single-node, con persistencia de jobs, `availableAt`, intentos, último resultado y leases de dispatch.
+- Estado de seguridad `reconciliation_required` para resultados de transporte inciertos, excepciones durante dispatch o leases vencidos tras crash; nunca se reemiten automáticamente.
+- Resolución explícita de reconciliación mediante `complete`, `block` o `retry`, siendo `retry` una decisión deliberada posterior a confirmar que una nueva remisión es segura.
+- Gate CI `aeat:outbox:smoke` con reinicio real del store, dispatch único, exclusión entre workers, crash recovery y cuarentena de resultados inciertos.
 - Fase 6: backup/restore verificable del store SQLite single-node mediante snapshot consistente `VACUUM INTO`, SHA-256, manifest versionado, `integrity_check` y `foreign_key_check`.
 - CLI operacional `sqlite:backup`, `sqlite:verify-backup` y `sqlite:restore`, con reemplazo in-place protegido por confirmación offline y rechazo de sidecars WAL/SHM activos.
 - Gate CI `sqlite:backup:smoke` que restaura cadena fiscal, estado/idempotencia API y sesiones de importación, demuestra snapshot point-in-time con WAL abierto y bloquea backups corruptos antes de tocar el target.

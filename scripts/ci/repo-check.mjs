@@ -32,11 +32,15 @@ const requiredPaths = [
   'packages/core/README.md',
   'packages/diagnostics/README.md',
   'packages/aeat-adapter/README.md',
+  'packages/aeat-adapter/src/outbox.mjs',
+  'packages/aeat-adapter/test/aeat-adapter.test.mjs',
   'packages/sdk/README.md',
   'packages/sqlite-store/README.md',
   'packages/sqlite-store/src/index.mjs',
   'packages/sqlite-store/src/backup.mjs',
+  'packages/sqlite-store/src/aeat-outbox.mjs',
   'packages/sqlite-store/test/backup-restore.test.mjs',
+  'packages/sqlite-store/test/aeat-outbox.test.mjs',
   'packages/connector-contract-suite/README.md',
   'packages/connector-contract-suite/src/suite.mjs',
   'connectors/reference/README.md',
@@ -113,6 +117,9 @@ try {
       || pkg?.scripts?.['sqlite:restore'] !== 'node scripts/ops/sqlite-maintenance.mjs restore') {
     failures.push({ code: 'REPO_SQLITE_MAINTENANCE_COMMANDS_MISSING' });
   }
+  if (pkg?.scripts?.['aeat:outbox:smoke'] !== 'node --test packages/aeat-adapter/test/aeat-adapter.test.mjs packages/sqlite-store/test/aeat-outbox.test.mjs') {
+    failures.push({ code: 'REPO_AEAT_OUTBOX_GATE_MISSING', expected: 'aeat:outbox:smoke script' });
+  }
   if (pkg?.scripts?.['woo:contract'] !== 'node scripts/ci/woocommerce-connector-check.mjs') {
     failures.push({ code: 'REPO_WOO_CONTRACT_GATE_MISSING', expected: 'woo:contract script' });
   }
@@ -150,13 +157,14 @@ if (!readme.includes('Principio Camaleón')) {
 }
 
 const readiness = existsSync('docs/production-readiness.md') ? readFileSync('docs/production-readiness.md', 'utf8') : '';
-for (const marker of ['Backup/restore', 'Outbox durable', 'Observabilidad', 'Perfil HA', 'gate AEAT #6']) {
+for (const marker of ['Backup/restore', 'Outbox durable', 'reconciliation_required', 'Observabilidad', 'Perfil HA', 'gate AEAT #6']) {
   if (!readiness.includes(marker)) failures.push({ code: 'REPO_PRODUCTION_READINESS_DOC_INCOMPLETE', marker });
 }
 
 const ci = existsSync('.github/workflows/ci.yml') ? readFileSync('.github/workflows/ci.yml', 'utf8') : '';
 for (const marker of [
   'npm run sqlite:backup:smoke',
+  'npm run aeat:outbox:smoke',
   'prestashop-compatibility:',
   "prestashop: '1.7.8.11'",
   "prestashop: '8.1.7'",
@@ -168,7 +176,14 @@ for (const marker of [
   'scripts/ci/prestashop-upgrade-smoke.sh'
 ]) {
   if (!ci.includes(marker)) {
-    failures.push({ code: marker.includes('sqlite') ? 'REPO_SQLITE_BACKUP_GATE_MISSING' : 'REPO_PRESTASHOP_RELEASE_GATE_MISSING', marker });
+    failures.push({
+      code: marker.includes('aeat:outbox')
+        ? 'REPO_AEAT_OUTBOX_GATE_MISSING'
+        : marker.includes('sqlite')
+          ? 'REPO_SQLITE_BACKUP_GATE_MISSING'
+          : 'REPO_PRESTASHOP_RELEASE_GATE_MISSING',
+      marker,
+    });
   }
 }
 
