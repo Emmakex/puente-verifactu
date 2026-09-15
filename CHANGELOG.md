@@ -6,6 +6,10 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- WooCommerce Connector v1: plugin HPOS-safe con preflight, emisión idempotente asíncrona, reconciliación, token cifrado, fallback CSV/XLSX y UX ES/EN.
+- Mapping nativo multirate mediante `taxBreakdown` + `taxLineDefaults` server-side, impidiendo que un conector decida `taxCode`, `regimeKey` u `operationClass`.
+- Mapping dinámico de moneda desde sistemas origen sin introducir conversiones fiscales automáticas.
+- Gate CI WooCommerce con sintaxis PHP 7.4, declaración HPOS, uso obligatorio de CRUD, transporte HTTPS e invariantes de integración.
 - Connector Contract Suite v1 framework-neutral con CLI para que terceros validen preflight, idempotencia, status, no mutación y ausencia de autoridad sensible en su propio CI.
 - Gate `npm run contract:reference` usando la misma suite sobre el conector oficial de referencia.
 - Wizard cero-código responsive ES/EN para cargar CSV/XLSX, confirmar mappings, completar configuración fija y ejecutar preflight sin enviar a AEAT.
