@@ -6,6 +6,8 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Primera entrega de Universal Integration Kit v1: API framework-neutral, SDK server-side, webhook HMAC, preflight/envío mapeado, idempotencia HTTP y conector de referencia.
+- ADR-0003 para diferir gates exclusivamente externos sin desbloquear releases/pilotos.
 - Harness seguro `npm run aeat:gate` para dry-run y cierre del gate real de pruebas AEAT con doble confirmación de envío y salida sanitizada.
 - Adaptador server-side AEAT VERI*FACTU con SOAP 1.1/XML y endpoints oficiales versionados.
 - Transporte HTTPS mTLS con guard de producción y credenciales cargadas en runtime.

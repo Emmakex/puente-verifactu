@@ -69,14 +69,24 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 
 **Estado:** implementación y harness preparados. El gate externo se difiere bajo ADR-0003 y permanece registrado en #6. Se permite continuar desarrollo de Fase 4, pero **release, piloto fiscal real y production readiness siguen bloqueados** hasta cerrar este gate.
 
-## Fase 4 — Universal Integration Kit 🚧 desarrollo permitido
+## Fase 4 — Universal Integration Kit 🚧
 
-- API/SDK estable;
-- webhook low-code;
-- importador CSV y mapping UI/contract;
-- XLSX;
-- suite contractual;
-- conector de referencia.
+- [x] API framework-neutral v1: preflight, creación y consulta.
+- [x] Identidad/tenant resueltos server-side.
+- [x] Idempotencia HTTP con conflicto por contenido distinto.
+- [x] SDK server-side v1.
+- [x] Webhook low-code HMAC + anti-replay.
+- [x] Preflight y envío mediante `MappingProfile` server-side.
+- [x] Conector de referencia.
+- [x] Tests de aislamiento tenant, SDK, webhook e idempotencia.
+- [x] Importador CSV existente reutilizando contrato canónico.
+- [ ] XLSX.
+- [ ] UI/flujo asistido para crear/probar `MappingProfile`.
+- [ ] Suite contractual empaquetada para terceros.
+- [ ] Adaptador HTTP/deployment concreto con autenticación real y rate limits.
+- [ ] Persistencia durable del estado API.
+
+**Estado:** primera entrega funcional implementada; la fase continúa abierta.
 
 **Salida:** sistema nuevo integrable sin tocar el motor fiscal.
 

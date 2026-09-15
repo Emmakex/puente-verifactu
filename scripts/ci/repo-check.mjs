@@ -9,13 +9,16 @@ const requiredPaths = [
   'docs/onboarding-integration.md',
   'docs/engineering-rules.md',
   'docs/aeat-test-adapter-v1.md',
+  'docs/universal-integration-kit-v1.md',
   'docs/adr/0001-verifactu-only-mvp.md',
   'docs/adr/0002-chameleon-integration.md',
+  'docs/adr/0003-defer-external-gates-with-release-block.md',
   'apps/api/README.md',
   'packages/contracts/README.md',
   'packages/core/README.md',
   'packages/diagnostics/README.md',
   'packages/aeat-adapter/README.md',
+  'packages/sdk/README.md',
   'connectors/reference/README.md',
   'connectors/file-import/README.md'
 ];
