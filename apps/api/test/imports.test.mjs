@@ -49,6 +49,21 @@ test('import session is tenant and installation isolated', () => {
   assert.throws(() => imports.preflight(inspection.importId, { ...context, installationId: 'install-other' }, { configuration }), { code: 'VF_IMPORT_SESSION_NOT_FOUND' });
 });
 
+test('reading at session capacity does not evict the active session', () => {
+  const imports = new ImportSessionService({ maxSessions: 1 });
+  const inspection = imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+  const report = imports.preflight(inspection.importId, context, { configuration });
+  assert.equal(report.ok, true);
+});
+
+test('expired import session returns an explicit expiration error', () => {
+  let now = 1000;
+  const imports = new ImportSessionService({ clock: () => now, ttlMs: 50 });
+  const inspection = imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+  now = 1051;
+  assert.throws(() => imports.preflight(inspection.importId, context, { configuration }), { code: 'VF_IMPORT_SESSION_EXPIRED' });
+});
+
 test('import API accepts raw file bytes and returns preflight through same-origin flow', async () => {
   const imports = new ImportSessionService();
   const handler = createApiHandler({
