@@ -8,12 +8,14 @@ const requiredPaths = [
   'docs/integration-strategy.md',
   'docs/onboarding-integration.md',
   'docs/engineering-rules.md',
+  'docs/aeat-test-adapter-v1.md',
   'docs/adr/0001-verifactu-only-mvp.md',
   'docs/adr/0002-chameleon-integration.md',
   'apps/api/README.md',
   'packages/contracts/README.md',
   'packages/core/README.md',
   'packages/diagnostics/README.md',
+  'packages/aeat-adapter/README.md',
   'connectors/reference/README.md',
   'connectors/file-import/README.md'
 ];
@@ -42,7 +44,7 @@ if (failures.length > 0) {
   const diagnostic = {
     schema_version: 1,
     pipeline: 'GitHub Actions',
-    job: 'foundation-validation',
+    job: 'validation',
     step: 'repository-contract-check',
     command: 'node scripts/ci/repo-check.mjs',
     exit_code: 1,

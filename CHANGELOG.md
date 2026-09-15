@@ -6,6 +6,13 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Adaptador server-side AEAT VERI*FACTU con SOAP 1.1/XML y endpoints oficiales versionados.
+- Transporte HTTPS mTLS con guard de producción y credenciales cargadas en runtime.
+- Normalización de respuestas, `AceptadoConErrores`, rechazos, duplicados y SOAP Faults.
+- Protección DTD/XXE para XML recibido.
+- Control de flujo mediante `TiempoEsperaEnvio` y outbox/reintentos técnicos de referencia.
+- Recargo de equivalencia a nivel de línea en `InvoiceIntent v1`, mapping, validación, cuota total y XML AEAT.
+- Tests contractuales del adaptador sin certificados ni secretos.
 - Registros fiscales internos de alta y anulación.
 - Huella AEAT SHA-256 (`TipoHuella=01`) con material exacto y salida hexadecimal en mayúsculas.
 - Fixtures oficiales AEAT para primer alta, alta encadenada y anulación encadenada.

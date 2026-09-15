@@ -42,6 +42,7 @@
     "taxBreakdown": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 12,
       "items": { "$ref": "#/$defs/taxLine" }
     },
     "adjustments": {
@@ -66,6 +67,7 @@
         "type": { "enum": ["S", "I"] },
         "correctedBaseAmount": { "$ref": "#/$defs/amount" },
         "correctedTaxAmount": { "$ref": "#/$defs/amount" },
+        "correctedSurchargeAmount": { "$ref": "#/$defs/amount" },
         "originalInvoices": {
           "type": "array",
           "items": { "$ref": "#/$defs/invoiceReference" }
@@ -116,7 +118,9 @@
         "operationClass": { "type": "string", "minLength": 1, "maxLength": 2 },
         "rate": { "$ref": "#/$defs/rate" },
         "baseAmount": { "$ref": "#/$defs/amount" },
-        "taxAmount": { "$ref": "#/$defs/amount" }
+        "taxAmount": { "$ref": "#/$defs/amount" },
+        "surchargeRate": { "$ref": "#/$defs/rate" },
+        "surchargeAmount": { "$ref": "#/$defs/amount" }
       }
     },
     "adjustment": {

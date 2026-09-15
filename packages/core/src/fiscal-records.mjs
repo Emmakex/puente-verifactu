@@ -55,11 +55,16 @@ function sumDecimalStrings(values) {
   return fromScaled(values.reduce((sum, value) => sum + toScaled(value), 0n));
 }
 
+function surchargeAmounts(intent) {
+  const lineAmounts = (intent.taxBreakdown ?? []).filter((line) => line.surchargeAmount !== undefined).map((line) => line.surchargeAmount);
+  if (lineAmounts.length > 0) return lineAmounts;
+  return (intent.adjustments ?? []).filter((item) => item.type === 'surcharge').map((item) => item.amount);
+}
+
 export function deriveEuroAmounts(intent, euroAmounts) {
   if (intent.currency === 'EUR') {
-    const surcharge = (intent.adjustments ?? []).filter((item) => item.type === 'surcharge').map((item) => item.amount);
     return {
-      quotaTotal: sumDecimalStrings([intent.totals.taxAmount, ...surcharge]),
+      quotaTotal: sumDecimalStrings([intent.totals.taxAmount, ...surchargeAmounts(intent)]),
       totalAmount: intent.totals.totalAmount,
     };
   }

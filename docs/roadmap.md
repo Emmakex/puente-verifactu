@@ -46,15 +46,27 @@ Regla: **finish before advancing**.
 
 **Salida cumplida:** cadena reproducible y verificada contra los tres vectores oficiales AEAT de hash. El store en memoria sigue siendo una referencia; la persistencia durable/productiva es un gate obligatorio antes del piloto real.
 
-## Fase 3 — AEAT Test Adapter
+## Fase 3 — AEAT Test Adapter ⚠️ gate externo pendiente
 
-- artefactos oficiales versionados;
-- certificado de pruebas;
-- transporte/normalización;
-- reintentos/outbox;
-- pruebas externas.
+- [x] Manifest de artefactos oficiales/versiones verificadas.
+- [x] Endpoints oficiales de pruebas/producción y certificado/sello.
+- [x] SOAP 1.1/XML de alta y anulación.
+- [x] Cabecera, SIF, encadenamiento, hash y desglose fiscal.
+- [x] Recargo de equivalencia a nivel de línea.
+- [x] Normalización de respuesta global y por registro.
+- [x] Normalización segura de SOAP Fault.
+- [x] Protección DTD/XXE.
+- [x] Transporte HTTPS mTLS server-side inyectable.
+- [x] Guard explícito contra envío accidental a producción.
+- [x] `TiempoEsperaEnvio` y control de flujo.
+- [x] Outbox/reintentos técnicos de referencia.
+- [x] Tests contractuales sin secretos.
+- [ ] Provisionar certificado válido exclusivamente en entorno seguro.
+- [ ] Remisión real controlada al endpoint AEAT de pruebas.
+- [ ] Confirmar caso aceptado + rechazo controlado + reconciliación.
+- [ ] Documentar evidencia no sensible de la prueba externa.
 
-**Salida:** aceptación real en entorno de pruebas AEAT.
+**Estado:** implementación preparada, pero la fase **no está cerrada** hasta superar la prueba externa oficial. Según `finish before advancing`, Fase 4 permanece bloqueada mientras este gate esté pendiente.
 
 ## Fase 4 — Universal Integration Kit
 
@@ -79,7 +91,7 @@ Regla: **finish before advancing**.
 
 ## Fase 6 — Production Readiness
 
-Hardening, persistencia durable, backups/restauración, observabilidad/alertas, runbooks, verificación regulatoria final, declaración responsable por versión y piloto progresivo.
+Hardening, persistencia durable, outbox durable, backups/restauración, observabilidad/alertas, runbooks, verificación regulatoria final, declaración responsable por versión y piloto progresivo.
 
 ## Posterior
 

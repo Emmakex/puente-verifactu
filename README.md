@@ -2,7 +2,7 @@
 
 **Puente VeriFactu** es la capa de integración fiscal de Kairoseth Extensions para conectar sistemas de facturación, ERP, CRM, ecommerce, hojas de cálculo y software propio con **VERI*FACTU / AEAT** sin obligar al negocio a sustituir lo que ya utiliza.
 
-> Estado: foundation técnica. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
+> Estado: Fases 0–2 cerradas; Fase 3 (adaptador AEAT de pruebas) implementada a nivel contractual y pendiente de validación externa con certificado válido. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
 
 ## Principio Camaleón
 
@@ -32,16 +32,18 @@ La primera etapa será **solo VERI*FACTU**. El modo NO VERI*FACTU queda fuera de
 - El sistema origen no decide reglas fiscales sensibles ni credenciales.
 - Historial fiscal finalizado inmutable; las correcciones generan operaciones nuevas.
 - Idempotencia obligatoria de extremo a extremo.
+- Credenciales/certificados AEAT exclusivamente server-side y fuera del repositorio.
 - ES/EN juntos en interfaces de cliente.
 - Todo fallo de CI, build, test, deploy o runtime genera diagnóstico estructurado accionable.
 - Fase N+1 no comienza hasta cerrar implementación, gates, aceptación, bloqueos y documentación de la fase N.
 
-## Estructura inicial
+## Estructura
 
 ```text
 apps/api/                 API/ingress del puente
 packages/contracts/       Contrato canónico público
-packages/core/            Motor fiscal independiente
+packages/core/            Motor fiscal + registros/hash
+packages/aeat-adapter/    SOAP/XML, mTLS, respuestas y reintentos AEAT
 packages/diagnostics/     Diagnóstico estructurado
 connectors/reference/     Conector de referencia
 connectors/file-import/   Entrada cero-código CSV/Excel
@@ -50,7 +52,7 @@ scripts/ci/               Gates y diagnóstico CI
 
 ## Documentación
 
-Consulta [docs/README.md](docs/README.md). Los documentos clave para integración son [integration-strategy.md](docs/integration-strategy.md) y [onboarding-integration.md](docs/onboarding-integration.md).
+Consulta [docs/README.md](docs/README.md). Los documentos clave para integración son [integration-strategy.md](docs/integration-strategy.md), [onboarding-integration.md](docs/onboarding-integration.md) y [aeat-test-adapter-v1.md](docs/aeat-test-adapter-v1.md).
 
 ## Estado normativo de referencia
 
@@ -62,6 +64,8 @@ Requiere Node.js 22+ para las herramientas del repositorio.
 
 ```bash
 npm run check
+npm test
+npm run preflight:demo
 ```
 
 Flujo obligatorio: `feature branch -> PR -> CI -> review -> merge -> verificación`.
