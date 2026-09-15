@@ -59,6 +59,27 @@ function pvfFail($code, $message)
     exit(1);
 }
 
+function pvfHydrateContext(Order $order)
+{
+    $context = Context::getContext();
+    $context->shop = new Shop((int) $order->id_shop);
+    $context->currency = new Currency((int) $order->id_currency);
+    $context->language = new Language((int) $order->id_lang);
+    $context->customer = new Customer((int) $order->id_customer);
+    $context->cart = new Cart((int) $order->id_cart);
+
+    $invoiceAddress = new Address((int) $order->id_address_invoice);
+    if (Validate::isLoadedObject($invoiceAddress)) {
+        $context->country = new Country((int) $invoiceAddress->id_country, (int) $order->id_lang);
+    }
+
+    if (!Validate::isLoadedObject($context->shop)
+        || !Validate::isLoadedObject($context->currency)
+        || !Validate::isLoadedObject($context->language)) {
+        pvfFail('PRESTA_CONTEXT_INIT_FAILED', 'Could not hydrate PrestaShop CLI context from the seed order.');
+    }
+}
+
 $expectedPs = (string) getenv('EXPECTED_PS_VERSION');
 $expectedPhp = (string) getenv('EXPECTED_PHP_VERSION');
 $actualPhp = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
@@ -109,6 +130,8 @@ if ($orderId <= 0) {
         pvfFail('PRESTA_SEED_ORDER_INVALID', 'Seed order could not be loaded before invoice generation.');
     }
 
+    pvfHydrateContext($seedOrder);
+
     try {
         Configuration::updateValue('PS_INVOICE', 1, false, null, (int) $seedOrder->id_shop);
         Configuration::updateValue('PS_INVOICE_START_NUMBER', 900001, false, null, (int) $seedOrder->id_shop);
@@ -129,6 +152,7 @@ $order = new Order($orderId);
 if (!Validate::isLoadedObject($order)) {
     pvfFail('PRESTA_SEED_ORDER_INVALID', 'Seed order could not be loaded.');
 }
+pvfHydrateContext($order);
 
 try {
     $payload = PVFPrestaShopOrderPayload::build($order, array('shop_id' => (int) $order->id_shop));
