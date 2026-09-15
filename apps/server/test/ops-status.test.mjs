@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hashBearerToken } from '../src/auth.mjs';
+import { hashBearerToken, validateAuthConfig } from '../src/auth.mjs';
 import { createPuenteRuntime } from '../src/runtime.mjs';
 
 const integrationToken = 'integration-token';
@@ -94,21 +94,17 @@ test('operational status requires explicit ops:read permission and exposes only 
   }
 });
 
-test('auth config rejects unknown operational permissions', () => {
-  assert.throws(() => createPuenteRuntime({
-    databasePath: ':memory:',
-    authConfig: {
-      credentials: [{
-        id: 'bad',
-        type: 'bearer',
-        tokenSha256: hashBearerToken('bad-token'),
-        organizationId: 'ops',
-        installationId: 'runtime',
-        sourceSystem: 'ops',
-        rateLimitPerMinute: 60,
-        permissions: ['ops:write'],
-      }],
-    },
-    sif: { systemId: 'PV', installationNumber: '001', timeZone: 'Europe/Madrid' },
+test('auth config rejects unknown operational permissions without opening runtime resources', () => {
+  assert.throws(() => validateAuthConfig({
+    credentials: [{
+      id: 'bad',
+      type: 'bearer',
+      tokenSha256: hashBearerToken('bad-token'),
+      organizationId: 'ops',
+      installationId: 'runtime',
+      sourceSystem: 'ops',
+      rateLimitPerMinute: 60,
+      permissions: ['ops:write'],
+    }],
   }), /unsupported permission/);
 });
