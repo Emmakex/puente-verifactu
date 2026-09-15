@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  foundation-validation:
-    name: Foundation validation
+  validation:
+    name: Contract and core validation
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -23,4 +23,10 @@ jobs:
           node-version-file: .nvmrc
 
       - name: Repository contract check
-        run: node scripts/ci/repo-check.mjs
+        run: npm run check
+
+      - name: Unit and contract tests
+        run: npm test
+
+      - name: Zero-code CSV preflight smoke
+        run: npm run preflight:demo

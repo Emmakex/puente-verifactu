@@ -8,6 +8,7 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `architecture.md` | Arquitectura, componentes, límites y flujos |
 | `integration-strategy.md` | Principio Camaleón y cinco niveles de integración |
 | `onboarding-integration.md` | Onboarding universal orientado a autónomos y pymes |
+| `canonical-core-v1.md` | Contrato ejecutable InvoiceIntent/MappingProfile/preflight v1 |
 | `compliance.md` | Marco normativo, obligaciones y checklist de release |
 | `api-contract.md` | Modelo canónico, idempotencia y contratos |
 | `connectors.md` | Contrato de adaptadores y estrategia por plataforma |

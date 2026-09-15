@@ -1,3 +1,7 @@
 # Core
 
-Motor fiscal independiente de transportes, UI, WordPress, PrestaShop y AEAT SOAP/XML. Recibe contratos validados y protege invariantes de dominio.
+Núcleo independiente de plataforma.
+
+Fase 1 implementa validación canónica, decimal exacto, mapping/preflight, idempotencia, máquina de estados y una persistencia append-only de referencia en memoria.
+
+No contiene todavía hash VERI*FACTU, XML AEAT, certificados ni transporte. Esas responsabilidades pertenecen a fases posteriores.
