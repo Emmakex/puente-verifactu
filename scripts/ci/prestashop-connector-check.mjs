@@ -6,7 +6,10 @@ const required = [
   'connectors/prestashop/classes/PVFPrestaShopSecretStore.php',
   'connectors/prestashop/classes/PVFPrestaShopClient.php',
   'connectors/prestashop/classes/PVFPrestaShopOrderPayload.php',
-  'connectors/prestashop/examples/mapping-profile.json'
+  'connectors/prestashop/classes/PVFPrestaShopTaxBreakdown.php',
+  'connectors/prestashop/examples/mapping-profile.json',
+  'connectors/prestashop/fixtures/tax-breakdown-v1.json',
+  'scripts/ci/prestashop-tax-fixtures.php'
 ];
 
 const failures = [];
@@ -18,6 +21,7 @@ const moduleFile = existsSync(required[1]) ? readFileSync(required[1], 'utf8') :
 const clientFile = existsSync(required[3]) ? readFileSync(required[3], 'utf8') : '';
 const secretFile = existsSync(required[2]) ? readFileSync(required[2], 'utf8') : '';
 const payloadFile = existsSync(required[4]) ? readFileSync(required[4], 'utf8') : '';
+const breakdownFile = existsSync(required[5]) ? readFileSync(required[5], 'utf8') : '';
 const readme = existsSync(required[0]) ? readFileSync(required[0], 'utf8') : '';
 
 const expectations = [
@@ -32,9 +36,14 @@ const expectations = [
   [clientFile.includes("'X-Connector-Version: prestashop/'"), 'PRESTA_CONNECTOR_VERSION_HEADER_MISSING'],
   [secretFile.includes("'aes-256-gcm'") && secretFile.includes('_COOKIE_KEY_'), 'PRESTA_TOKEN_ENCRYPTION_MISSING'],
   [payloadFile.includes("'source_invoice_id' => 'prestashop:'"), 'PRESTA_SOURCE_ID_MISSING'],
-  [payloadFile.includes('$order->invoice_number') && !payloadFile.includes("'invoice_number' => trim((string) $order->reference)"), 'PRESTA_FISCAL_NUMBER_CONTRACT_MISSING'],
-  [payloadFile.includes("'order_detail` WHERE `id_order`") && payloadFile.includes("'tax_lines'"), 'PRESTA_TAX_BREAKDOWN_MISSING'],
+  [payloadFile.includes('getInvoicesCollection()') && payloadFile.includes('count($invoices) > 1'), 'PRESTA_INVOICE_SCOPE_GUARD_MISSING'],
+  [payloadFile.includes('->getInvoiceNumberFormatted(') && !payloadFile.includes('OrderInvoice::getInvoiceNumberFormatted('), 'PRESTA_INVOICE_NUMBER_API_INVALID'],
+  [payloadFile.includes('getProductTaxesBreakdown($order)') && payloadFile.includes('getShippingTaxesBreakdown($order)') && payloadFile.includes('getWrappingTaxesBreakdown()'), 'PRESTA_NATIVE_INVOICE_BREAKDOWN_MISSING'],
+  [!payloadFile.includes("FROM `' . _DB_PREFIX_ . 'order_detail`"), 'PRESTA_RAW_ORDER_DETAIL_TAX_QUERY_FORBIDDEN'],
+  [payloadFile.includes('Ecotax requires an explicit fiscal mapping'), 'PRESTA_ECOTAX_SAFE_BLOCK_MISSING'],
   [payloadFile.includes("'currency' => strtoupper"), 'PRESTA_CURRENCY_MISSING'],
+  [breakdownFile.includes('final class PVFPrestaShopTaxBreakdown') && breakdownFile.includes('public static function reconcile'), 'PRESTA_BREAKDOWN_RECONCILIATION_MISSING'],
+  [breakdownFile.includes("mergeScaledLine($lines, '0'"), 'PRESTA_ZERO_RATE_RESIDUAL_MISSING'],
   [readme.includes('No contiene reglas AEAT'), 'PRESTA_THIN_CONNECTOR_DOC_MISSING']
 ];
 
@@ -49,7 +58,7 @@ for (const [path, content] of [[required[1], moduleFile], [required[3], clientFi
 }
 
 try {
-  const profile = JSON.parse(readFileSync(required[5], 'utf8'));
+  const profile = JSON.parse(readFileSync(required[6], 'utf8'));
   if (profile?.sourceType !== 'native' || profile?.fields?.invoice_number !== 'number' || profile?.fields?.tax_lines !== 'taxBreakdown') {
     failures.push({ code: 'PRESTA_MAPPING_PROFILE_INVALID' });
   }
@@ -58,6 +67,21 @@ try {
   }
 } catch (error) {
   failures.push({ code: 'PRESTA_MAPPING_PROFILE_INVALID_JSON', message: error.message });
+}
+
+try {
+  const fixture = JSON.parse(readFileSync(required[7], 'utf8'));
+  const ids = new Set((fixture?.cases ?? []).map((item) => item?.id));
+  for (const id of [
+    'multi-rate-shipping-wrapping',
+    'global-discount-already-allocated-by-prestashop',
+    'free-shipping-does-not-create-tax-line',
+    'mixed-tax-with-zero-rate-residual'
+  ]) {
+    if (!ids.has(id)) failures.push({ code: 'PRESTA_REQUIRED_FIXTURE_CASE_MISSING', id });
+  }
+} catch (error) {
+  failures.push({ code: 'PRESTA_FIXTURE_INVALID_JSON', message: error.message });
 }
 
 if (failures.length) {
