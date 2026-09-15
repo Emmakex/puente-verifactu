@@ -79,14 +79,17 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Preflight y envío mediante `MappingProfile` server-side.
 - [x] Conector de referencia.
 - [x] Tests de aislamiento tenant, SDK, webhook e idempotencia.
-- [x] Importador CSV existente reutilizando contrato canónico.
-- [ ] XLSX.
-- [ ] UI/flujo asistido para crear/probar `MappingProfile`.
+- [x] Importador CSV reutilizando contrato canónico.
+- [x] XLSX read-only sin dependencias externas.
+- [x] Inspección unificada CSV/XLSX.
+- [x] Asistente de mapping con confianza y confirmación explícita.
+- [x] Contrato UX del wizard de mapping.
+- [ ] UI visual ES/EN del wizard.
 - [ ] Suite contractual empaquetada para terceros.
 - [ ] Adaptador HTTP/deployment concreto con autenticación real y rate limits.
 - [ ] Persistencia durable del estado API.
 
-**Estado:** primera entrega funcional implementada; la fase continúa abierta.
+**Estado:** entrada universal por API, webhook, CSV y XLSX ya implementada. El siguiente bloque customer-facing es la UI visual del wizard; la fase continúa abierta.
 
 **Salida:** sistema nuevo integrable sin tocar el motor fiscal.
 
