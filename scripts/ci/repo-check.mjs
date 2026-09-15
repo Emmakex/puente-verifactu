@@ -4,6 +4,7 @@ const requiredPaths = [
   'README.md',
   'SECURITY.md',
   'CONTRIBUTING.md',
+  '.env.example',
   'docs/architecture.md',
   'docs/integration-strategy.md',
   'docs/onboarding-integration.md',
@@ -19,11 +20,17 @@ const requiredPaths = [
   'apps/onboarding/index.html',
   'apps/onboarding/app.js',
   'apps/onboarding/src/model.mjs',
+  'apps/server/README.md',
+  'apps/server/src/main.mjs',
+  'apps/server/src/runtime.mjs',
+  'apps/server/src/auth.mjs',
   'packages/contracts/README.md',
   'packages/core/README.md',
   'packages/diagnostics/README.md',
   'packages/aeat-adapter/README.md',
   'packages/sdk/README.md',
+  'packages/sqlite-store/README.md',
+  'packages/sqlite-store/src/index.mjs',
   'packages/connector-contract-suite/README.md',
   'packages/connector-contract-suite/src/suite.mjs',
   'connectors/reference/README.md',
@@ -31,6 +38,7 @@ const requiredPaths = [
   'connectors/file-import/README.md',
   'connectors/file-import/src/xlsx.mjs',
   'packages/core/src/mapping-assistant.mjs',
+  'scripts/auth/hash-credential.mjs',
   'scripts/ci/onboarding-smoke.mjs'
 ];
 
@@ -42,14 +50,20 @@ for (const path of requiredPaths) {
 
 try {
   const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-  if (pkg?.engines?.node !== '>=22') {
-    failures.push({ code: 'REPO_NODE_CONTRACT_INVALID', expected: '>=22', received: pkg?.engines?.node ?? null });
+  if (pkg?.engines?.node !== '>=22.13.0') {
+    failures.push({ code: 'REPO_NODE_CONTRACT_INVALID', expected: '>=22.13.0', received: pkg?.engines?.node ?? null });
   }
   if (pkg?.scripts?.['onboarding:smoke'] !== 'node scripts/ci/onboarding-smoke.mjs') {
     failures.push({ code: 'REPO_ONBOARDING_GATE_MISSING', expected: 'onboarding:smoke script' });
   }
   if (pkg?.scripts?.['contract:reference'] !== 'node packages/connector-contract-suite/src/cli.mjs --module ./connectors/reference/contract.mjs') {
     failures.push({ code: 'REPO_CONNECTOR_CONTRACT_GATE_MISSING', expected: 'contract:reference script' });
+  }
+  if (pkg?.scripts?.['runtime:smoke'] !== 'node --test apps/server/test/*.test.mjs packages/sqlite-store/test/*.test.mjs') {
+    failures.push({ code: 'REPO_RUNTIME_GATE_MISSING', expected: 'runtime:smoke script' });
+  }
+  if (pkg?.scripts?.server !== 'node apps/server/src/main.mjs') {
+    failures.push({ code: 'REPO_SERVER_ENTRYPOINT_MISSING', expected: 'server script' });
   }
 } catch (error) {
   failures.push({ code: 'REPO_PACKAGE_JSON_INVALID', message: error.message });
