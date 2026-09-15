@@ -27,18 +27,27 @@ export class MemoryIntegrationStore {
     return frozen;
   }
 
-  idempotent(key, payload, producer) {
+  reserve(key, payload) {
     const existing = this.requests.get(key);
     const payloadFingerprint = fingerprint(payload);
     if (existing) {
       if (existing.fingerprint !== payloadFingerprint) {
         throw apiError('VF_API_IDEMPOTENCY_CONFLICT', 'Idempotency-Key was already used with different content', 409);
       }
-      return { value: existing.value, duplicate: true };
+      return { existing, duplicate: true };
     }
-    const value = producer();
-    this.requests.set(key, { fingerprint: payloadFingerprint, value });
-    return { value, duplicate: false };
+    const pending = { fingerprint: payloadFingerprint, recordId: null };
+    this.requests.set(key, pending);
+    return { existing: pending, duplicate: false };
+  }
+
+  complete(key, payload, recordId) {
+    this.requests.set(key, { fingerprint: fingerprint(payload), recordId });
+  }
+
+  release(key, payload) {
+    const existing = this.requests.get(key);
+    if (existing?.recordId == null && existing.fingerprint === fingerprint(payload)) this.requests.delete(key);
   }
 }
 
@@ -110,36 +119,40 @@ export class UniversalBridgeService {
     const intent = stampServerIdentity(input, context);
     assertValid(intent);
     const requestKey = `${context.organizationId}\u001f${context.installationId}\u001f${idempotencyKey}`;
+    const reservation = this.store.reserve(requestKey, intent);
 
-    const idempotent = this.store.idempotent(requestKey, intent, () => ({ intent }));
-    if (idempotent.duplicate) {
-      const existingId = idempotent.value.recordId;
-      if (!existingId) throw apiError('VF_API_IDEMPOTENCY_IN_PROGRESS', 'The same request is already being processed', 409);
-      return { ...this.store.get(existingId), duplicate: true };
+    if (reservation.duplicate) {
+      if (!reservation.existing.recordId) throw apiError('VF_API_IDEMPOTENCY_IN_PROGRESS', 'The same request is already being processed', 409);
+      return { ...this.store.get(reservation.existing.recordId), duplicate: true };
     }
 
-    const fiscalized = await this.fiscalService.issue(intent);
-    const recordId = recordIdFor(fiscalized.record);
-    let status = 'fiscalized';
-    let delivery = null;
+    try {
+      const fiscalized = await this.fiscalService.issue(intent);
+      const recordId = recordIdFor(fiscalized.record);
+      let status = 'fiscalized';
+      let delivery = null;
 
-    if (this.enqueueDelivery) {
-      delivery = await this.enqueueDelivery({ intent, record: fiscalized.record, recordId });
-      status = delivery?.status ?? 'queued';
+      if (this.enqueueDelivery) {
+        delivery = await this.enqueueDelivery({ intent, record: fiscalized.record, recordId });
+        status = delivery?.status ?? 'queued';
+      }
+
+      const resource = this.store.put({
+        recordId,
+        organizationId: context.organizationId,
+        installationId: context.installationId,
+        sourceInvoiceId: intent.sourceInvoiceId,
+        status,
+        duplicate: fiscalized.duplicate,
+        fiscalRecord: fiscalized.record,
+        delivery,
+      });
+      this.store.complete(requestKey, intent, recordId);
+      return resource;
+    } catch (error) {
+      this.store.release(requestKey, intent);
+      throw error;
     }
-
-    const resource = this.store.put({
-      recordId,
-      organizationId: context.organizationId,
-      installationId: context.installationId,
-      sourceInvoiceId: intent.sourceInvoiceId,
-      status,
-      duplicate: fiscalized.duplicate,
-      fiscalRecord: fiscalized.record,
-      delivery,
-    });
-    this.store.requests.set(requestKey, { fingerprint: fingerprint(intent), value: { intent, recordId } });
-    return resource;
   }
 
   async issueMapped(source, profile, context, options) {
