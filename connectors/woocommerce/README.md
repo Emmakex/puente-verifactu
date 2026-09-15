@@ -33,11 +33,22 @@ En `WooCommerce → Puente VeriFactu`:
 - URL HTTPS del Puente;
 - `MappingProfile` server-side;
 - token Bearer del conector;
+- fuente explícita del número de factura;
 - estados Woo que disparan envío automático;
 - meta-key opcional donde otro plugin guarda NIF/CIF del cliente;
 - timeout HTTP.
 
 El token se almacena cifrado usando las salts de WordPress. Nunca se incluye en logs, notas de pedido o payloads.
+
+### Número de factura
+
+WooCommerce core crea pedidos, no una numeración fiscal que Puente pueda asumir automáticamente. Por eso el plugin obliga a elegir una fuente:
+
+- **meta-key de un plugin de facturación existente** — opción recomendada cuando la tienda ya genera facturas;
+- **número de pedido** — solo si el comercio confirma explícitamente que ese número es también su numeración de factura;
+- **sin configurar** — `invoice_number` queda vacío y el preflight bloquea cualquier emisión.
+
+También existe el filtro `pv_woo_invoice_number` para integraciones específicas. El `MappingProfile` de referencia mapea `invoice_number → number`; nunca mapea `order_number` silenciosamente.
 
 ## Modo manual primero
 
@@ -93,6 +104,7 @@ Campos principales:
 
 - `source_invoice_id`;
 - `order_id` / `order_number`;
+- `invoice_number`;
 - `order_date`;
 - `description`;
 - `currency`;
@@ -104,7 +116,7 @@ Campos principales:
 - `tax_amount`;
 - `tax_lines[]`.
 
-La moneda viene del propio pedido y se mapea de forma dinámica. Para facturas no EUR, el motor fiscal seguirá exigiendo la conversión explícita a EUR cuando corresponda; el plugin no inventa tipos de cambio.
+La moneda viene del propio pedido y se mapea de forma dinámica. **En v1, una moneda distinta de EUR queda bloqueada por preflight** hasta que exista un contrato explícito para proporcionar importes fiscales convertidos a EUR. El plugin nunca inventa tipos de cambio.
 
 `tax_lines[]` puede contener varias líneas con `rate`, `baseAmount` y `taxAmount`. El origen **no puede introducir** `taxCode`, `regimeKey` u `operationClass`: esos campos se añaden server-side mediante `taxLineDefaults` del `MappingProfile`.
 
@@ -116,7 +128,7 @@ Es solo un ejemplo estructural. Antes de activarlo se deben configurar en servid
 
 ## Reintentos
 
-Los fallos marcados `retryable` se reintentan hasta cinco intentos con backoff. Los errores de validación/preflight quedan bloqueados para intervención humana y no se reenvían automáticamente.
+Los fallos marcados `retryable` se reintentan hasta cinco intentos con backoff. Los errores de validación/preflight quedan bloqueados para intervención humana y no se reenvían automáticamente. Cuando se agotan los reintentos, el estado pasa expresamente a `blocked`.
 
 ## Datos guardados en el pedido
 
@@ -138,5 +150,6 @@ Si el plugin deja de ser compatible temporalmente con una actualización de WooC
 
 - rectificaciones/reembolsos explícitos;
 - panel visual de tráfico verde/ámbar/rojo en listado de pedidos;
+- contrato de conversión EUR para pedidos en moneda extranjera;
 - paquete ZIP/release WordPress;
 - matriz automatizada de compatibilidad WordPress/WooCommerce.
