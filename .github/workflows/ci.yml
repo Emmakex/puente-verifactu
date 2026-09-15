@@ -12,7 +12,7 @@ jobs:
   validation:
     name: Contract and core validation
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,6 +21,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+
+      - name: Setup PHP 7.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          coverage: none
 
       - name: Repository contract check
         run: npm run check
@@ -42,3 +48,9 @@ jobs:
 
       - name: Durable HTTP runtime smoke
         run: npm run runtime:smoke
+
+      - name: WooCommerce connector contract
+        run: npm run woo:contract
+
+      - name: WooCommerce PHP syntax
+        run: find connectors/woocommerce -name '*.php' -print0 | xargs -0 -n1 php -l
