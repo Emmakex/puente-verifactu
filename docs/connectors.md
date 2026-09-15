@@ -40,7 +40,7 @@ Un conector/adaptador debe:
 1. `reference`: especificación ejecutable del contrato.
 2. `file-import`: CSV/XLSX y fallback universal.
 3. WordPress + WooCommerce — primera implementación nativa de Fase 5.
-4. PrestaShop — segunda implementación nativa, en validación de compatibilidad real.
+4. PrestaShop — segunda implementación nativa, con matriz real de instalación 1.7.8.x/8.x ya validada.
 5. REST/webhook universal.
 6. ERP/CRM prioritarios según demanda real.
 
@@ -70,7 +70,7 @@ Reembolsos/rectificaciones son operaciones fiscales explícitas y no se derivan 
 
 ### PrestaShop v1
 
-El segundo conector nativo permanece en modo manual mientras se completa su matriz real de compatibilidad:
+El segundo conector nativo permanece en modo manual mientras se cierran empaquetado, UX operativa y rectificativas:
 
 - alcance declarado inicial PrestaShop 1.7.8.x y 8.x;
 - configuración aislada por tienda de endpoint HTTPS, `MappingProfile` y timeout;
@@ -86,9 +86,10 @@ El segundo conector nativo permanece en modo manual mientras se completa su matr
 - `Idempotency-Key` estable por tienda + pedido + factura y `recordId` persistido localmente para impedir duplicados;
 - aislamiento de pedidos por `id_shop` antes de ejecutar acciones manuales;
 - fixtures CI obligatorios para descuentos, tipos múltiples, portes, wrapping, envío gratuito, tipo 0 y redondeo;
-- no existe todavía automatización de estados, abonos ni rectificativas hasta superar los siguientes gates de compatibilidad.
+- matriz real de instalación y payload validada en PrestaShop 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1 mediante PrestaShop Flashlight;
+- no existe todavía automatización de estados, abonos ni rectificativas hasta superar los gates restantes.
 
-El certificado AEAT no entra nunca en PrestaShop. Igual que en WooCommerce, el módulo no construye XML ni decide clasificación fiscal sensible.
+El smoke real instala el módulo, comprueba su tabla local, crea una factura de prueba con `Order::setInvoice()` cuando el dataset no dispone de ella e invoca el extractor sobre esa `OrderInvoice`. El certificado AEAT no entra nunca en PrestaShop. Igual que en WooCommerce, el módulo no construye XML ni decide clasificación fiscal sensible.
 
 ## Suite contractual
 
@@ -96,4 +97,4 @@ Todos los canales deben pasar los mismos escenarios relevantes: alta, duplicado,
 
 Los conectores nativos añaden gates de plataforma. Para WooCommerce se valida sintaxis PHP, declaración HPOS, ausencia de accesos directos a tablas/post-meta, preflight antes de emisión, idempotencia, transporte HTTPS y ausencia de lógica AEAT duplicada.
 
-Para PrestaShop se validan desde CI el rango declarado de versiones, HTTPS/TLS, token cifrado, factura/numeración fiscal nativa, idempotencia, estado local por tienda, uso del breakdown nativo, fixtures fiscales y ausencia de XML/SOAP/certificados dentro del módulo. La matriz de instalación real sigue siendo el siguiente gate antes de declarar compatibilidad cerrada.
+Para PrestaShop se validan desde CI el rango declarado de versiones, HTTPS/TLS, token cifrado, factura/numeración fiscal nativa, idempotencia, estado local por tienda, uso del breakdown nativo, fixtures fiscales, instalación en tiendas reales y ausencia de XML/SOAP/certificados dentro del módulo. El siguiente gate es el paquete ZIP reproducible con instalación/upgrade smoke.
