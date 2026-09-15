@@ -40,7 +40,7 @@ Un conector/adaptador debe:
 1. `reference`: especificación ejecutable del contrato.
 2. `file-import`: CSV/XLSX y fallback universal.
 3. WordPress + WooCommerce — primera implementación nativa de Fase 5.
-4. PrestaShop — segunda implementación nativa, foundation v1 en curso.
+4. PrestaShop — segunda implementación nativa, en validación de compatibilidad real.
 5. REST/webhook universal.
 6. ERP/CRM prioritarios según demanda real.
 
@@ -68,20 +68,25 @@ El primer conector nativo sigue estas reglas adicionales:
 
 Reembolsos/rectificaciones son operaciones fiscales explícitas y no se derivan automáticamente de una edición posterior del pedido.
 
-### PrestaShop v1 foundation
+### PrestaShop v1
 
-El segundo conector nativo comienza deliberadamente en modo manual para reducir riesgo durante la primera matriz real de compatibilidad:
+El segundo conector nativo permanece en modo manual mientras se completa su matriz real de compatibilidad:
 
 - alcance declarado inicial PrestaShop 1.7.8.x y 8.x;
 - configuración aislada por tienda de endpoint HTTPS, `MappingProfile` y timeout;
 - token Bearer cifrado localmente con AES-256-GCM y clave derivada de `_COOKIE_KEY_`;
-- número de factura obtenido del número fiscal nativo de PrestaShop, nunca de la mera referencia del pedido;
-- payload neutral con moneda de origen y desglose `tax_lines[]`; cualquier conversión fiscal no-EUR → EUR se resuelve server-side;
+- factura seleccionada desde `OrderInvoice`; el flujo por pedido bloquea explícitamente los casos con varias facturas hasta disponer de selección de factura individual;
+- número fiscal obtenido de la factura nativa, nunca de la mera referencia del pedido;
+- desglose tributario obtenido de las APIs nativas de `OrderInvoice` para productos, portes y wrapping, respetando el reparto de descuentos/redondeo ya calculado por PrestaShop;
+- reconciliación exacta de base y cuota contra los totales de la factura antes del preflight; una incoherencia material bloquea la operación;
+- base residual sin cuota puede representarse como tipo 0 únicamente cuando los totales de factura lo justifican; nunca se inventa una cuota;
+- ecotasa bloqueada hasta definir un mapping fiscal explícito;
+- payload neutral con moneda de origen; cualquier conversión fiscal no-EUR → EUR se resuelve server-side;
 - flujo explícito `preflight -> issue -> reconcile`; la emisión solo se habilita si el preflight pasa;
 - `Idempotency-Key` estable por tienda + pedido + factura y `recordId` persistido localmente para impedir duplicados;
 - aislamiento de pedidos por `id_shop` antes de ejecutar acciones manuales;
-- no existe todavía automatización de estados, abonos ni rectificativas hasta superar los siguientes gates de extracción/compatibilidad;
-- promociones complejas, portes y wrapping se consideran casos de prueba obligatorios antes de cerrar el conector.
+- fixtures CI obligatorios para descuentos, tipos múltiples, portes, wrapping, envío gratuito, tipo 0 y redondeo;
+- no existe todavía automatización de estados, abonos ni rectificativas hasta superar los siguientes gates de compatibilidad.
 
 El certificado AEAT no entra nunca en PrestaShop. Igual que en WooCommerce, el módulo no construye XML ni decide clasificación fiscal sensible.
 
@@ -91,4 +96,4 @@ Todos los canales deben pasar los mismos escenarios relevantes: alta, duplicado,
 
 Los conectores nativos añaden gates de plataforma. Para WooCommerce se valida sintaxis PHP, declaración HPOS, ausencia de accesos directos a tablas/post-meta, preflight antes de emisión, idempotencia, transporte HTTPS y ausencia de lógica AEAT duplicada.
 
-Para PrestaShop la foundation valida desde CI: rango declarado de versiones, HTTPS/TLS, token cifrado, número fiscal nativo, idempotencia, estado local por tienda, desglose tributario neutral y ausencia de XML/SOAP/certificados dentro del módulo. La matriz de instalación real se añade como siguiente gate antes de declarar compatibilidad cerrada.
+Para PrestaShop se validan desde CI el rango declarado de versiones, HTTPS/TLS, token cifrado, factura/numeración fiscal nativa, idempotencia, estado local por tienda, uso del breakdown nativo, fixtures fiscales y ausencia de XML/SOAP/certificados dentro del módulo. La matriz de instalación real sigue siendo el siguiente gate antes de declarar compatibilidad cerrada.
