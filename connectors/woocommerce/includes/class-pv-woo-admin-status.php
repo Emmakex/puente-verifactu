@@ -25,7 +25,7 @@ final class PV_Woo_Admin_Status {
         if ( self::COLUMN !== $column ) {
             return;
         }
-        if ( ! $order instanceof WC_Order ) {
+        if ( ! ( $order instanceof WC_Order ) ) {
             $order = wc_get_order( $order );
         }
         self::render( $order );
@@ -41,7 +41,7 @@ final class PV_Woo_Admin_Status {
     }
 
     private static function render( $order ) {
-        if ( ! $order instanceof WC_Order || $order instanceof WC_Order_Refund ) {
+        if ( ! ( $order instanceof WC_Order ) || $order instanceof WC_Order_Refund ) {
             echo '<span class="pv-vf-status pv-vf-status--gray">● ' . esc_html__( 'Not available', 'puente-verifactu-woocommerce' ) . '</span>';
             return;
         }
@@ -57,6 +57,7 @@ final class PV_Woo_Admin_Status {
 
     public static function summary( WC_Order $order ) {
         $statuses = array();
+        $has_sync_error = '' !== trim( (string) $order->get_meta( PV_Woo_Connector::META_LAST_ERROR, true ) );
         $base = sanitize_key( (string) $order->get_meta( PV_Woo_Connector::META_STATUS, true ) );
         if ( '' !== $base ) {
             $statuses[] = $base;
@@ -67,6 +68,9 @@ final class PV_Woo_Admin_Status {
             $refund_count++;
             $status = sanitize_key( (string) $refund->get_meta( PV_Woo_Connector::META_STATUS, true ) );
             $statuses[] = '' === $status ? 'refund_pending' : $status;
+            if ( '' !== trim( (string) $refund->get_meta( PV_Woo_Connector::META_LAST_ERROR, true ) ) ) {
+                $has_sync_error = true;
+            }
         }
 
         $level = 'gray';
@@ -80,6 +84,9 @@ final class PV_Woo_Admin_Status {
         if ( empty( $statuses ) ) {
             $level = 'gray';
         }
+        if ( $has_sync_error && self::weight( 'amber' ) > self::weight( $level ) ) {
+            $level = 'amber';
+        }
 
         $labels = array(
             'green' => __( 'Synced', 'puente-verifactu-woocommerce' ),
@@ -91,6 +98,9 @@ final class PV_Woo_Admin_Status {
         $detail = empty( $statuses ) ? __( 'No Puente VeriFactu operation exists yet.', 'puente-verifactu-woocommerce' ) : implode( ', ', $statuses );
         if ( $refund_count > 0 ) {
             $detail .= ' · ' . sprintf( _n( '%d refund', '%d refunds', $refund_count, 'puente-verifactu-woocommerce' ), $refund_count );
+        }
+        if ( $has_sync_error ) {
+            $detail .= ' · ' . __( 'Pending / review', 'puente-verifactu-woocommerce' );
         }
 
         return array(
