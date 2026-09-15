@@ -104,6 +104,8 @@ Campos principales:
 - `tax_amount`;
 - `tax_lines[]`.
 
+La moneda viene del propio pedido y se mapea de forma dinámica. Para facturas no EUR, el motor fiscal seguirá exigiendo la conversión explícita a EUR cuando corresponda; el plugin no inventa tipos de cambio.
+
 `tax_lines[]` puede contener varias líneas con `rate`, `baseAmount` y `taxAmount`. El origen **no puede introducir** `taxCode`, `regimeKey` u `operationClass`: esos campos se añaden server-side mediante `taxLineDefaults` del `MappingProfile`.
 
 ## MappingProfile
@@ -136,6 +138,5 @@ Si el plugin deja de ser compatible temporalmente con una actualización de WooC
 
 - rectificaciones/reembolsos explícitos;
 - panel visual de tráfico verde/ámbar/rojo en listado de pedidos;
-- mapping de moneda dinámica para escenarios multi-divisa;
 - paquete ZIP/release WordPress;
 - matriz automatizada de compatibilidad WordPress/WooCommerce.
