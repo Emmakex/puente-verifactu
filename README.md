@@ -2,7 +2,7 @@
 
 **Puente VeriFactu** es la capa de integración fiscal de Kairoseth Extensions para conectar sistemas de facturación, ERP, CRM, ecommerce, hojas de cálculo y software propio con **VERI*FACTU / AEAT** sin obligar al negocio a sustituir lo que ya utiliza.
 
-> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 en desarrollo con la primera base nativa para WooCommerce. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
+> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 en desarrollo con WooCommerce ya cubriendo facturas, refunds rectificativos, UX operativa y gates de compatibilidad/empaquetado en curso. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
 
 ## Principio Camaleón
 
@@ -52,14 +52,15 @@ packages/connector-contract-suite/ Gate de compatibilidad para conectores tercer
 packages/diagnostics/              Diagnóstico estructurado
 connectors/reference/              Conector de referencia
 connectors/file-import/            Entrada cero-código CSV/XLSX
-connectors/woocommerce/            Primer conector nativo WooCommerce
+connectors/woocommerce/            Conector nativo WooCommerce
 scripts/aeat/                      Gate seguro de pruebas AEAT
 scripts/ci/                        Gates y diagnóstico CI
+scripts/release/                   Empaquetado reproducible de extensiones
 ```
 
 ## Documentación
 
-Consulta [docs/README.md](docs/README.md). Para integrar un sistema, empieza por [universal-integration-kit-v1.md](docs/universal-integration-kit-v1.md), [mapping-assistant-v1.md](docs/mapping-assistant-v1.md), [integration-strategy.md](docs/integration-strategy.md) y [onboarding-integration.md](docs/onboarding-integration.md). El wizard visual está documentado en `apps/onboarding/README.md`, el runtime en `apps/server/README.md`, la validación de conectores en `packages/connector-contract-suite/README.md` y WooCommerce en `connectors/woocommerce/README.md`.
+Consulta [docs/README.md](docs/README.md). Para integrar un sistema, empieza por [universal-integration-kit-v1.md](docs/universal-integration-kit-v1.md), [mapping-assistant-v1.md](docs/mapping-assistant-v1.md), [integration-strategy.md](docs/integration-strategy.md) y [onboarding-integration.md](docs/onboarding-integration.md). El wizard visual está documentado en `apps/onboarding/README.md`, el runtime en `apps/server/README.md`, la validación de conectores en `packages/connector-contract-suite/README.md`, WooCommerce en `connectors/woocommerce/README.md` y su matriz/release en `docs/woocommerce-compatibility.md`.
 
 ## Estado normativo de referencia
 
@@ -67,7 +68,7 @@ Documentación revisada el **15 de septiembre de 2026**. Antes de cada release c
 
 ## Desarrollo
 
-Requiere Node.js 22.13+ para las herramientas actuales del repositorio. El gate del conector WooCommerce valida además sintaxis PHP 7.4.
+Requiere Node.js 22.13+ para las herramientas actuales del repositorio. Los gates del conector WooCommerce validan además sintaxis PHP 7.4, ZIP reproducible y una matriz real WordPress/WooCommerce.
 
 ```bash
 npm run check
@@ -78,6 +79,8 @@ npm run onboarding:smoke
 npm run contract:reference
 npm run runtime:smoke
 npm run woo:contract
+npm run woo:package:check
+npm run woo:package
 npm run aeat:gate
 ```
 
