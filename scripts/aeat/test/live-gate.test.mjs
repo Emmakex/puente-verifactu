@@ -19,6 +19,8 @@ const env = {
   AEAT_TEST_TIMEZONE: 'Europe/Madrid',
 };
 
+const sourceCommit = '0123456789abcdef0123456789abcdef01234567';
+
 test('live gate builds deterministic first-record fixture without a certificate', () => {
   const now = new Date('2026-09-15T08:00:00.000Z');
   const fixture = buildLiveGateFixture(env, now);
@@ -58,9 +60,53 @@ test('evidence output requires an exact source commit', () => {
   );
   const options = parseLiveGateOptions([
     '--evidence-output', 'evidence.json',
-    '--source-commit', '0123456789abcdef0123456789abcdef01234567',
+    '--source-commit', sourceCommit,
   ], {});
-  assert.equal(options.sourceCommit, '0123456789abcdef0123456789abcdef01234567');
+  assert.equal(options.sourceCommit, sourceCommit);
+});
+
+test('controlled reconciliation seed requires send, accepted expectation, guard, commit and both private paths', () => {
+  const base = [
+    '--reconciliation-seed-db', 'private/seed.sqlite',
+    '--reconciliation-seed-output', 'private/seed.json',
+    '--source-commit', sourceCommit,
+  ];
+  assert.throws(
+    () => parseLiveGateOptions(base, { AEAT_RECONCILIATION_SEED: 'YES' }),
+    { code: 'VF_AEAT_RECONCILIATION_SEED_SEND_REQUIRED' },
+  );
+  assert.throws(
+    () => parseLiveGateOptions(['--send', '--expect', 'rejected', ...base], { AEAT_LIVE_SEND: 'YES', AEAT_RECONCILIATION_SEED: 'YES' }),
+    { code: 'VF_AEAT_RECONCILIATION_SEED_EXPECT_ACCEPTED' },
+  );
+  assert.throws(
+    () => parseLiveGateOptions(['--send', ...base], { AEAT_LIVE_SEND: 'YES' }),
+    { code: 'VF_AEAT_RECONCILIATION_SEED_GUARD' },
+  );
+  assert.throws(
+    () => parseLiveGateOptions([
+      '--send',
+      '--reconciliation-seed-db', 'private/seed.sqlite',
+      '--source-commit', sourceCommit,
+    ], { AEAT_LIVE_SEND: 'YES', AEAT_RECONCILIATION_SEED: 'YES' }),
+    { code: 'VF_AEAT_RECONCILIATION_SEED_PATHS_REQUIRED' },
+  );
+  assert.throws(
+    () => parseLiveGateOptions([
+      '--send',
+      '--reconciliation-seed-db', 'private/seed.sqlite',
+      '--reconciliation-seed-output', 'private/seed.json',
+    ], { AEAT_LIVE_SEND: 'YES', AEAT_RECONCILIATION_SEED: 'YES' }),
+    { code: 'VF_AEAT_RECONCILIATION_SEED_SOURCE_COMMIT_REQUIRED' },
+  );
+
+  const options = parseLiveGateOptions(['--send', ...base], {
+    AEAT_LIVE_SEND: 'YES',
+    AEAT_RECONCILIATION_SEED: 'YES',
+  });
+  assert.equal(options.expectedStatus, 'accepted');
+  assert.equal(options.reconciliationSeedDb, 'private/seed.sqlite');
+  assert.equal(options.reconciliationSeedOutput, 'private/seed.json');
 });
 
 test('summary masks taxpayer ID, fingerprints XML and pins AEAT artifact versions', () => {
@@ -104,13 +150,13 @@ test('evidence is commit-bound and contains only sanitized result material', () 
   const evidence = buildLiveGateEvidence({
     action: 'submit',
     expectedStatus: 'accepted',
-    sourceCommit: '0123456789abcdef0123456789abcdef01234567',
+    sourceCommit,
     summary: { xmlSha256: 'a'.repeat(64) },
     result,
     recordedAt: new Date('2026-09-15T12:00:00Z'),
   });
   assert.equal(evidence.schemaVersion, 1);
-  assert.equal(evidence.sourceCommit, '0123456789abcdef0123456789abcdef01234567');
+  assert.equal(evidence.sourceCommit, sourceCommit);
   assert.equal(evidence.result.csvPresent, true);
   assert.doesNotMatch(JSON.stringify(evidence), /CSV-123/);
 });
