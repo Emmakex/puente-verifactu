@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "contract": "native-reconciliation-v2",
+  "scenarios": [
+    "invoice.existing-retryable-no-reissue",
+    "invoice.existing-nonretryable-no-reissue",
+    "invoice.new-retryable-idempotency-stable",
+    "corrective.existing-retryable-no-reissue",
+    "corrective.existing-nonretryable-no-reissue",
+    "corrective.new-retryable-idempotency-stable"
+  ]
+}
