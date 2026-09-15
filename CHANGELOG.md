@@ -6,6 +6,10 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- WooCommerce Connector v0.2: refunds tratados como operaciones rectificativas explícitas e idempotentes mediante un `MappingProfile` server-side separado.
+- Numeración fiscal propia para cada refund/rectificativa, relación con factura original y preflight obligatorio antes de emitir.
+- Semáforo operativo verde/ámbar/rojo en listados HPOS y legacy, agregado entre factura principal y refunds.
+- Mapping nativo seguro de referencias a factura rectificada y bloqueo de `invoiceType` aportado por conectores nativos.
 - WooCommerce Connector v1: plugin HPOS-safe con preflight, emisión idempotente asíncrona, reconciliación, token cifrado, fallback CSV/XLSX y UX ES/EN.
 - Mapping nativo multirate mediante `taxBreakdown` + `taxLineDefaults` server-side, impidiendo que un conector decida `taxCode`, `regimeKey` u `operationClass`.
 - Mapping dinámico de moneda desde sistemas origen sin introducir conversiones fiscales automáticas.
