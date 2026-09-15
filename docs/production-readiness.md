@@ -124,9 +124,36 @@ El contrato completo, incluidos los códigos `VF_OBS_*`, se documenta en `docs/o
 
 ### 6.4 Runbooks operativos
 
-Pendiente salvo los procedimientos ya documentados de backup/restore y semántica de reconciliación del outbox.
+Estado: **implementados para el perfil single-node y protegidos por `npm run check`**.
 
-Debe cubrir arranque/parada, recuperación de base, incidente de envío, tratamiento de `reconciliation_required`, degradación AEAT, rotación de credenciales, rollback y verificación post-deploy.
+Índice: `docs/runbooks/README.md`.
+
+Cobertura obligatoria:
+
+- deploy/rollback con backup previo verificado, health/readiness y verificación de `/v1/ops/status` antes de reabrir tráfico;
+- rollback de código sin restore automático de base;
+- recuperación de base mediante backup/restore offline protegido;
+- incidente AEAT y tratamiento de `reconciliation_required` sin reemisión ciega;
+- degradación AEAT diferenciando pending no despachado de resultado remoto incierto;
+- rotación de credenciales Bearer/Basic y autoridad operacional `ops:read` sin guardar secretos en Git;
+- verificación post-deploy/post-restore y registro de evidencia mínima no sensible.
+
+Runbooks:
+
+- `docs/runbooks/deploy-rollback.md`;
+- `docs/runbooks/aeat-incident-reconciliation.md`;
+- `docs/runbooks/backup-restore.md`;
+- `docs/runbooks/credential-rotation.md`.
+
+Gate ejecutable:
+
+```bash
+npm run runbooks:check
+```
+
+El gate forma parte de `npm run check`, por lo que CI falla si desaparece un procedimiento, una guarda crítica o un comando operativo documentado.
+
+**Límite:** los runbooks actuales describen el perfil single-node. Cualquier deployment HA/multi-réplica deberá tener procedimientos específicos para su store compartido, locking y rate limiting antes de producción.
 
 ### 6.5 Perfil HA / multi-réplica
 
