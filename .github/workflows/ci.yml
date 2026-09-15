@@ -64,6 +64,9 @@ jobs:
       - name: PrestaShop fiscal fixtures
         run: npm run prestashop:fixtures
 
+      - name: PrestaShop corrective VAT fixtures
+        run: npm run prestashop:rectification-fixtures
+
       - name: PrestaShop reproducible release package
         run: npm run prestashop:package:check
 
