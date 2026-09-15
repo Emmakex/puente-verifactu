@@ -51,20 +51,20 @@ final class PV_Woo_Client {
 
     private function request( $method, $path, array $body = null, array $extra_headers = array() ) {
         if ( ! $this->configured() ) {
-            return new WP_Error( 'pv_not_configured', __( 'Puente VeriFactu is not fully configured.', 'puente-verifactu-woocommerce' ) );
+            return new WP_Error( 'pv_not_configured', __( 'Puente VeriFactu is not fully configured.', 'puente-verifactu-woocommerce' ), array( 'retryable' => false ) );
         }
 
         $url = $this->endpoint . $path;
         if ( 0 !== strpos( $url, 'https://' ) ) {
-            return new WP_Error( 'pv_https_required', __( 'Puente VeriFactu requires an HTTPS endpoint.', 'puente-verifactu-woocommerce' ) );
+            return new WP_Error( 'pv_https_required', __( 'Puente VeriFactu requires an HTTPS endpoint.', 'puente-verifactu-woocommerce' ), array( 'retryable' => false ) );
         }
 
         $headers = array_merge(
             array(
-                'Authorization'      => 'Bearer ' . $this->token,
-                'Accept'             => 'application/json',
-                'Content-Type'       => 'application/json',
-                'X-Connector-Version'=> 'woocommerce/' . PV_WOO_VERSION,
+                'Authorization'       => 'Bearer ' . $this->token,
+                'Accept'              => 'application/json',
+                'Content-Type'        => 'application/json',
+                'X-Connector-Version' => 'woocommerce/' . PV_WOO_VERSION,
             ),
             $extra_headers
         );
@@ -82,20 +82,28 @@ final class PV_Woo_Client {
 
         $response = wp_remote_request( $url, $args );
         if ( is_wp_error( $response ) ) {
-            return new WP_Error( 'pv_transport_error', __( 'Puente VeriFactu could not be reached.', 'puente-verifactu-woocommerce' ), array( 'cause' => $response->get_error_code() ) );
+            return new WP_Error(
+                'pv_transport_error',
+                __( 'Puente VeriFactu could not be reached.', 'puente-verifactu-woocommerce' ),
+                array( 'cause' => $response->get_error_code(), 'retryable' => true )
+            );
         }
 
         $status = (int) wp_remote_retrieve_response_code( $response );
         $raw    = (string) wp_remote_retrieve_body( $response );
         $json   = json_decode( $raw, true );
         if ( ! is_array( $json ) ) {
-            return new WP_Error( 'pv_invalid_response', __( 'Puente VeriFactu returned an invalid response.', 'puente-verifactu-woocommerce' ), array( 'http_status' => $status ) );
+            return new WP_Error(
+                'pv_invalid_response',
+                __( 'Puente VeriFactu returned an invalid response.', 'puente-verifactu-woocommerce' ),
+                array( 'http_status' => $status, 'retryable' => 429 === $status || $status >= 500 )
+            );
         }
 
         if ( $status < 200 || $status >= 300 ) {
             $code    = isset( $json['error']['code'] ) ? sanitize_key( $json['error']['code'] ) : 'pv_api_error';
             $message = isset( $json['error']['message'] ) ? sanitize_text_field( $json['error']['message'] ) : __( 'Puente VeriFactu rejected the request.', 'puente-verifactu-woocommerce' );
-            return new WP_Error( $code, $message, array( 'http_status' => $status, 'retryable' => ! empty( $json['error']['retryable'] ) ) );
+            return new WP_Error( $code, $message, array( 'http_status' => $status, 'retryable' => ! empty( $json['error']['retryable'] ) || 429 === $status || $status >= 500 ) );
         }
 
         return $json;
