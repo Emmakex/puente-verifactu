@@ -90,7 +90,7 @@ Las pruebas cubren persistencia tras reinicio, dispatch único, lease activo fre
 
 ### 6.3 Observabilidad y alertas
 
-Estado: **implementación v1 en validación CI**.
+Estado: **implementado para el perfil single-node y protegido por CI**.
 
 Contrato del gate:
 
