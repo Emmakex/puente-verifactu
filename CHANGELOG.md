@@ -6,6 +6,8 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Connector Contract Suite v1 framework-neutral con CLI para que terceros validen preflight, idempotencia, status, no mutación y ausencia de autoridad sensible en su propio CI.
+- Gate `npm run contract:reference` usando la misma suite sobre el conector oficial de referencia.
 - Wizard cero-código responsive ES/EN para cargar CSV/XLSX, confirmar mappings, completar configuración fija y ejecutar preflight sin enviar a AEAT.
 - Sesiones temporales de importación aisladas por organización/instalación con TTL, límites de tamaño y eliminación segura.
 - Allowlist de destinos/configuración y hardening contra prototype pollution en cualquier `MappingProfile`.
