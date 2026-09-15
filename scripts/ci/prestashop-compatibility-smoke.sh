@@ -93,13 +93,15 @@ $module = Module::getInstanceByName('puenteverifactu');
 if (!$module || empty($module->active)) {
     pvfFail('PRESTA_MODULE_NOT_ACTIVE', 'puenteverifactu is not active.');
 }
-if ((string) $module->version !== '0.2.0') {
-    pvfFail('PRESTA_MODULE_VERSION_MISMATCH', 'Expected module 0.2.0, received ' . (string) $module->version);
+if ((string) $module->version !== '0.3.0') {
+    pvfFail('PRESTA_MODULE_VERSION_MISMATCH', 'Expected module 0.3.0, received ' . (string) $module->version);
 }
 if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
     pvfFail('PRESTA_ORDER_STATUS_HOOK_MISSING', 'displayAdminOrderMainBottom was not registered.');
 }
 if (!class_exists('PVFPrestaShopOrderPayload')
+    || !class_exists('PVFPrestaShopOrderSlipPayload')
+    || !class_exists('PVFPrestaShopRectifications')
     || !class_exists('PVFPrestaShopTaxBreakdown')
     || !class_exists('PVFPrestaShopAdminStatus')) {
     pvfFail('PRESTA_RUNTIME_CLASSES_MISSING', 'Connector runtime classes were not loaded.');
@@ -125,6 +127,14 @@ $tableExists = (int) Db::getInstance()->getValue(
 );
 if ($tableExists !== 1) {
     pvfFail('PRESTA_SYNC_TABLE_MISSING', 'Connector sync table was not created.');
+}
+
+$rectTable = _DB_PREFIX_ . 'pvf_order_slip_sync';
+$rectTableExists = (int) Db::getInstance()->getValue(
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '" . pSQL($rectTable) . "'"
+);
+if ($rectTableExists !== 1) {
+    pvfFail('PRESTA_RECT_SYNC_TABLE_MISSING', 'Corrective sync table was not created.');
 }
 
 $orderId = (int) Db::getInstance()->getValue(
@@ -240,6 +250,7 @@ fwrite(STDOUT, json_encode(array(
     'invoice_id' => (string) $payload['invoice_id'],
     'tax_lines' => count($payload['tax_lines']),
     'native_order_status_card' => true,
+    'corrective_runtime_loaded' => true,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 PHP
 
@@ -302,4 +313,10 @@ docker exec \
   -e EXPECTED_PHP_VERSION="$PRESTASHOP_PHP" \
   "$PS_CONTAINER" php /tmp/pvf-verify.php
 
-echo "[presta-ci] release-package compatibility smoke passed for PrestaShop ${PRESTASHOP_VERSION} / PHP ${PRESTASHOP_PHP}"
+docker cp "$ROOT/scripts/ci/prestashop-rectification-runtime.php" "$PS_CONTAINER:/tmp/pvf-rectification-runtime.php"
+docker exec \
+  -e EXPECTED_PS_VERSION="$PRESTASHOP_VERSION" \
+  -e EXPECTED_PHP_VERSION="$PRESTASHOP_PHP" \
+  "$PS_CONTAINER" php /tmp/pvf-rectification-runtime.php
+
+echo "[presta-ci] release-package and corrective compatibility smoke passed for PrestaShop ${PRESTASHOP_VERSION} / PHP ${PRESTASHOP_PHP}"
