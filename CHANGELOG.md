@@ -6,6 +6,8 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Gate AEAT externo endurecido: `--expect` para aceptación/rechazo controlado, evidencia sanitizada ligada a commit, CSV/descripciones conservados solo por SHA-256, `--show-xml` restringido a dry-run y validación local del PFX antes de abrir red.
+- Soporte de passphrase PFX desde fichero secreto independiente y evidencia no-sobrescribible con permisos restrictivos, sin almacenar certificado, passphrase, XML fiscal ni SOAP crudo.
 - Fase 6: evidencia de release v1 con commit fuente explícito, estado de blockers, perfil de despliegue y SHA-256 reproducible de los paquetes WooCommerce y PrestaShop.
 - Registro regulatorio versionado `config/regulatory-sources.json`, cruzado en CI con `AEAT_ARTIFACTS` y con caducidad de 90 días para forzar revalidación periódica de fuentes AEAT/BOE.
 - Contrato `config/release-gates.json` que mantiene AEAT #6 como blocker de release/piloto fiscal real y declara HA/multi-réplica como no aplicable al perfil SQLite single-node actual.
