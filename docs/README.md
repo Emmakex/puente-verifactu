@@ -22,10 +22,11 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `security.md` | Credenciales, tenants, secretos, amenazas y privacidad |
 | `testing-quality.md` | Pirámide de pruebas y gates |
 | `operations-observability.md` | Logs, métricas, trazas, reintentos y diagnósticos |
+| `production-readiness.md` | Gates de Fase 6, backup/restore, HA, runbooks y criterios de release |
 | `roadmap.md` | Fases de implementación y criterios de salida |
 | `engineering-rules.md` | Reglas globales de ingeniería |
 | `adr/` | Decisiones arquitectónicas persistentes |
 
 ## Regla documental
 
-Todo cambio que altere un contrato, comportamiento fiscal, flujo de datos, requisito regulatorio, onboarding o decisión arquitectónica debe actualizar la documentación correspondiente en el mismo PR.
+Todo cambio que altere un contrato, comportamiento fiscal, flujo de datos, requisito regulatorio, onboarding, operación o decisión arquitectónica debe actualizar la documentación correspondiente en el mismo PR.
