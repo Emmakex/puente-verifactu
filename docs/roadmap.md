@@ -13,7 +13,7 @@ Regla: **finish before advancing**.
 
 **Salida cumplida:** repositorio preparado para desarrollar sin decisiones fundamentales implícitas.
 
-## Fase 1 — Canonical Core
+## Fase 1 — Canonical Core ✅
 
 - [x] Modelo canónico `InvoiceIntent v1`.
 - [x] Schemas versionados.
@@ -27,18 +27,24 @@ Regla: **finish before advancing**.
 - [x] Persistencia append-only de referencia en memoria.
 - [x] Fixture CSV común y smoke de CI.
 
-**Criterio de salida:** tests + preflight CSV + CI deben estar verdes antes de marcar esta fase cerrada en `main`.
+**Salida cumplida:** una misma factura produce la misma intención canónica independientemente del canal de entrada; tests, preflight CSV y CI están verdes.
 
-**Salida funcional:** una misma factura puede producir la misma intención canónica independientemente del canal de entrada.
+## Fase 2 — Hash & Fiscal Records ✅
 
-## Fase 2 — Hash & Fiscal Records
+- [x] Registro fiscal interno de alta.
+- [x] Registro fiscal interno de anulación.
+- [x] SHA-256 / `TipoHuella=01` con material AEAT exacto.
+- [x] Fixtures oficiales AEAT como pruebas de regresión.
+- [x] Encadenamiento único por obligado + SIF + instalación.
+- [x] Referencia completa al registro inmediatamente anterior.
+- [x] Serialización de concurrencia por cadena.
+- [x] Idempotencia de emisión/anulación.
+- [x] Timestamp con zona IANA y offset explícito.
+- [x] Verificación de registro y cadena.
+- [x] Trazabilidad mínima de origen.
+- [x] Documentación normativa/técnica.
 
-- registros necesarios para MVP;
-- encadenamiento/hash con fixtures oficiales;
-- concurrencia/serialización;
-- auditoría.
-
-**Salida:** cadena reproducible y verificada.
+**Salida cumplida:** cadena reproducible y verificada contra los tres vectores oficiales AEAT de hash. El store en memoria sigue siendo una referencia; la persistencia durable/productiva es un gate obligatorio antes del piloto real.
 
 ## Fase 3 — AEAT Test Adapter
 
@@ -73,7 +79,7 @@ Regla: **finish before advancing**.
 
 ## Fase 6 — Production Readiness
 
-Hardening, backups/restauración, observabilidad/alertas, runbooks, verificación regulatoria final, declaración responsable por versión y piloto progresivo.
+Hardening, persistencia durable, backups/restauración, observabilidad/alertas, runbooks, verificación regulatoria final, declaración responsable por versión y piloto progresivo.
 
 ## Posterior
 
