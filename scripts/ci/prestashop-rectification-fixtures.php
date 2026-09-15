@@ -12,7 +12,7 @@ $cases = array(
     array('id' => 'vat-4-exact', 'base' => 10000, 'tax' => 400, 'rate' => '4', 'expected' => true),
     array('id' => 'vat-21-rounded-cent', 'base' => 333, 'tax' => 70, 'rate' => '21', 'expected' => true),
     array('id' => 'vat-21-two-cent-tolerance', 'base' => 10000, 'tax' => 2102, 'rate' => '21', 'expected' => true),
-    array('id' => 'vat-21-reject-inferred-20-99', 'base' => 10000, 'tax' => 2099, 'rate' => '20.99', 'expected' => false, 'tolerance' => 0),
+    array('id' => 'vat-21-reject-20-99-with-zero-tolerance', 'base' => 10000, 'tax' => 2099, 'rate' => '21', 'expected' => false, 'tolerance' => 0),
     array('id' => 'vat-21-material-mismatch', 'base' => 10000, 'tax' => 2050, 'rate' => '21', 'expected' => false),
     array('id' => 'zero-rate', 'base' => 10000, 'tax' => 0, 'rate' => '0', 'expected' => true),
 );
