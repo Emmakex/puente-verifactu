@@ -12,8 +12,6 @@ La integración no exige que el cliente conozca XML AEAT, hashes, certificados n
 
 Para software que ya puede construir `InvoiceIntent v1`.
 
-Flujo:
-
 ```text
 ERP/CRM/ecommerce -> SDK/API -> preflight -> fiscalización -> estado
 ```
@@ -40,9 +38,15 @@ El webhook usa:
 - `Idempotency-Key` o `X-Event-Id`;
 - secreto resuelto exclusivamente en servidor.
 
-### 4. Archivo
+### 4. Archivo cero-código
 
-CSV ya implementado como vía cero-código. XLSX se añadirá en esta misma fase sobre el mismo `MappingProfile`.
+CSV y XLSX reutilizan exactamente el mismo `MappingProfile` y preflight.
+
+```text
+archivo existente -> inspección -> mapping asistido -> preflight -> perfil guardado
+```
+
+El lector XLSX es read-only, sin dependencias externas y con límites defensivos. El asistente clasifica propuestas como automáticas o pendientes de revisión y nunca convierte una coincidencia dudosa en decisión fiscal silenciosa.
 
 ### 5. Conector nativo
 
@@ -95,13 +99,26 @@ La consulta de un `recordId` siempre se filtra por el tenant autenticado. Un ten
 
 El SDK es **server-side only**.
 
+## Mapping Assistant
+
+`packages/core/src/mapping-assistant.mjs` aporta el contrato común para CSV/XLSX y para la futura UI:
+
+- sugerencias con confianza;
+- auto-mapping solo en coincidencias fuertes;
+- confirmación explícita para sugerencias `review`;
+- detección de campos esenciales pendientes;
+- detección de configuración fija del negocio pendiente;
+- borrador de `MappingProfile` reutilizable.
+
+El flujo UX está definido en `mapping-assistant-v1.md`.
+
 ## Conector de referencia
 
 `connectors/reference` demuestra el patrón mínimo de integración y será la base contractual para conectores nativos posteriores.
 
 ## Estado de Fase 4
 
-Primera entrega implementada:
+Implementado:
 
 - API framework-neutral;
 - identidad server-authoritative;
@@ -110,14 +127,17 @@ Primera entrega implementada:
 - webhook firmado;
 - SDK server-side;
 - conector de referencia;
-- tests de tenant isolation, idempotencia y contrato SDK.
+- CSV;
+- lector XLSX read-only;
+- inspección unificada de archivos;
+- asistente de mapping con confianza y confirmación;
+- tests de tenant isolation, idempotencia, XLSX, mapping y contrato SDK.
 
 Pendiente dentro de Fase 4:
 
 - persistencia durable de API/estado;
 - autenticación real/API keys y rate limits en el deployment;
-- XLSX;
-- UI/flujo asistido de mapping;
+- UI visual ES/EN sobre el contrato del asistente;
 - suite contractual empaquetada para terceros;
 - adaptador HTTP concreto para el entorno de despliegue.
 
