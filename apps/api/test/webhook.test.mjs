@@ -50,7 +50,7 @@ function setup() {
 test('signed webhook maps source data and creates a fiscal record', async () => {
   const handler = setup();
   const rawBody = JSON.stringify({ invoice_number: 'W-1', invoice_date: '2026-09-15', total: '121.00' });
-  const timestamp = '1789459200';
+  const timestamp = String(Math.floor(Date.now() / 1000));
   const signature = signWebhook({ rawBody, timestamp, secret });
   const response = await handler({
     method: 'POST',
