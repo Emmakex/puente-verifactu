@@ -46,7 +46,7 @@ El almacenamiento remoto, cifrado del repositorio de backups, retención y agend
 
 ### 6.2 Outbox durable de producción
 
-Estado: **implementación v1 en curso de validación CI**.
+Estado: **implementado para el perfil SQLite single-node y protegido por CI**.
 
 Contrato del gate:
 
