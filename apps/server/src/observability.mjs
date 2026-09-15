@@ -7,6 +7,22 @@ const DEFAULT_THRESHOLDS = Object.freeze({
   backupCriticalMs: 50 * 60 * 60 * 1000,
 });
 
+const EMPTY_OUTBOX = Object.freeze({
+  available: false,
+  total: null,
+  pending: null,
+  processing: null,
+  reconciliationRequired: null,
+  completed: null,
+  blocked: null,
+  duePending: null,
+  expiredProcessing: null,
+  oldestPendingAt: null,
+  oldestPendingAgeMs: null,
+  oldestReconciliationAt: null,
+  oldestReconciliationAgeMs: null,
+});
+
 function validThreshold(value, fallback, name) {
   if (value == null) return fallback;
   if (!Number.isInteger(value) || value < 1) throw new TypeError(`${name} must be a positive integer`);
@@ -63,34 +79,45 @@ function databaseStatus(database) {
   }
 }
 
+function outboxStatus(outbox, now) {
+  try {
+    return Object.freeze({ available: true, ...outbox.stats(now) });
+  } catch {
+    return EMPTY_OUTBOX;
+  }
+}
+
 function deriveAlerts({ database, outbox, backup }, thresholds) {
   const alerts = [];
   if (!database.ok) alerts.push(alert('VF_OBS_DATABASE_UNAVAILABLE', 'critical', 'SQLite is not available'));
-
-  if (outbox.reconciliationRequired > 0) {
-    alerts.push(alert(
-      'VF_OBS_AEAT_RECONCILIATION_REQUIRED',
-      'critical',
-      'AEAT operations require explicit reconciliation',
-      { count: outbox.reconciliationRequired },
-    ));
-  }
-  if (outbox.blocked > 0) {
-    alerts.push(alert('VF_OBS_AEAT_OUTBOX_BLOCKED', 'critical', 'AEAT outbox contains blocked operations', { count: outbox.blocked }));
-  }
-  if (outbox.expiredProcessing > 0) {
-    alerts.push(alert('VF_OBS_AEAT_LEASE_EXPIRED', 'critical', 'AEAT processing leases are expired', { count: outbox.expiredProcessing }));
-  }
-  if (outbox.oldestPendingAgeMs != null && outbox.oldestPendingAgeMs >= thresholds.pendingCriticalMs) {
-    alerts.push(alert('VF_OBS_AEAT_PENDING_AGE_CRITICAL', 'critical', 'Oldest pending AEAT operation exceeds critical age', {
-      ageMs: outbox.oldestPendingAgeMs,
-      thresholdMs: thresholds.pendingCriticalMs,
-    }));
-  } else if (outbox.oldestPendingAgeMs != null && outbox.oldestPendingAgeMs >= thresholds.pendingWarningMs) {
-    alerts.push(alert('VF_OBS_AEAT_PENDING_AGE_WARNING', 'warning', 'Oldest pending AEAT operation exceeds warning age', {
-      ageMs: outbox.oldestPendingAgeMs,
-      thresholdMs: thresholds.pendingWarningMs,
-    }));
+  if (!outbox.available) {
+    alerts.push(alert('VF_OBS_AEAT_OUTBOX_UNAVAILABLE', 'critical', 'AEAT outbox metrics are not available'));
+  } else {
+    if (outbox.reconciliationRequired > 0) {
+      alerts.push(alert(
+        'VF_OBS_AEAT_RECONCILIATION_REQUIRED',
+        'critical',
+        'AEAT operations require explicit reconciliation',
+        { count: outbox.reconciliationRequired },
+      ));
+    }
+    if (outbox.blocked > 0) {
+      alerts.push(alert('VF_OBS_AEAT_OUTBOX_BLOCKED', 'critical', 'AEAT outbox contains blocked operations', { count: outbox.blocked }));
+    }
+    if (outbox.expiredProcessing > 0) {
+      alerts.push(alert('VF_OBS_AEAT_LEASE_EXPIRED', 'critical', 'AEAT processing leases are expired', { count: outbox.expiredProcessing }));
+    }
+    if (outbox.oldestPendingAgeMs != null && outbox.oldestPendingAgeMs >= thresholds.pendingCriticalMs) {
+      alerts.push(alert('VF_OBS_AEAT_PENDING_AGE_CRITICAL', 'critical', 'Oldest pending AEAT operation exceeds critical age', {
+        ageMs: outbox.oldestPendingAgeMs,
+        thresholdMs: thresholds.pendingCriticalMs,
+      }));
+    } else if (outbox.oldestPendingAgeMs != null && outbox.oldestPendingAgeMs >= thresholds.pendingWarningMs) {
+      alerts.push(alert('VF_OBS_AEAT_PENDING_AGE_WARNING', 'warning', 'Oldest pending AEAT operation exceeds warning age', {
+        ageMs: outbox.oldestPendingAgeMs,
+        thresholdMs: thresholds.pendingWarningMs,
+      }));
+    }
   }
 
   if (!backup.configured) {
@@ -128,7 +155,7 @@ export function createOperationalObserver({
       const now = Number(clock());
       if (!Number.isFinite(now)) throw new TypeError('observability clock must return epoch milliseconds');
       const database = databaseStatus(persistence.database);
-      const outbox = persistence.aeatOutbox.stats(now);
+      const outbox = outboxStatus(persistence.aeatOutbox, now);
       const backup = backupStatus(backupManifestPath, now);
       const alerts = deriveAlerts({ database, outbox, backup }, thresholds);
       const critical = alerts.filter((item) => item.severity === 'critical').length;
