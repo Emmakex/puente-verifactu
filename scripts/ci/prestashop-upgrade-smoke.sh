@@ -39,8 +39,8 @@ mkdir -p "$BASELINE_MODULES" "$BASELINE_TREE" "$TARGET_TREE"
 node "$ROOT/scripts/release/package-prestashop.mjs" --output "$TARGET_ZIP" >/dev/null
 unzip -q "$TARGET_ZIP" -d "$TARGET_TREE"
 cp -R "$TARGET_TREE/puenteverifactu" "$BASELINE_TREE/puenteverifactu"
-sed -i "s/const VERSION = '0.2.0';/const VERSION = '0.1.0';/" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
-rm -f "$BASELINE_TREE/puenteverifactu/upgrade/install-0.2.0.php"
+sed -i "s/const VERSION = '0.3.0';/const VERSION = '0.2.0';/" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
+rm -f "$BASELINE_TREE/puenteverifactu/upgrade/install-0.3.0.php"
 (
   cd "$BASELINE_TREE"
   zip -qr "$BASELINE_MODULES/puenteverifactu.zip" puenteverifactu
@@ -59,19 +59,13 @@ function failUpgrade($code, $message)
 
 $module = Module::getInstanceByName('puenteverifactu');
 if (!$module || empty($module->active)) {
-    failUpgrade('PRESTA_UPGRADE_BASELINE_NOT_ACTIVE', 'Synthetic 0.1.0 baseline is not active.');
+    failUpgrade('PRESTA_UPGRADE_BASELINE_NOT_ACTIVE', 'Synthetic 0.2.0 baseline is not active.');
 }
-if ((string) $module->version !== '0.1.0') {
-    failUpgrade('PRESTA_UPGRADE_BASELINE_VERSION', 'Expected baseline 0.1.0, received ' . (string) $module->version);
+if ((string) $module->version !== '0.2.0') {
+    failUpgrade('PRESTA_UPGRADE_BASELINE_VERSION', 'Expected baseline 0.2.0, received ' . (string) $module->version);
 }
-
-if ($module->isRegisteredInHook('displayAdminOrderMainBottom')) {
-    if (!$module->unregisterHook('displayAdminOrderMainBottom')) {
-        failUpgrade('PRESTA_UPGRADE_BASELINE_HOOK_RESET_FAILED', 'Could not establish a 0.1.0 baseline without the native order status hook.');
-    }
-}
-if ($module->isRegisteredInHook('displayAdminOrderMainBottom')) {
-    failUpgrade('PRESTA_UPGRADE_BASELINE_HOOK_PRESENT', 'Baseline unexpectedly contains the native order status hook.');
+if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
+    failUpgrade('PRESTA_UPGRADE_BASELINE_STATUS_HOOK_MISSING', '0.2.0 baseline must already contain the native order status hook.');
 }
 
 Db::getInstance()->delete('pvf_order_sync', '`id_shop` = 1 AND `id_order` = 424242');
@@ -85,10 +79,24 @@ $ok = Db::getInstance()->insert('pvf_order_sync', array(
     'date_upd' => date('Y-m-d H:i:s'),
 ));
 if (!$ok) {
-    failUpgrade('PRESTA_UPGRADE_SENTINEL_INSERT_FAILED', 'Could not insert upgrade sentinel row.');
+    failUpgrade('PRESTA_UPGRADE_SENTINEL_INSERT_FAILED', 'Could not insert original-invoice synchronization sentinel.');
 }
 
-echo json_encode(array('status' => 'ok', 'baseline' => (string) $module->version, 'hook_registered' => false)) . PHP_EOL;
+Db::getInstance()->execute('DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'pvf_order_slip_sync`');
+Configuration::deleteByName('PVF_RECTIFICATION_PROFILE_ID');
+$tableExists = (int) Db::getInstance()->getValue(
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '" . pSQL(_DB_PREFIX_ . 'pvf_order_slip_sync') . "'"
+);
+if ($tableExists !== 0) {
+    failUpgrade('PRESTA_UPGRADE_BASELINE_RECTIFICATION_TABLE_PRESENT', 'Could not establish a 0.2.0 baseline without corrective synchronization storage.');
+}
+
+echo json_encode(array(
+    'status' => 'ok',
+    'baseline' => (string) $module->version,
+    'status_hook_registered' => true,
+    'rectification_table_present' => false,
+)) . PHP_EOL;
 PHP
 
 cat >"$TMP/after.php" <<'PHP'
@@ -112,11 +120,11 @@ $module = Module::getInstanceByName('puenteverifactu');
 if (!$module || empty($module->active)) {
     failUpgrade('PRESTA_UPGRADE_TARGET_NOT_ACTIVE', 'Target module is not active after upgrade.');
 }
-if ((string) $module->version !== '0.2.0') {
-    failUpgrade('PRESTA_UPGRADE_TARGET_VERSION', 'Expected target 0.2.0, received ' . (string) $module->version);
+if ((string) $module->version !== '0.3.0') {
+    failUpgrade('PRESTA_UPGRADE_TARGET_VERSION', 'Expected target 0.3.0, received ' . (string) $module->version);
 }
 if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
-    failUpgrade('PRESTA_UPGRADE_STATUS_HOOK_MISSING', 'Upgrade did not register displayAdminOrderMainBottom.');
+    failUpgrade('PRESTA_UPGRADE_STATUS_HOOK_MISSING', 'Upgrade lost displayAdminOrderMainBottom registration.');
 }
 
 $row = Db::getInstance()->getRow(
@@ -126,14 +134,41 @@ if (!is_array($row)
     || (string) $row['record_id'] !== 'upgrade-sentinel-record'
     || (string) $row['idempotency_key'] !== 'upgrade-sentinel-key'
     || (string) $row['status'] !== 'preflight_valid') {
-    failUpgrade('PRESTA_UPGRADE_STATE_LOST', 'Local synchronization state was not preserved through upgrade.');
+    failUpgrade('PRESTA_UPGRADE_STATE_LOST', 'Original-invoice synchronization state was not preserved through upgrade.');
+}
+
+$table = _DB_PREFIX_ . 'pvf_order_slip_sync';
+$tableExists = (int) Db::getInstance()->getValue(
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '" . pSQL($table) . "'"
+);
+if ($tableExists !== 1) {
+    failUpgrade('PRESTA_UPGRADE_RECTIFICATION_TABLE_MISSING', '0.3.0 upgrade did not create corrective synchronization storage.');
+}
+
+if (!Db::getInstance()->insert('pvf_order_slip_sync', array(
+    'id_shop' => 1,
+    'id_order' => 424242,
+    'id_order_slip' => 434343,
+    'record_id' => 'upgrade-corrective-record',
+    'idempotency_key' => 'upgrade-corrective-key',
+    'status' => 'preflight_valid',
+    'last_error' => '',
+    'date_upd' => date('Y-m-d H:i:s'),
+))) {
+    failUpgrade('PRESTA_UPGRADE_RECTIFICATION_SENTINEL_INSERT_FAILED', 'New corrective synchronization table is not writable.');
+}
+$corrective = Db::getInstance()->getRow(
+    'SELECT * FROM `' . _DB_PREFIX_ . 'pvf_order_slip_sync` WHERE `id_shop` = 1 AND `id_order_slip` = 434343'
+);
+if (!is_array($corrective) || (string) $corrective['record_id'] !== 'upgrade-corrective-record') {
+    failUpgrade('PRESTA_UPGRADE_RECTIFICATION_SENTINEL_MISSING', 'Corrective synchronization sentinel could not be read back.');
 }
 
 $moduleDbVersion = (string) Db::getInstance()->getValue(
     "SELECT version FROM `" . _DB_PREFIX_ . "module` WHERE name = 'puenteverifactu'"
 );
-if ($moduleDbVersion !== '0.2.0') {
-    failUpgrade('PRESTA_UPGRADE_DB_VERSION', 'Module database version was not advanced to 0.2.0.');
+if ($moduleDbVersion !== '0.3.0') {
+    failUpgrade('PRESTA_UPGRADE_DB_VERSION', 'Module database version was not advanced to 0.3.0.');
 }
 
 fwrite(STDOUT, json_encode(array(
@@ -142,10 +177,11 @@ fwrite(STDOUT, json_encode(array(
     'check' => 'prestashop-upgrade-smoke',
     'prestashop' => (string) _PS_VERSION_,
     'php' => $actualPhp,
-    'from' => '0.1.0',
+    'from' => '0.2.0',
     'to' => (string) $module->version,
-    'state_preserved' => true,
+    'original_state_preserved' => true,
     'status_hook_registered' => true,
+    'rectification_table_created' => true,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 PHP
 
