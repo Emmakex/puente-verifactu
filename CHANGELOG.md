@@ -61,7 +61,7 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 - Importador XLSX read-only sin dependencias externas, con selección de hoja, fechas Excel y límites defensivos.
 - Mapping Assistant v1 con confianza, revisión explícita, campos pendientes y borrador seguro de `MappingProfile`.
 - Inspección unificada CSV/XLSX y smoke CI de mapping asistido.
-- Primera entrega de Universal Integration Kit v1: API/SDK, webhook low-code y patrón camaleónico de integración.
+- Primera entrega de Universal Integration Kit v1: API framework-neutral, SDK server-side, webhook HMAC, preflight/envío mapeado, idempotencia HTTP y conector de referencia.
 - ADR-0003 para diferir gates exclusivamente externos sin desbloquear releases/pilotos.
 - Harness seguro `npm run aeat:gate` para dry-run y cierre del gate real de pruebas AEAT con doble confirmación de envío y salida sanitizada.
 - Adaptador server-side AEAT VERI*FACTU con SOAP 1.1/XML y endpoints oficiales versionados.
