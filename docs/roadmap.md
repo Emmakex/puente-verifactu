@@ -159,12 +159,12 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [ ] Política operacional de almacenamiento remoto, cifrado, retención, antigüedad y ejercicio periódico de restore.
 - [x] Outbox durable AEAT para el perfil single-node: persistencia de estado/backoff/intentos, leases, recuperación tras reinicio y `reconciliation_required` para resultados inciertos sin reemisión ciega.
 - [x] Observabilidad y alertas operativas v1: endpoint agregado protegido por `ops:read`, métricas de outbox/backup y códigos `VF_OBS_*` estables sin datos fiscales.
-- [ ] Runbooks completos de deploy, rollback, incidente, recuperación y rotación de credenciales.
+- [x] Runbooks operativos single-node: deploy/rollback, incidente AEAT y `reconciliation_required`, backup/restore y rotación de credenciales; protegidos por gate CI.
 - [ ] Perfil HA/multi-réplica con store/locking/rate limiting compartidos cuando el despliegue lo requiera.
 - [ ] Verificación regulatoria final y evidencia de release por versión.
 - [ ] Piloto progresivo con rollback y monitorización activa.
 
-**Estado:** Fase 6 en curso con tres gates internos cubiertos por CI para el perfil single-node: backup/restore SQLite, outbox AEAT durable y observabilidad/alertas v1. Los resultados remotos ambiguos quedan en `reconciliation_required` hasta resolución explícita; el estado operativo global requiere una credencial separada con `ops:read` y expone solo agregados. Esto **no** convierte SQLite en HA ni resuelve por sí solo retención/storage remoto, runbooks completos u operación multi-réplica. Ver `docs/production-readiness.md`, `docs/operations-observability.md` y `packages/sqlite-store/README.md`.
+**Estado:** Fase 6 en curso con cuatro gates internos cubiertos para el perfil single-node: backup/restore SQLite, outbox AEAT durable, observabilidad/alertas v1 y runbooks operativos verificables. Los resultados remotos ambiguos quedan en `reconciliation_required` hasta resolución explícita; el estado operativo global requiere una credencial separada con `ops:read` y expone solo agregados. Los runbooks están en `docs/runbooks/` y forman parte de `npm run check`. Esto **no** convierte SQLite en HA ni resuelve por sí solo retención/storage remoto u operación multi-réplica.
 
 **Gate de entrada a release/piloto:** Fase 3 externa cerrada (#6), además de todos los gates propios de Fase 6 aplicables al perfil de despliegue.
 
