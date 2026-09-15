@@ -6,6 +6,7 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Matriz real de compatibilidad PrestaShop con PrestaShop Flashlight: instalación/activación del módulo, creación de factura nativa y construcción de payload validadas en 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1.
 - Extractor fiscal PrestaShop reforzado a nivel `OrderInvoice`, reutilizando los breakdowns nativos de productos, portes y wrapping en lugar de reconstruir impuestos desde `order_detail`.
 - Matriz ejecutable de fixtures PrestaShop para IVA simple/múltiple, descuentos ya repartidos por PrestaShop, portes, wrapping, envío gratuito, base residual al 0 % y reconciliación de redondeo de un céntimo.
 - Reconciliador determinista de tax lines PrestaShop contra los totales de la factura, con bloqueo seguro ante incoherencias, ecotasa no soportada o pedidos con múltiples facturas.
