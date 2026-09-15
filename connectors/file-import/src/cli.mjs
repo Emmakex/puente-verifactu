@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
-import { inferMapping } from '../../../packages/core/src/mapping.mjs';
+import { acceptMappingSuggestions } from '../../../packages/core/src/mapping-assistant.mjs';
 import { preflightRows } from '../../../packages/core/src/preflight.mjs';
-import { parseCsv } from './csv.mjs';
+import { inspectImportFile, parseImportFile } from './file-reader.mjs';
 
 function args(argv) {
   const result = {};
@@ -13,27 +13,57 @@ function args(argv) {
   return result;
 }
 
+function usage() {
+  return [
+    'Usage:',
+    '  cli.mjs --file <facturas.csv|facturas.xlsx> [--sheet <name|index>] [--header-row <n>] --infer',
+    '  cli.mjs --file <facturas.csv|facturas.xlsx> [--sheet <name|index>] [--header-row <n>] --profile <mapping.json>',
+    '',
+    'Compatibility: --csv <file> and --xlsx <file> are accepted as aliases for --file.',
+  ].join('\n');
+}
+
 const options = args(process.argv.slice(2));
-if (!options.csv) {
-  console.error('Usage: cli.mjs --csv <file> [--profile <file> | --infer]');
+const filePath = options.file ?? options.csv ?? options.xlsx;
+if (!filePath) {
+  console.error(usage());
   process.exit(2);
 }
 
-const csv = parseCsv(await readFile(options.csv, 'utf8'));
+const buffer = await readFile(filePath);
+const parseOptions = {
+  filename: filePath,
+  format: options.csv ? 'csv' : options.xlsx ? 'xlsx' : undefined,
+  sheet: options.sheet,
+  headerRow: options['header-row'] ? Number(options['header-row']) : undefined,
+};
+
 if (options.infer) {
-  console.log(JSON.stringify(inferMapping(csv.headers), null, 2));
-  process.exit(0);
+  const inspection = inspectImportFile(buffer, parseOptions);
+  console.log(JSON.stringify(inspection, null, 2));
+  process.exit(inspection.assistant.safeToPreflight ? 0 : 3);
 }
+
 if (!options.profile) {
   console.error('A MappingProfile is required unless --infer is used.');
+  console.error(usage());
   process.exit(2);
 }
 
-const profile = JSON.parse(await readFile(options.profile, 'utf8'));
-const report = preflightRows(csv.rows, profile);
+const table = parseImportFile(buffer, parseOptions);
+const profileInput = JSON.parse(await readFile(options.profile, 'utf8'));
+const profile = profileInput.assistantVersion === 1
+  ? acceptMappingSuggestions(profileInput, profileInput.acceptedSources ?? [])
+  : profileInput;
+const report = preflightRows(table.rows, profile);
 console.log(JSON.stringify({
   mode: report.mode,
   ok: report.ok,
+  input: {
+    format: table.format,
+    sheetName: table.sheetName ?? null,
+    headerRow: table.headerRow ?? 1,
+  },
   summary: report.summary,
   rows: report.rows.map((row) => ({ row: row.row, status: row.status, errors: row.errors, warnings: row.warnings })),
 }, null, 2));
