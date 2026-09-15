@@ -16,6 +16,9 @@ export const MAPPING_ALIASES = Object.freeze({
   'taxBreakdown.0.surchargeRate': ['recargo equivalencia %', 'tipo recargo equivalencia', 'recargo %', 'surcharge rate'],
   'taxBreakdown.0.surchargeAmount': ['cuota recargo equivalencia', 'recargo equivalencia', 'importe recargo', 'surcharge amount'],
   'totals.totalAmount': ['total', 'importe total', 'total factura', 'invoice total'],
+  'rectification.originalInvoices.0.number': ['factura rectificada', 'numero factura original', 'original invoice number'],
+  'rectification.originalInvoices.0.series': ['serie factura original', 'original invoice series'],
+  'rectification.originalInvoices.0.issueDate': ['fecha factura original', 'original invoice date'],
   sourceInvoiceId: ['id factura', 'invoice id', 'external id'],
 });
 
@@ -23,6 +26,7 @@ const FORBIDDEN_PATH_PARTS = new Set(['__proto__', 'prototype', 'constructor']);
 const MAPPING_TARGET_SET = new Set([...Object.keys(MAPPING_ALIASES), 'taxBreakdown']);
 const TAX_LINE_SOURCE_FIELDS = new Set(['rate', 'baseAmount', 'taxAmount', 'surchargeRate', 'surchargeAmount']);
 const TAX_LINE_DEFAULT_FIELDS = new Set(['taxCode', 'regimeKey', 'operationClass']);
+const NATIVE_FORBIDDEN_SOURCE_TARGETS = new Set(['invoiceType']);
 
 export function normalizeMappingHeader(value) {
   return String(value)
@@ -145,6 +149,9 @@ export function validateMappingProfile(profile) {
   let mapsNativeTaxLines = false;
   for (const [source, target] of Object.entries(profile?.fields ?? {})) {
     if (!MAPPING_TARGET_SET.has(target)) errors.push(`Unsupported mapping target ${target} for ${source}`);
+    if (profile?.sourceType === 'native' && NATIVE_FORBIDDEN_SOURCE_TARGETS.has(target)) {
+      errors.push(`Native source cannot control fiscal target ${target}; configure it server-side`);
+    }
     if (target === 'taxBreakdown') mapsNativeTaxLines = true;
   }
 
@@ -218,7 +225,7 @@ export function inferMapping(headers) {
     matchedTargets.push(target);
 
     const steps = ['trim'];
-    if (target === 'issueDate') steps.push('date_dmy');
+    if (target === 'issueDate' || target.endsWith('.issueDate')) steps.push('date_dmy');
     if (target === 'invoiceType' || target === 'currency') steps.push('upper');
     if (target.includes('Amount') || target.endsWith('.rate') || target.endsWith('Rate')) steps.push('decimal_comma');
     transforms[source] = steps;
