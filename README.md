@@ -1,47 +1,67 @@
 # Puente VeriFactu
 
-**Puente VeriFactu** es la capa de integración fiscal de Kairoseth Extensions para conectar sistemas de facturación, ERP, CRM, ecommerce y software propio con **VERI*FACTU / AEAT** sin acoplar la lógica fiscal a una plataforma concreta.
+**Puente VeriFactu** es la capa de integración fiscal de Kairoseth Extensions para conectar sistemas de facturación, ERP, CRM, ecommerce, hojas de cálculo y software propio con **VERI*FACTU / AEAT** sin obligar al negocio a sustituir lo que ya utiliza.
 
-> Estado: diseño y documentación inicial. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
+> Estado: foundation técnica. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
+
+## Principio Camaleón
+
+**El puente se adapta al sistema del cliente; el cliente no debe adaptar su negocio al puente.**
+
+Un autónomo o pyme debe poder empezar desde el nivel técnico que ya tenga:
+
+1. **Cero código:** carga guiada de CSV/Excel y entrada manual asistida.
+2. **Low-code:** webhook configurable y perfiles de mapeo.
+3. **API universal:** REST con contrato canónico versionado.
+4. **SDK:** integración para desarrolladores sin conocer XML AEAT.
+5. **Conector nativo:** WordPress/WooCommerce, PrestaShop y sistemas prioritarios.
+
+Todos los caminos terminan en el mismo modelo canónico y el mismo motor fiscal. Ningún conector replica la lógica regulatoria.
 
 ## Objetivo
 
-Construir un núcleo reutilizable que reciba eventos de facturación desde distintos sistemas, los transforme a un modelo canónico, aplique las reglas necesarias, genere los registros de facturación exigidos, mantenga su encadenamiento y los remita a AEAT mediante un adaptador oficial.
+Construir un núcleo reutilizable que reciba operaciones desde sistemas heterogéneos, las transforme de forma determinista al contrato canónico, aplique las reglas necesarias, genere los registros fiscales, mantenga su encadenamiento y los remita a AEAT mediante un único adaptador oficial.
 
-La primera etapa del producto será **solo VERI*FACTU**. No implementaremos inicialmente modo NO VERI*FACTU, porque este añade obligaciones adicionales de firma, registro de eventos, comprobaciones y conservación local. Esta decisión reduce superficie de riesgo y simplifica la validación inicial.
+La primera etapa será **solo VERI*FACTU**. El modo NO VERI*FACTU queda fuera del MVP.
 
-## Principios
+## Principios de ingeniería
 
-- El núcleo fiscal es independiente de WordPress, WooCommerce, PrestaShop, ERP o CRM.
-- Cada plataforma se integra mediante un adaptador con contrato estable.
-- El sistema origen no puede decidir reglas fiscales sensibles ni credenciales.
-- Los registros fiscales confirmados son inmutables; las correcciones crean nuevos registros.
-- La idempotencia es obligatoria en todos los puntos de entrada y salida.
-- ES/EN se entregan conjuntamente cuando exista interfaz de cliente.
-- Todo fallo de CI, build, test, deploy o runtime genera diagnóstico accionable y estructurado.
+- Independencia absoluta respecto al software origen.
+- Onboarding por capacidades: preguntamos qué puede hacer el sistema, no qué marca es.
+- Configuración guiada y validación previa antes de enviar nada a AEAT.
+- El sistema origen no decide reglas fiscales sensibles ni credenciales.
+- Historial fiscal finalizado inmutable; las correcciones generan operaciones nuevas.
+- Idempotencia obligatoria de extremo a extremo.
+- ES/EN juntos en interfaces de cliente.
+- Todo fallo de CI, build, test, deploy o runtime genera diagnóstico estructurado accionable.
 - Fase N+1 no comienza hasta cerrar implementación, gates, aceptación, bloqueos y documentación de la fase N.
+
+## Estructura inicial
+
+```text
+apps/api/                 API/ingress del puente
+packages/contracts/       Contrato canónico público
+packages/core/            Motor fiscal independiente
+packages/diagnostics/     Diagnóstico estructurado
+connectors/reference/     Conector de referencia
+connectors/file-import/   Entrada cero-código CSV/Excel
+scripts/ci/               Gates y diagnóstico CI
+```
 
 ## Documentación
 
-- [Índice documental](docs/README.md)
-- [Visión y alcance](docs/product-scope.md)
-- [Arquitectura](docs/architecture.md)
-- [Cumplimiento y referencias normativas](docs/compliance.md)
-- [Modelo de dominio y API](docs/api-contract.md)
-- [Conectores y adaptadores](docs/connectors.md)
-- [Seguridad y privacidad](docs/security.md)
-- [Testing y calidad](docs/testing-quality.md)
-- [Operación, observabilidad y diagnóstico](docs/operations-observability.md)
-- [Roadmap](docs/roadmap.md)
-- [Reglas globales de ingeniería](docs/engineering-rules.md)
-- [ADR-0001: MVP solo VERI*FACTU](docs/adr/0001-verifactu-only-mvp.md)
+Consulta [docs/README.md](docs/README.md). Los documentos clave para integración son [integration-strategy.md](docs/integration-strategy.md) y [onboarding-integration.md](docs/onboarding-integration.md).
 
 ## Estado normativo de referencia
 
-Documentación revisada el **15 de septiembre de 2026**. Según AEAT y el Real Decreto-ley 15/2025, la adaptación obligatoria de los SIF está prevista antes del **1 de enero de 2027** para contribuyentes del Impuesto sobre Sociedades y antes del **1 de julio de 2027** para el resto de obligados incluidos. Antes de cada release certificable se deberá volver a validar normativa, esquemas, WSDL, validaciones y FAQ oficiales.
+Documentación revisada el **15 de septiembre de 2026**. Antes de cada release certificable se volverán a validar normativa, esquemas, WSDL, validaciones y FAQ oficiales.
 
-## Flujo de desarrollo
+## Desarrollo
 
-`feature branch -> PR -> CI -> review -> merge -> verificación`
+Requiere Node.js 22+ para las herramientas del repositorio.
 
-No se aceptan cambios funcionales importantes directamente en `main`.
+```bash
+npm run check
+```
+
+Flujo obligatorio: `feature branch -> PR -> CI -> review -> merge -> verificación`.

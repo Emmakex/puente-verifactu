@@ -6,6 +6,8 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 |---|---|
 | `product-scope.md` | Problema, usuarios, alcance MVP y exclusiones |
 | `architecture.md` | Arquitectura, componentes, límites y flujos |
+| `integration-strategy.md` | Principio Camaleón y cinco niveles de integración |
+| `onboarding-integration.md` | Onboarding universal orientado a autónomos y pymes |
 | `compliance.md` | Marco normativo, obligaciones y checklist de release |
 | `api-contract.md` | Modelo canónico, idempotencia y contratos |
 | `connectors.md` | Contrato de adaptadores y estrategia por plataforma |
@@ -18,4 +20,4 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 
 ## Regla documental
 
-Todo cambio que altere un contrato, comportamiento fiscal, flujo de datos, requisito regulatorio o decisión arquitectónica debe actualizar la documentación correspondiente en el mismo PR.
+Todo cambio que altere un contrato, comportamiento fiscal, flujo de datos, requisito regulatorio, onboarding o decisión arquitectónica debe actualizar la documentación correspondiente en el mismo PR.
