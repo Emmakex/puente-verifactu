@@ -34,6 +34,8 @@ const requiredPaths = [
   'packages/sdk/README.md',
   'packages/sqlite-store/README.md',
   'packages/sqlite-store/src/index.mjs',
+  'packages/sqlite-store/src/backup.mjs',
+  'packages/sqlite-store/test/backup-restore.test.mjs',
   'packages/connector-contract-suite/README.md',
   'packages/connector-contract-suite/src/suite.mjs',
   'connectors/reference/README.md',
@@ -66,6 +68,7 @@ const requiredPaths = [
   'connectors/prestashop/upgrade/install-0.3.0.php',
   'packages/core/src/mapping-assistant.mjs',
   'scripts/auth/hash-credential.mjs',
+  'scripts/ops/sqlite-maintenance.mjs',
   'scripts/ci/onboarding-smoke.mjs',
   'scripts/ci/woocommerce-connector-check.mjs',
   'scripts/ci/woocommerce-package-check.mjs',
@@ -100,6 +103,14 @@ try {
   }
   if (pkg?.scripts?.['runtime:smoke'] !== 'node --test apps/server/test/*.test.mjs packages/sqlite-store/test/*.test.mjs') {
     failures.push({ code: 'REPO_RUNTIME_GATE_MISSING', expected: 'runtime:smoke script' });
+  }
+  if (pkg?.scripts?.['sqlite:backup:smoke'] !== 'node --test packages/sqlite-store/test/backup-restore.test.mjs') {
+    failures.push({ code: 'REPO_SQLITE_BACKUP_GATE_MISSING', expected: 'sqlite:backup:smoke script' });
+  }
+  if (pkg?.scripts?.['sqlite:backup'] !== 'node scripts/ops/sqlite-maintenance.mjs backup'
+      || pkg?.scripts?.['sqlite:verify-backup'] !== 'node scripts/ops/sqlite-maintenance.mjs verify'
+      || pkg?.scripts?.['sqlite:restore'] !== 'node scripts/ops/sqlite-maintenance.mjs restore') {
+    failures.push({ code: 'REPO_SQLITE_MAINTENANCE_COMMANDS_MISSING' });
   }
   if (pkg?.scripts?.['woo:contract'] !== 'node scripts/ci/woocommerce-connector-check.mjs') {
     failures.push({ code: 'REPO_WOO_CONTRACT_GATE_MISSING', expected: 'woo:contract script' });
@@ -139,6 +150,7 @@ if (!readme.includes('Principio Camaleón')) {
 
 const ci = existsSync('.github/workflows/ci.yml') ? readFileSync('.github/workflows/ci.yml', 'utf8') : '';
 for (const marker of [
+  'npm run sqlite:backup:smoke',
   'prestashop-compatibility:',
   "prestashop: '1.7.8.11'",
   "prestashop: '8.1.7'",
@@ -150,7 +162,7 @@ for (const marker of [
   'scripts/ci/prestashop-upgrade-smoke.sh'
 ]) {
   if (!ci.includes(marker)) {
-    failures.push({ code: 'REPO_PRESTASHOP_RELEASE_GATE_MISSING', marker });
+    failures.push({ code: marker.includes('sqlite') ? 'REPO_SQLITE_BACKUP_GATE_MISSING' : 'REPO_PRESTASHOP_RELEASE_GATE_MISSING', marker });
   }
 }
 
