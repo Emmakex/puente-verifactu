@@ -2,7 +2,7 @@
 
 **Puente VeriFactu** es la capa de integración fiscal de Kairoseth Extensions para conectar sistemas de facturación, ERP, CRM, ecommerce, hojas de cálculo y software propio con **VERI*FACTU / AEAT** sin obligar al negocio a sustituir lo que ya utiliza.
 
-> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 en desarrollo con WooCommerce técnicamente cerrado y PrestaShop v1 ya iniciado con foundation manual segura, contrato CI, token cifrado, preflight, emisión idempotente y reconciliación. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
+> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 en desarrollo con WooCommerce técnicamente cerrado y PrestaShop avanzando con foundation manual segura, extracción fiscal basada en `OrderInvoice`, fixtures de descuentos/portes/wrapping/multirate y gates CI. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
 
 ## Principio Camaleón
 
@@ -53,7 +53,7 @@ packages/diagnostics/              Diagnóstico estructurado
 connectors/reference/              Conector de referencia
 connectors/file-import/            Entrada cero-código CSV/XLSX
 connectors/woocommerce/            Conector nativo WooCommerce
-connectors/prestashop/             Conector nativo PrestaShop (foundation v1)
+connectors/prestashop/             Conector nativo PrestaShop
 scripts/aeat/                      Gate seguro de pruebas AEAT
 scripts/ci/                        Gates y diagnóstico CI
 scripts/release/                   Empaquetado reproducible de extensiones
@@ -69,7 +69,7 @@ Documentación revisada el **15 de septiembre de 2026**. Antes de cada release c
 
 ## Desarrollo
 
-Requiere Node.js 22.13+ para las herramientas actuales del repositorio. Los gates de conectores validan además sintaxis PHP 7.4; WooCommerce dispone ya de matriz real WordPress/WooCommerce y ZIP reproducible, mientras PrestaShop entra primero por contrato estático seguro antes de añadir su matriz real.
+Requiere Node.js 22.13+ para las herramientas actuales del repositorio. Los gates de conectores validan además sintaxis PHP 7.4; WooCommerce dispone ya de matriz real WordPress/WooCommerce y ZIP reproducible, mientras PrestaShop dispone de contrato estático y fixtures fiscales antes de añadir su matriz de instalación real.
 
 ```bash
 npm run check
@@ -83,6 +83,7 @@ npm run woo:contract
 npm run woo:package:check
 npm run woo:package
 npm run prestashop:contract
+npm run prestashop:fixtures
 npm run aeat:gate
 ```
 

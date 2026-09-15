@@ -1,0 +1,105 @@
+{
+  "fixtureVersion": 1,
+  "cases": [
+    {
+      "id": "single-rate-21",
+      "products": [
+        {"rate": "21", "total_price_tax_excl": "100.00", "total_amount": "21.00"}
+      ],
+      "shipping": [],
+      "wrapping": [],
+      "expectedBase": "100.00",
+      "expectedTax": "21.00",
+      "expectedLines": [
+        {"rate": "21", "baseAmount": "100.00", "taxAmount": "21.00"}
+      ]
+    },
+    {
+      "id": "multi-rate-shipping-wrapping",
+      "products": [
+        {"rate": "21", "total_price_tax_excl": "100.00", "total_amount": "21.00"},
+        {"rate": "10", "total_price_tax_excl": "50.00", "total_amount": "5.00"}
+      ],
+      "shipping": [
+        {"rate": "21", "total_tax_excl": "10.00", "total_amount": "2.10"}
+      ],
+      "wrapping": [
+        {"rate": "10", "total_tax_excl": "5.00", "total_amount": "0.50"}
+      ],
+      "expectedBase": "165.00",
+      "expectedTax": "28.60",
+      "expectedLines": [
+        {"rate": "10", "baseAmount": "55.00", "taxAmount": "5.50"},
+        {"rate": "21", "baseAmount": "110.00", "taxAmount": "23.10"}
+      ]
+    },
+    {
+      "id": "global-discount-already-allocated-by-prestashop",
+      "products": [
+        {"rate": "21", "total_price_tax_excl": "80.00", "total_amount": "16.80"},
+        {"rate": "10", "total_price_tax_excl": "45.00", "total_amount": "4.50"}
+      ],
+      "shipping": [
+        {"rate": "21", "total_tax_excl": "5.00", "total_amount": "1.05"}
+      ],
+      "wrapping": [],
+      "expectedBase": "130.00",
+      "expectedTax": "22.35",
+      "expectedLines": [
+        {"rate": "10", "baseAmount": "45.00", "taxAmount": "4.50"},
+        {"rate": "21", "baseAmount": "85.00", "taxAmount": "17.85"}
+      ]
+    },
+    {
+      "id": "free-shipping-does-not-create-tax-line",
+      "products": [
+        {"rate": "21", "total_price_tax_excl": "100.00", "total_amount": "21.00"}
+      ],
+      "shipping": [],
+      "wrapping": [],
+      "expectedBase": "100.00",
+      "expectedTax": "21.00",
+      "expectedLines": [
+        {"rate": "21", "baseAmount": "100.00", "taxAmount": "21.00"}
+      ]
+    },
+    {
+      "id": "mixed-tax-with-zero-rate-residual",
+      "products": [
+        {"rate": "21", "total_price_tax_excl": "100.00", "total_amount": "21.00"}
+      ],
+      "shipping": [],
+      "wrapping": [],
+      "expectedBase": "150.00",
+      "expectedTax": "21.00",
+      "expectedLines": [
+        {"rate": "0", "baseAmount": "50.00", "taxAmount": "0.00"},
+        {"rate": "21", "baseAmount": "100.00", "taxAmount": "21.00"}
+      ]
+    },
+    {
+      "id": "all-zero-rate",
+      "products": [],
+      "shipping": [],
+      "wrapping": [],
+      "expectedBase": "80.00",
+      "expectedTax": "0.00",
+      "expectedLines": [
+        {"rate": "0", "baseAmount": "80.00", "taxAmount": "0.00"}
+      ]
+    },
+    {
+      "id": "one-cent-tax-rounding-reconciliation",
+      "products": [
+        {"rate": "21", "total_price_tax_excl": "47.62", "total_amount": "10.00"}
+      ],
+      "shipping": [],
+      "wrapping": [],
+      "expectedBase": "47.62",
+      "expectedTax": "10.01",
+      "expectedLines": [
+        {"rate": "21", "baseAmount": "47.62", "taxAmount": "10.01"}
+      ]
+    }
+  ]
+}

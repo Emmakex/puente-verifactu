@@ -129,7 +129,9 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Idempotencia estable por tienda + pedido + número fiscal y bloqueo local de duplicados mediante `recordId`.
 - [x] Persistencia mínima de estado/sincronización aislada por tienda.
 - [x] Gate contractual CI y sintaxis PHP 7.4.
-- [ ] Fixtures de descuentos complejos, portes, wrapping y múltiples tipos de IVA.
+- [x] Extracción fiscal a nivel `OrderInvoice` usando breakdowns nativos de productos, portes y wrapping.
+- [x] Reconciliación al céntimo y fallback explícito para base residual al 0 %, sin inventar cuotas.
+- [x] Fixtures de descuentos, portes, wrapping, múltiples tipos de IVA, envío gratuito y redondeo.
 - [ ] Matriz real de CI PrestaShop 1.7.8.x / 8.x con instalación del módulo.
 - [ ] Estado/semáforo integrado en la ficha nativa del pedido.
 - [ ] Abonos/rectificativas idempotentes con perfil fiscal separado.
@@ -141,7 +143,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [ ] Reconciliación/fallback end-to-end común entre conectores.
 - [ ] Tests de compatibilidad y Connector Contract Suite para cada extensión.
 
-**Estado:** WooCommerce queda técnicamente cerrado dentro de Fase 5. PrestaShop ya tiene su foundation v1 segura y entra ahora en el bloque de compatibilidad real, casuística fiscal del extractor y rectificativas. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
+**Estado:** WooCommerce queda técnicamente cerrado dentro de Fase 5. PrestaShop tiene ya foundation, extractor fiscal reforzado y fixtures deterministas; el siguiente gate es la matriz real de instalación PrestaShop 1.7.8.x/8.x. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real.
 
 **Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre previo del gate AEAT #6 antes de cualquier piloto fiscal real.
 

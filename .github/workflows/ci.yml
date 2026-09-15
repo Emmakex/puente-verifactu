@@ -61,6 +61,9 @@ jobs:
       - name: PrestaShop connector contract
         run: npm run prestashop:contract
 
+      - name: PrestaShop fiscal fixtures
+        run: npm run prestashop:fixtures
+
       - name: PrestaShop PHP syntax
         run: find connectors/prestashop -name '*.php' -print0 | xargs -0 -n1 php -l
 
