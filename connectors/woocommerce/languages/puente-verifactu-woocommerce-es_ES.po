@@ -1,0 +1,109 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Puente VeriFactu for WooCommerce 0.1.0\n"
+"Language: es_ES\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Puente VeriFactu for WooCommerce requires WooCommerce to be active."
+msgstr "Puente VeriFactu para WooCommerce requiere que WooCommerce esté activo."
+
+msgid "Puente VeriFactu"
+msgstr "Puente VeriFactu"
+
+msgid "You are not allowed to change these settings."
+msgstr "No tienes permisos para cambiar estos ajustes."
+
+msgid "The Puente URL must use HTTPS."
+msgstr "La URL de Puente debe usar HTTPS."
+
+msgid "The API token could not be encrypted on this server."
+msgstr "No se pudo cifrar el token de API en este servidor."
+
+msgid "Puente VeriFactu settings saved."
+msgstr "Ajustes de Puente VeriFactu guardados."
+
+msgid "WooCommerce sends neutral order data to Puente VeriFactu. Fiscal rules, AEAT XML, certificates and hash chains stay outside WordPress."
+msgstr "WooCommerce envía datos neutrales del pedido a Puente VeriFactu. Las reglas fiscales, el XML de AEAT, los certificados y la cadena de huellas permanecen fuera de WordPress."
+
+msgid "Puente URL"
+msgstr "URL de Puente"
+
+msgid "Mapping profile ID"
+msgstr "ID del perfil de mapeo"
+
+msgid "API token"
+msgstr "Token de API"
+
+msgid "Stored securely — leave blank to keep it"
+msgstr "Guardado de forma segura — déjalo en blanco para conservarlo"
+
+msgid "Not configured"
+msgstr "No configurado"
+
+msgid "Remove stored token"
+msgstr "Eliminar token guardado"
+
+msgid "Automatic statuses"
+msgstr "Estados automáticos"
+
+msgid "Leave all unchecked for manual-only mode."
+msgstr "Déjalos todos sin marcar para usar solo el modo manual."
+
+msgid "Customer tax ID meta key"
+msgstr "Meta-key del NIF/CIF del cliente"
+
+msgid "Optional. Use the meta key already used by your VAT/NIF plugin. The connector never assumes a third-party field name."
+msgstr "Opcional. Usa la meta-key que ya utiliza tu plugin de IVA/NIF. El conector nunca presupone el nombre de un campo de terceros."
+
+msgid "HTTP timeout (seconds)"
+msgstr "Timeout HTTP (segundos)"
+
+msgid "The Puente record ID is invalid."
+msgstr "El ID de registro de Puente no es válido."
+
+msgid "Puente VeriFactu is not fully configured."
+msgstr "Puente VeriFactu no está completamente configurado."
+
+msgid "Puente VeriFactu requires an HTTPS endpoint."
+msgstr "Puente VeriFactu requiere un endpoint HTTPS."
+
+msgid "Puente VeriFactu could not be reached."
+msgstr "No se pudo conectar con Puente VeriFactu."
+
+msgid "Puente VeriFactu returned an invalid response."
+msgstr "Puente VeriFactu devolvió una respuesta no válida."
+
+msgid "Puente VeriFactu rejected the request."
+msgstr "Puente VeriFactu rechazó la solicitud."
+
+msgid "WooCommerce customer"
+msgstr "Cliente de WooCommerce"
+
+msgid "Puente VeriFactu: validate without sending"
+msgstr "Puente VeriFactu: validar sin enviar"
+
+msgid "Puente VeriFactu: refresh status"
+msgstr "Puente VeriFactu: actualizar estado"
+
+msgid "Puente VeriFactu: send"
+msgstr "Puente VeriFactu: enviar"
+
+msgid "Puente VeriFactu preflight found data that must be corrected before sending."
+msgstr "El preflight de Puente VeriFactu encontró datos que deben corregirse antes de enviar."
+
+msgid "Puente VeriFactu preflight passed. Nothing was sent to AEAT."
+msgstr "El preflight de Puente VeriFactu se superó. No se envió nada a AEAT."
+
+msgid "Puente VeriFactu send queued."
+msgstr "Envío a Puente VeriFactu encolado."
+
+msgid "Preflight failed. The order was not fiscalized."
+msgstr "El preflight falló. El pedido no se fiscalizó."
+
+msgid "Puente VeriFactu did not return a record ID."
+msgstr "Puente VeriFactu no devolvió un ID de registro."
+
+msgid "Puente VeriFactu created record %s."
+msgstr "Puente VeriFactu creó el registro %s."
