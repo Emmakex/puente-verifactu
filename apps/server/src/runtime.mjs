@@ -33,6 +33,13 @@ export function createPuenteRuntime({
   };
 
   const persistence = createSqlitePersistence({ path: requiredString(databasePath, 'databasePath') });
+  // Single-node runtime recovery: after a process restart no in-flight HTTP request can still own
+  // a pending reservation. Fiscal operations are independently idempotent, so a retry can safely
+  // reconstruct the same durable API resource if the process stopped between fiscalization and completion.
+  const recoveredReservations = persistence.database.db
+    .prepare('DELETE FROM api_requests WHERE record_id IS NULL')
+    .run().changes;
+
   const fiscalService = new FiscalRecordService({
     sif: normalizedSif,
     store: persistence.fiscalStore,
@@ -72,6 +79,7 @@ export function createPuenteRuntime({
     bridge,
     imports,
     persistence,
+    recoveredReservations: Number(recoveredReservations),
     close: async () => {
       if (server.listening) await new Promise((resolveClose, reject) => server.close((error) => error ? reject(error) : resolveClose()));
       persistence.close();
