@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { assertFiscalAppend } from '../../core/src/fiscal-record-store.mjs';
 import { fiscalOperationFingerprint } from '../../core/src/fiscal-records.mjs';
 import { sha256, stableStringify } from '../../core/src/idempotency.mjs';
+import { SqliteAeatOutboxStore } from './aeat-outbox.mjs';
 
 export {
   createSqliteBackup,
@@ -11,6 +12,7 @@ export {
   restoreSqliteBackup,
   verifySqliteBackup,
 } from './backup.mjs';
+export { SqliteAeatOutboxStore } from './aeat-outbox.mjs';
 
 function parseJson(text) {
   return text == null ? null : JSON.parse(text);
@@ -294,6 +296,7 @@ export function createSqlitePersistence({ path }) {
     fiscalStore: new SqliteFiscalRecordStore(database),
     integrationStore: new SqliteIntegrationStore(database),
     importStore: new SqliteImportSessionStore(database),
+    aeatOutbox: new SqliteAeatOutboxStore(database),
     close: () => database.close(),
   };
 }
