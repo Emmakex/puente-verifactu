@@ -57,6 +57,7 @@ const requiredPaths = [
   'connectors/prestashop/classes/PVFPrestaShopTaxBreakdown.php',
   'connectors/prestashop/examples/mapping-profile.json',
   'connectors/prestashop/fixtures/tax-breakdown-v1.json',
+  'connectors/prestashop/upgrade/install-0.1.0.php',
   'packages/core/src/mapping-assistant.mjs',
   'scripts/auth/hash-credential.mjs',
   'scripts/ci/onboarding-smoke.mjs',
@@ -65,8 +66,11 @@ const requiredPaths = [
   'scripts/ci/woocommerce-compatibility-smoke.sh',
   'scripts/ci/prestashop-connector-check.mjs',
   'scripts/ci/prestashop-tax-fixtures.php',
+  'scripts/ci/prestashop-package-check.mjs',
   'scripts/ci/prestashop-compatibility-smoke.sh',
-  'scripts/release/package-woocommerce.mjs'
+  'scripts/ci/prestashop-upgrade-smoke.sh',
+  'scripts/release/package-woocommerce.mjs',
+  'scripts/release/package-prestashop.mjs'
 ];
 
 const failures = [];
@@ -104,6 +108,12 @@ try {
   if (pkg?.scripts?.['prestashop:fixtures'] !== 'php scripts/ci/prestashop-tax-fixtures.php') {
     failures.push({ code: 'REPO_PRESTASHOP_FIXTURE_GATE_MISSING', expected: 'prestashop:fixtures script' });
   }
+  if (pkg?.scripts?.['prestashop:package'] !== 'node scripts/release/package-prestashop.mjs') {
+    failures.push({ code: 'REPO_PRESTASHOP_PACKAGE_SCRIPT_MISSING', expected: 'prestashop:package script' });
+  }
+  if (pkg?.scripts?.['prestashop:package:check'] !== 'node scripts/ci/prestashop-package-check.mjs') {
+    failures.push({ code: 'REPO_PRESTASHOP_PACKAGE_GATE_MISSING', expected: 'prestashop:package:check script' });
+  }
   if (pkg?.scripts?.server !== 'node apps/server/src/main.mjs') {
     failures.push({ code: 'REPO_SERVER_ENTRYPOINT_MISSING', expected: 'server script' });
   }
@@ -122,10 +132,13 @@ for (const marker of [
   "prestashop: '1.7.8.11'",
   "prestashop: '8.1.7'",
   "prestashop: '8.2.7'",
-  'scripts/ci/prestashop-compatibility-smoke.sh'
+  'scripts/ci/prestashop-compatibility-smoke.sh',
+  'npm run prestashop:package:check',
+  'prestashop-upgrade:',
+  'scripts/ci/prestashop-upgrade-smoke.sh'
 ]) {
   if (!ci.includes(marker)) {
-    failures.push({ code: 'REPO_PRESTASHOP_COMPATIBILITY_GATE_MISSING', marker });
+    failures.push({ code: 'REPO_PRESTASHOP_RELEASE_GATE_MISSING', marker });
   }
 }
 
