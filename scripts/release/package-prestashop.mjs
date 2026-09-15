@@ -39,17 +39,32 @@ function allowed(relativePath) {
 
 export async function releaseEntries() {
   const paths = await walk(MODULE_ROOT);
-  const selected = [];
+  const files = [];
+  const directories = new Set([`${ZIP_ROOT}/`]);
+
   for (const path of paths) {
     const rel = relative(MODULE_ROOT, path).replaceAll('\\', '/');
     if (!allowed(rel)) continue;
-    selected.push({
-      name: `${ZIP_ROOT}/${rel}`,
+
+    const name = `${ZIP_ROOT}/${rel}`;
+    const parts = name.split('/');
+    for (let index = 1; index < parts.length; index += 1) {
+      directories.add(`${parts.slice(0, index).join('/')}/`);
+    }
+
+    files.push({
+      name,
       data: await readFile(path),
+      isDirectory: false,
     });
   }
-  selected.sort((a, b) => a.name.localeCompare(b.name));
-  return selected;
+
+  const entries = [
+    ...Array.from(directories, (name) => ({ name, data: Buffer.alloc(0), isDirectory: true })),
+    ...files,
+  ];
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+  return entries;
 }
 
 export function createStoredZip(entries) {
@@ -93,7 +108,9 @@ export function createStoredZip(entries) {
     central.writeUInt16LE(0, 32);
     central.writeUInt16LE(0, 34);
     central.writeUInt16LE(0, 36);
-    central.writeUInt32LE((0o100644 << 16) >>> 0, 38);
+    const unixMode = entry.isDirectory ? 0o040755 : 0o100644;
+    const dosAttributes = entry.isDirectory ? 0x10 : 0;
+    central.writeUInt32LE((((unixMode << 16) >>> 0) | dosAttributes) >>> 0, 38);
     central.writeUInt32LE(offset, 42);
     centrals.push(central, nameBuffer);
 
@@ -139,7 +156,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     status: 'ok',
     artifact: output,
     version,
-    files: entries.length,
+    files: entries.filter((entry) => !entry.isDirectory).length,
+    directories: entries.filter((entry) => entry.isDirectory).length,
     sha256: createHash('sha256').update(buffer).digest('hex'),
   }, null, 2));
 }
