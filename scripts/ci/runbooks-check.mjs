@@ -11,7 +11,14 @@ const contracts = [
   },
   {
     path: 'docs/runbooks/aeat-incident-reconciliation.md',
-    markers: ['VF_OBS_AEAT_RECONCILIATION_REQUIRED', 'reconciliation_required', 'Nunca convertir automáticamente', 'confirmado no recibido'],
+    markers: [
+      'VF_OBS_AEAT_RECONCILIATION_REQUIRED',
+      'reconciliation_required',
+      'Nunca convertir automáticamente',
+      'npm run aeat:reconcile',
+      'SinDatos',
+      'AEAT_RECONCILIATION_APPLY',
+    ],
   },
   {
     path: 'docs/runbooks/backup-restore.md',

@@ -67,6 +67,9 @@ jobs:
       - name: AEAT official reconciliation smoke
         run: npm run aeat:reconciliation:smoke
 
+      - name: AEAT live reconciliation CLI smoke
+        run: npm run aeat:reconcile:smoke
+
       - name: Durable AEAT outbox smoke
         run: npm run aeat:outbox:smoke
 
