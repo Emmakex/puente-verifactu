@@ -7,11 +7,13 @@ final class PV_Woo_Settings {
 
     public static function get() {
         $defaults = array(
-            'endpoint'         => '',
-            'profile_id'       => '',
-            'auto_statuses'    => array(),
-            'tax_id_meta_key'  => '',
-            'request_timeout'  => 15,
+            'endpoint'                => '',
+            'profile_id'              => '',
+            'auto_statuses'           => array(),
+            'tax_id_meta_key'         => '',
+            'invoice_number_source'   => '',
+            'invoice_number_meta_key' => '',
+            'request_timeout'         => 15,
         );
         $settings = get_option( self::OPTION, array() );
         return wp_parse_args( is_array( $settings ) ? $settings : array(), $defaults );
@@ -50,20 +52,31 @@ final class PV_Woo_Settings {
 
         $profile_id = isset( $_POST['profile_id'] ) ? sanitize_key( wp_unslash( $_POST['profile_id'] ) ) : '';
         $tax_id_key = isset( $_POST['tax_id_meta_key'] ) ? sanitize_key( wp_unslash( $_POST['tax_id_meta_key'] ) ) : '';
-        $statuses   = isset( $_POST['auto_statuses'] ) ? array_map( 'sanitize_key', (array) wp_unslash( $_POST['auto_statuses'] ) ) : array();
-        $statuses   = array_values( array_intersect( $statuses, array_keys( wc_get_order_statuses() ) ) );
-        $statuses   = array_map( static function ( $status ) { return preg_replace( '/^wc-/', '', $status ); }, $statuses );
-        $timeout    = isset( $_POST['request_timeout'] ) ? absint( $_POST['request_timeout'] ) : 15;
-        $timeout    = max( 5, min( 30, $timeout ) );
+        $number_key = isset( $_POST['invoice_number_meta_key'] ) ? sanitize_key( wp_unslash( $_POST['invoice_number_meta_key'] ) ) : '';
+        $number_source = isset( $_POST['invoice_number_source'] ) ? sanitize_key( wp_unslash( $_POST['invoice_number_source'] ) ) : '';
+        if ( ! in_array( $number_source, array( '', 'order_number', 'meta' ), true ) ) {
+            $number_source = '';
+        }
+        if ( 'meta' === $number_source && '' === $number_key ) {
+            add_settings_error( 'pv_woo', 'invoice_number', __( 'Invoice number meta key is required when that source is selected.', 'puente-verifactu-woocommerce' ), 'error' );
+        }
+
+        $statuses = isset( $_POST['auto_statuses'] ) ? array_map( 'sanitize_key', (array) wp_unslash( $_POST['auto_statuses'] ) ) : array();
+        $statuses = array_values( array_intersect( $statuses, array_keys( wc_get_order_statuses() ) ) );
+        $statuses = array_map( static function ( $status ) { return preg_replace( '/^wc-/', '', $status ); }, $statuses );
+        $timeout  = isset( $_POST['request_timeout'] ) ? absint( $_POST['request_timeout'] ) : 15;
+        $timeout  = max( 5, min( 30, $timeout ) );
 
         update_option(
             self::OPTION,
             array(
-                'endpoint'        => untrailingslashit( $endpoint ),
-                'profile_id'      => $profile_id,
-                'auto_statuses'   => $statuses,
-                'tax_id_meta_key' => $tax_id_key,
-                'request_timeout' => $timeout,
+                'endpoint'                => untrailingslashit( $endpoint ),
+                'profile_id'              => $profile_id,
+                'auto_statuses'           => $statuses,
+                'tax_id_meta_key'         => $tax_id_key,
+                'invoice_number_source'   => $number_source,
+                'invoice_number_meta_key' => $number_key,
+                'request_timeout'         => $timeout,
             ),
             false
         );
@@ -102,6 +115,18 @@ final class PV_Woo_Settings {
                     <tr><th><label for="pv-endpoint"><?php esc_html_e( 'Puente URL', 'puente-verifactu-woocommerce' ); ?></label></th><td><input class="regular-text" id="pv-endpoint" name="endpoint" type="url" required value="<?php echo esc_attr( $settings['endpoint'] ); ?>" placeholder="https://verifactu.example.com"></td></tr>
                     <tr><th><label for="pv-profile"><?php esc_html_e( 'Mapping profile ID', 'puente-verifactu-woocommerce' ); ?></label></th><td><input class="regular-text" id="pv-profile" name="profile_id" type="text" required value="<?php echo esc_attr( $settings['profile_id'] ); ?>"></td></tr>
                     <tr><th><label for="pv-token"><?php esc_html_e( 'API token', 'puente-verifactu-woocommerce' ); ?></label></th><td><input class="regular-text" id="pv-token" name="api_token" type="password" autocomplete="new-password" value="" placeholder="<?php echo esc_attr( PV_Woo_Secret_Store::get() ? __( 'Stored securely — leave blank to keep it', 'puente-verifactu-woocommerce' ) : __( 'Not configured', 'puente-verifactu-woocommerce' ) ); ?>"><br><label><input type="checkbox" name="clear_api_token" value="1"> <?php esc_html_e( 'Remove stored token', 'puente-verifactu-woocommerce' ); ?></label></td></tr>
+                    <tr>
+                        <th><label for="pv-number-source"><?php esc_html_e( 'Invoice number source', 'puente-verifactu-woocommerce' ); ?></label></th>
+                        <td>
+                            <select id="pv-number-source" name="invoice_number_source">
+                                <option value="" <?php selected( '', $settings['invoice_number_source'] ); ?>><?php esc_html_e( 'Not configured — preflight will block', 'puente-verifactu-woocommerce' ); ?></option>
+                                <option value="meta" <?php selected( 'meta', $settings['invoice_number_source'] ); ?>><?php esc_html_e( 'Order meta key from an invoice plugin', 'puente-verifactu-woocommerce' ); ?></option>
+                                <option value="order_number" <?php selected( 'order_number', $settings['invoice_number_source'] ); ?>><?php esc_html_e( 'WooCommerce order number (explicitly use as invoice number)', 'puente-verifactu-woocommerce' ); ?></option>
+                            </select>
+                            <p class="description"><?php esc_html_e( 'WooCommerce orders are not automatically fiscal invoices. Choose the real invoice numbering source explicitly.', 'puente-verifactu-woocommerce' ); ?></p>
+                        </td>
+                    </tr>
+                    <tr><th><label for="pv-number-meta"><?php esc_html_e( 'Invoice number meta key', 'puente-verifactu-woocommerce' ); ?></label></th><td><input class="regular-text" id="pv-number-meta" name="invoice_number_meta_key" type="text" value="<?php echo esc_attr( $settings['invoice_number_meta_key'] ); ?>"><p class="description"><?php esc_html_e( 'Required only when using an existing invoice plugin/meta field.', 'puente-verifactu-woocommerce' ); ?></p></td></tr>
                     <tr><th><?php esc_html_e( 'Automatic statuses', 'puente-verifactu-woocommerce' ); ?></th><td><?php foreach ( $statuses as $key => $label ) : $slug = preg_replace( '/^wc-/', '', $key ); ?><label style="display:block"><input type="checkbox" name="auto_statuses[]" value="<?php echo esc_attr( $key ); ?>" <?php checked( in_array( $slug, $settings['auto_statuses'], true ) ); ?>> <?php echo esc_html( $label ); ?></label><?php endforeach; ?><p class="description"><?php esc_html_e( 'Leave all unchecked for manual-only mode.', 'puente-verifactu-woocommerce' ); ?></p></td></tr>
                     <tr><th><label for="pv-tax-meta"><?php esc_html_e( 'Customer tax ID meta key', 'puente-verifactu-woocommerce' ); ?></label></th><td><input class="regular-text" id="pv-tax-meta" name="tax_id_meta_key" type="text" value="<?php echo esc_attr( $settings['tax_id_meta_key'] ); ?>"><p class="description"><?php esc_html_e( 'Optional. Use the meta key already used by your VAT/NIF plugin. The connector never assumes a third-party field name.', 'puente-verifactu-woocommerce' ); ?></p></td></tr>
                     <tr><th><label for="pv-timeout"><?php esc_html_e( 'HTTP timeout (seconds)', 'puente-verifactu-woocommerce' ); ?></label></th><td><input id="pv-timeout" name="request_timeout" type="number" min="5" max="30" value="<?php echo esc_attr( $settings['request_timeout'] ); ?>"></td></tr>
