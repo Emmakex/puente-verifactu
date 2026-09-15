@@ -72,6 +72,8 @@ const requiredPaths = [
   'scripts/ci/woocommerce-compatibility-smoke.sh',
   'scripts/ci/prestashop-connector-check.mjs',
   'scripts/ci/prestashop-tax-fixtures.php',
+  'scripts/ci/prestashop-rectification-fixtures.php',
+  'scripts/ci/prestashop-rectification-runtime.php',
   'scripts/ci/prestashop-package-check.mjs',
   'scripts/ci/prestashop-compatibility-smoke.sh',
   'scripts/ci/prestashop-upgrade-smoke.sh',
@@ -114,6 +116,9 @@ try {
   if (pkg?.scripts?.['prestashop:fixtures'] !== 'php scripts/ci/prestashop-tax-fixtures.php') {
     failures.push({ code: 'REPO_PRESTASHOP_FIXTURE_GATE_MISSING', expected: 'prestashop:fixtures script' });
   }
+  if (pkg?.scripts?.['prestashop:rectification-fixtures'] !== 'php scripts/ci/prestashop-rectification-fixtures.php') {
+    failures.push({ code: 'REPO_PRESTASHOP_RECTIFICATION_FIXTURE_GATE_MISSING', expected: 'prestashop:rectification-fixtures script' });
+  }
   if (pkg?.scripts?.['prestashop:package'] !== 'node scripts/release/package-prestashop.mjs') {
     failures.push({ code: 'REPO_PRESTASHOP_PACKAGE_SCRIPT_MISSING', expected: 'prestashop:package script' });
   }
@@ -139,6 +144,7 @@ for (const marker of [
   "prestashop: '8.1.7'",
   "prestashop: '8.2.7'",
   'scripts/ci/prestashop-compatibility-smoke.sh',
+  'npm run prestashop:rectification-fixtures',
   'npm run prestashop:package:check',
   'prestashop-upgrade:',
   'scripts/ci/prestashop-upgrade-smoke.sh'
