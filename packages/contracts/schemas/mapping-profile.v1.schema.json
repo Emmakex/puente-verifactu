@@ -24,6 +24,15 @@
         }
       }
     },
+    "taxLineDefaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "taxCode": { "type": "string", "minLength": 1, "maxLength": 2 },
+        "regimeKey": { "type": "string", "minLength": 1, "maxLength": 2 },
+        "operationClass": { "type": "string", "minLength": 1, "maxLength": 2 }
+      }
+    },
     "constants": { "type": "object" },
     "defaults": { "type": "object" }
   }

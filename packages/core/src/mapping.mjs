@@ -7,6 +7,7 @@ export const MAPPING_ALIASES = Object.freeze({
   issueDate: ['fecha', 'fecha factura', 'fecha expedicion', 'invoice date', 'issue date'],
   invoiceType: ['tipo factura', 'tipo', 'invoice type'],
   description: ['descripcion', 'concepto', 'description'],
+  currency: ['moneda', 'currency', 'currency code'],
   'recipients.0.taxId': ['nif cliente', 'cif cliente', 'nif destinatario', 'customer tax id', 'vat number'],
   'recipients.0.name': ['cliente', 'nombre cliente', 'razon social cliente', 'destinatario', 'customer'],
   'taxBreakdown.0.baseAmount': ['base imponible', 'base', 'tax base', 'net amount'],
@@ -19,7 +20,9 @@ export const MAPPING_ALIASES = Object.freeze({
 });
 
 const FORBIDDEN_PATH_PARTS = new Set(['__proto__', 'prototype', 'constructor']);
-const MAPPING_TARGET_SET = new Set(Object.keys(MAPPING_ALIASES));
+const MAPPING_TARGET_SET = new Set([...Object.keys(MAPPING_ALIASES), 'taxBreakdown']);
+const TAX_LINE_SOURCE_FIELDS = new Set(['rate', 'baseAmount', 'taxAmount', 'surchargeRate', 'surchargeAmount']);
+const TAX_LINE_DEFAULT_FIELDS = new Set(['taxCode', 'regimeKey', 'operationClass']);
 
 export function normalizeMappingHeader(value) {
   return String(value)
@@ -97,6 +100,28 @@ function applyTransforms(value, transforms = []) {
   return transforms.reduce((current, transform) => transformValue(current, transform), value);
 }
 
+function mapNativeTaxLines(value, defaults) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 12) {
+    throw new Error('Native taxBreakdown source must contain between 1 and 12 lines');
+  }
+  const requiredDefaults = ['taxCode', 'regimeKey', 'operationClass'];
+  if (!defaults || requiredDefaults.some((field) => !String(defaults[field] ?? '').trim())) {
+    throw new Error('taxLineDefaults with taxCode, regimeKey and operationClass are required for native taxBreakdown mapping');
+  }
+
+  return value.map((line, index) => {
+    if (!line || typeof line !== 'object' || Array.isArray(line)) throw new Error(`Invalid native tax line at index ${index}`);
+    for (const field of Object.keys(line)) {
+      if (!TAX_LINE_SOURCE_FIELDS.has(field)) throw new Error(`Unsupported native tax line field ${field}`);
+    }
+    const mapped = { ...defaults };
+    for (const field of TAX_LINE_SOURCE_FIELDS) {
+      if (line[field] !== undefined && line[field] !== null && line[field] !== '') mapped[field] = String(line[field]).trim();
+    }
+    return mapped;
+  });
+}
+
 function deriveSafeTotals(result) {
   if (!Array.isArray(result.taxBreakdown) || result.taxBreakdown.length === 0) return;
   result.totals ??= {};
@@ -117,8 +142,21 @@ export function validateMappingProfile(profile) {
   if (!profile?.sourceType) errors.push('sourceType is required');
   if (!profile?.fields || typeof profile.fields !== 'object' || Array.isArray(profile.fields)) errors.push('fields must be an object');
 
+  let mapsNativeTaxLines = false;
   for (const [source, target] of Object.entries(profile?.fields ?? {})) {
     if (!MAPPING_TARGET_SET.has(target)) errors.push(`Unsupported mapping target ${target} for ${source}`);
+    if (target === 'taxBreakdown') mapsNativeTaxLines = true;
+  }
+
+  if (profile?.taxLineDefaults !== undefined) {
+    if (!profile.taxLineDefaults || typeof profile.taxLineDefaults !== 'object' || Array.isArray(profile.taxLineDefaults)) {
+      errors.push('taxLineDefaults must be an object');
+    } else {
+      for (const field of Object.keys(profile.taxLineDefaults)) if (!TAX_LINE_DEFAULT_FIELDS.has(field)) errors.push(`Unsupported taxLineDefaults field ${field}`);
+    }
+  }
+  if (mapsNativeTaxLines && ['taxCode', 'regimeKey', 'operationClass'].some((field) => !String(profile?.taxLineDefaults?.[field] ?? '').trim())) {
+    errors.push('taxLineDefaults.taxCode, regimeKey and operationClass are required when mapping taxBreakdown');
   }
 
   const allowedTransforms = new Set(['trim', 'upper', 'lower', 'decimal_comma', 'date_dmy']);
@@ -144,6 +182,10 @@ export function applyMapping(row, profile) {
     if (!(source in row)) continue;
     const rawValue = row[source];
     if (rawValue === '' || rawValue === undefined || rawValue === null) continue;
+    if (target === 'taxBreakdown') {
+      result.taxBreakdown = mapNativeTaxLines(rawValue, profile.taxLineDefaults);
+      continue;
+    }
     const value = applyTransforms(rawValue, profile.transforms?.[source]);
     setPath(result, target, value);
   }
@@ -177,7 +219,7 @@ export function inferMapping(headers) {
 
     const steps = ['trim'];
     if (target === 'issueDate') steps.push('date_dmy');
-    if (target === 'invoiceType') steps.push('upper');
+    if (target === 'invoiceType' || target === 'currency') steps.push('upper');
     if (target.includes('Amount') || target.endsWith('.rate') || target.endsWith('Rate')) steps.push('decimal_comma');
     transforms[source] = steps;
   }

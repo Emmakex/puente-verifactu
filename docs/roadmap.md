@@ -97,13 +97,31 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 
 **Límite explícito:** SQLite/rate limit local son un perfil de una sola instancia. Multi-réplica/HA, backups/restauración automatizados y outbox durable de producción se endurecen en Fase 6. El gate AEAT #6 sigue bloqueando piloto fiscal real/release.
 
-## Fase 5 — Kairoseth Extensions
+## Fase 5 — Kairoseth Extensions 🚧
 
-- WordPress/WooCommerce;
-- PrestaShop;
-- UX ES/EN;
-- reconciliación y fallback;
-- tests de compatibilidad y Connector Contract Suite.
+### WooCommerce
+
+- [x] Plugin/conector nativo v1 HPOS-safe basado exclusivamente en WooCommerce CRUD.
+- [x] Configuración HTTPS + `MappingProfile` + token Bearer cifrado.
+- [x] Modo manual preflight/send/reconcile antes de automatizar.
+- [x] Envío asíncrono con Action Scheduler y fallback WP-Cron.
+- [x] Idempotencia estable por sitio/pedido y reconciliación por `recordId`.
+- [x] Payload neutral minimizado y desglose multirate.
+- [x] `taxLineDefaults` server-side para impedir que Woo decida clasificación fiscal.
+- [x] Moneda dinámica desde el pedido sin inventar conversión EUR.
+- [x] ES/EN y traducción española empaquetada.
+- [x] Gate CI HPOS/CRUD/seguridad + sintaxis PHP 7.4.
+- [ ] Rectificaciones/reembolsos explícitos.
+- [ ] Semáforo verde/ámbar/rojo y acciones de soporte en administración.
+- [ ] Matriz automatizada WordPress/WooCommerce + paquete ZIP/release.
+
+### PrestaShop y aceptación transversal
+
+- [ ] Conector PrestaShop.
+- [ ] Reconciliación/fallback end-to-end común entre conectores.
+- [ ] Tests de compatibilidad y Connector Contract Suite para cada extensión.
+
+**Estado:** primera base de WooCommerce implementada. Fase 5 continúa abierta hasta cubrir rectificaciones/reembolsos, UX operativa, compatibilidad empaquetada y PrestaShop.
 
 **Salida:** conectores nativos end-to-end técnicamente validados, sujetos al cierre previo del gate AEAT #6 antes de cualquier piloto fiscal real.
 

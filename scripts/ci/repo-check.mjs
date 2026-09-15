@@ -12,6 +12,7 @@ const requiredPaths = [
   'docs/aeat-test-adapter-v1.md',
   'docs/universal-integration-kit-v1.md',
   'docs/mapping-assistant-v1.md',
+  'docs/canonical-core-v1.md',
   'docs/adr/0001-verifactu-only-mvp.md',
   'docs/adr/0002-chameleon-integration.md',
   'docs/adr/0003-defer-external-gates-with-release-block.md',
@@ -37,9 +38,15 @@ const requiredPaths = [
   'connectors/reference/contract.mjs',
   'connectors/file-import/README.md',
   'connectors/file-import/src/xlsx.mjs',
+  'connectors/woocommerce/README.md',
+  'connectors/woocommerce/puente-verifactu-woocommerce.php',
+  'connectors/woocommerce/examples/mapping-profile.json',
+  'connectors/woocommerce/languages/puente-verifactu-woocommerce-es_ES.po',
+  'connectors/woocommerce/languages/puente-verifactu-woocommerce-es_ES.mo',
   'packages/core/src/mapping-assistant.mjs',
   'scripts/auth/hash-credential.mjs',
-  'scripts/ci/onboarding-smoke.mjs'
+  'scripts/ci/onboarding-smoke.mjs',
+  'scripts/ci/woocommerce-connector-check.mjs'
 ];
 
 const failures = [];
@@ -61,6 +68,9 @@ try {
   }
   if (pkg?.scripts?.['runtime:smoke'] !== 'node --test apps/server/test/*.test.mjs packages/sqlite-store/test/*.test.mjs') {
     failures.push({ code: 'REPO_RUNTIME_GATE_MISSING', expected: 'runtime:smoke script' });
+  }
+  if (pkg?.scripts?.['woo:contract'] !== 'node scripts/ci/woocommerce-connector-check.mjs') {
+    failures.push({ code: 'REPO_WOO_CONTRACT_GATE_MISSING', expected: 'woo:contract script' });
   }
   if (pkg?.scripts?.server !== 'node apps/server/src/main.mjs') {
     failures.push({ code: 'REPO_SERVER_ENTRYPOINT_MISSING', expected: 'server script' });

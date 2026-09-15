@@ -2,7 +2,7 @@
 
 **Puente VeriFactu** es la capa de integración fiscal de Kairoseth Extensions para conectar sistemas de facturación, ERP, CRM, ecommerce, hojas de cálculo y software propio con **VERI*FACTU / AEAT** sin obligar al negocio a sustituir lo que ya utiliza.
 
-> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 en desarrollo con API/SDK/webhook, CSV/XLSX, mapping asistido, wizard cero-código ES/EN y suite contractual para terceros ya implementados. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
+> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 en desarrollo con la primera base nativa para WooCommerce. No usar todavía en producción ni interpretar este repositorio como asesoramiento fiscal o jurídico.
 
 ## Principio Camaleón
 
@@ -40,23 +40,26 @@ La primera etapa será **solo VERI*FACTU**. El modo NO VERI*FACTU queda fuera de
 ## Estructura
 
 ```text
-apps/api/                         API/ingress universal del puente
-apps/onboarding/                  Wizard cero-código responsive ES/EN
-packages/contracts/               Contrato canónico público
-packages/core/                    Motor fiscal + registros/hash + mapping assistant
-packages/aeat-adapter/            SOAP/XML, mTLS, respuestas y reintentos AEAT
-packages/sdk/                     SDK server-side para integradores
+apps/api/                          API/ingress universal del puente
+apps/onboarding/                   Wizard cero-código responsive ES/EN
+apps/server/                       Runtime HTTP single-node
+packages/contracts/                Contrato canónico público
+packages/core/                     Motor fiscal + registros/hash + mapping assistant
+packages/aeat-adapter/             SOAP/XML, mTLS, respuestas y reintentos AEAT
+packages/sdk/                      SDK server-side para integradores
+packages/sqlite-store/             Persistencia durable single-node
 packages/connector-contract-suite/ Gate de compatibilidad para conectores terceros
-packages/diagnostics/             Diagnóstico estructurado
-connectors/reference/             Conector de referencia
-connectors/file-import/           Entrada cero-código CSV/XLSX
-scripts/aeat/                     Gate seguro de pruebas AEAT
-scripts/ci/                       Gates y diagnóstico CI
+packages/diagnostics/              Diagnóstico estructurado
+connectors/reference/              Conector de referencia
+connectors/file-import/            Entrada cero-código CSV/XLSX
+connectors/woocommerce/            Primer conector nativo WooCommerce
+scripts/aeat/                      Gate seguro de pruebas AEAT
+scripts/ci/                        Gates y diagnóstico CI
 ```
 
 ## Documentación
 
-Consulta [docs/README.md](docs/README.md). Para integrar un sistema, empieza por [universal-integration-kit-v1.md](docs/universal-integration-kit-v1.md), [mapping-assistant-v1.md](docs/mapping-assistant-v1.md), [integration-strategy.md](docs/integration-strategy.md) y [onboarding-integration.md](docs/onboarding-integration.md). El wizard visual está documentado en `apps/onboarding/README.md` y la validación de conectores en `packages/connector-contract-suite/README.md`.
+Consulta [docs/README.md](docs/README.md). Para integrar un sistema, empieza por [universal-integration-kit-v1.md](docs/universal-integration-kit-v1.md), [mapping-assistant-v1.md](docs/mapping-assistant-v1.md), [integration-strategy.md](docs/integration-strategy.md) y [onboarding-integration.md](docs/onboarding-integration.md). El wizard visual está documentado en `apps/onboarding/README.md`, el runtime en `apps/server/README.md`, la validación de conectores en `packages/connector-contract-suite/README.md` y WooCommerce en `connectors/woocommerce/README.md`.
 
 ## Estado normativo de referencia
 
@@ -64,7 +67,7 @@ Documentación revisada el **15 de septiembre de 2026**. Antes de cada release c
 
 ## Desarrollo
 
-Requiere Node.js 22+ para las herramientas del repositorio.
+Requiere Node.js 22.13+ para las herramientas actuales del repositorio. El gate del conector WooCommerce valida además sintaxis PHP 7.4.
 
 ```bash
 npm run check
@@ -73,6 +76,8 @@ npm run preflight:demo
 npm run mapping:demo
 npm run onboarding:smoke
 npm run contract:reference
+npm run runtime:smoke
+npm run woo:contract
 npm run aeat:gate
 ```
 
