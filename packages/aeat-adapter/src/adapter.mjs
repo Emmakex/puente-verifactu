@@ -1,6 +1,33 @@
 import { AEAT_ENDPOINTS } from './constants.mjs';
+import { parseAeatQueryResponse, serializeAeatQueryRequest } from './query.mjs';
 import { parseAeatSoapResponse } from './response.mjs';
 import { serializeAeatSoapRequest } from './serialize.mjs';
+
+function transportError(cause, operation) {
+  return {
+    kind: 'transport_error',
+    operation,
+    status: 'fault',
+    retryable: true,
+    errorCode: cause.code ?? 'VF_AEAT_TRANSPORT_ERROR',
+    message: cause.message,
+    waitSeconds: null,
+    records: [],
+  };
+}
+
+function httpError(statusCode, operation) {
+  return {
+    kind: 'http_error',
+    operation,
+    status: 'fault',
+    retryable: statusCode >= 500 || statusCode === 408 || statusCode === 429,
+    errorCode: `HTTP_${statusCode}`,
+    message: `AEAT returned HTTP ${statusCode}`,
+    waitSeconds: null,
+    records: [],
+  };
+}
 
 export class AeatVerifactuAdapter {
   constructor({ sif, transport, environment = 'test', useSealEndpoint = false, allowProduction = false, clock = () => Date.now() }) {
@@ -22,6 +49,19 @@ export class AeatVerifactuAdapter {
     return this.useSealEndpoint ? AEAT_ENDPOINTS.testSeal : AEAT_ENDPOINTS.test;
   }
 
+  async postXml(xml, operation) {
+    let http;
+    try {
+      http = await this.transport({ url: this.endpoint, body: xml });
+    } catch (cause) {
+      return { error: transportError(cause, operation) };
+    }
+    if (http.statusCode < 200 || http.statusCode >= 300) {
+      return { error: httpError(http.statusCode, operation) };
+    }
+    return { http };
+  }
+
   async submit(request) {
     const now = this.clock();
     if (now < this.nextAllowedAt) {
@@ -33,35 +73,17 @@ export class AeatVerifactuAdapter {
     }
 
     const xml = serializeAeatSoapRequest({ ...request, sif: this.sif });
-    let http;
-    try {
-      http = await this.transport({ url: this.endpoint, body: xml });
-    } catch (cause) {
-      return {
-        kind: 'transport_error',
-        status: 'fault',
-        retryable: true,
-        errorCode: cause.code ?? 'VF_AEAT_TRANSPORT_ERROR',
-        message: cause.message,
-        waitSeconds: null,
-        records: [],
-      };
-    }
-
-    if (http.statusCode < 200 || http.statusCode >= 300) {
-      return {
-        kind: 'http_error',
-        status: 'fault',
-        retryable: http.statusCode >= 500 || http.statusCode === 408 || http.statusCode === 429,
-        errorCode: `HTTP_${http.statusCode}`,
-        message: `AEAT returned HTTP ${http.statusCode}`,
-        waitSeconds: null,
-        records: [],
-      };
-    }
-
-    const normalized = parseAeatSoapResponse(http.body);
+    const posted = await this.postXml(xml, 'submit');
+    if (posted.error) return posted.error;
+    const normalized = parseAeatSoapResponse(posted.http.body);
     if (normalized.waitSeconds != null) this.nextAllowedAt = this.clock() + normalized.waitSeconds * 1000;
     return normalized;
+  }
+
+  async queryPresentedRecords(request) {
+    const xml = serializeAeatQueryRequest(request);
+    const posted = await this.postXml(xml, 'query');
+    if (posted.error) return posted.error;
+    return parseAeatQueryResponse(posted.http.body);
   }
 }
