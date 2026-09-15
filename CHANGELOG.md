@@ -6,6 +6,10 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ### Added
 
+- Extractor fiscal PrestaShop reforzado a nivel `OrderInvoice`, reutilizando los breakdowns nativos de productos, portes y wrapping en lugar de reconstruir impuestos desde `order_detail`.
+- Matriz ejecutable de fixtures PrestaShop para IVA simple/múltiple, descuentos ya repartidos por PrestaShop, portes, wrapping, envío gratuito, base residual al 0 % y reconciliación de redondeo de un céntimo.
+- Reconciliador determinista de tax lines PrestaShop contra los totales de la factura, con bloqueo seguro ante incoherencias, ecotasa no soportada o pedidos con múltiples facturas.
+- Gate CI `npm run prestashop:fixtures` integrado en el pipeline obligatorio.
 - PrestaShop Connector v1 foundation para 1.7.8.x/8.x con configuración por tienda, payload neutral y flujo manual `preflight -> issue -> reconcile`.
 - Token Bearer del conector PrestaShop cifrado con AES-256-GCM; certificado y lógica AEAT permanecen exclusivamente server-side.
 - Idempotencia PrestaShop por tienda/pedido/factura, persistencia local de `recordId`/estado y bloqueo de duplicados antes de reconciliar.
