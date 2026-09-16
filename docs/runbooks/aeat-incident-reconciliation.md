@@ -90,6 +90,44 @@ npm run aeat:reconcile -- \
 
 La evidencia se crea con permisos `0600` y no se sobrescribe. Guardarla fuera de Git y adjuntar al expediente operativo únicamente el hash/referencia que corresponda.
 
+## Prueba controlada del procedimiento sin fabricar un timeout
+
+Para cerrar el gate externo #6 no hace falta provocar deliberadamente una caída de red. El live gate puede crear una **semilla privada** a partir de la misma remisión aceptada, sin efectuar una segunda llamada `submit()`.
+
+Requisitos adicionales:
+
+```bash
+export AEAT_LIVE_SEND=YES
+export AEAT_RECONCILIATION_SEED=YES
+```
+
+Ejecutar una remisión aceptada real, ligada al commit candidato, indicando dos destinos **nuevos** fuera de Git:
+
+```bash
+npm run aeat:gate -- \
+  --send \
+  --expect accepted \
+  --source-commit '<SHA40>' \
+  --evidence-output ./private-evidence/aeat-accepted.json \
+  --reconciliation-seed-db ./private-evidence/reconciliation.sqlite \
+  --reconciliation-seed-output ./private-evidence/reconciliation-operator.json
+```
+
+La secuencia segura es:
+
+1. reservar los dos destinos con permisos restrictivos antes de cargar PFX/abrir red;
+2. si alguno existe, abortar sin sobrescribir y sin enviar;
+3. realizar la única remisión normal;
+4. exigir respuesta `accepted`;
+5. copiar localmente esa misma identidad fiscal al outbox privado en `reconciliation_required`;
+6. leer `databasePath` y `jobId` solo desde `reconciliation-operator.json`;
+7. ejecutar `npm run aeat:reconcile` primero en modo inspect y conservar la evidencia sanitizada;
+8. usar `--apply` únicamente si la consulta exacta vuelve a confirmar el registro.
+
+La salida pública de la creación de la semilla no incluye rutas privadas ni job ID; solo expone hash del job, commit, estado y que la semilla añadió cero submits. La SQLite y el fichero operador quedan `0600`.
+
+Esta semilla es exclusivamente un instrumento de prueba/operación. No altera el hecho histórico de que AEAT recibió una única remisión real.
+
 ## ¿Cuándo podría existir un retry manual?
 
 El CLI `aeat:reconcile` **no autoriza ni ejecuta retries**. Un eventual `reconciliation_required -> pending` pertenece a una decisión operativa separada y requiere evidencia positiva independiente de que una nueva remisión es segura. `SinDatos`, timeout de consulta, error SOAP, mismatch o ausencia de respuesta nunca constituyen esa evidencia.

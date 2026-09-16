@@ -137,12 +137,44 @@ export function parseLiveGateOptions(argv = [], env = process.env) {
     throw error;
   }
 
+  const reconciliationSeedDb = argValue(argv, '--reconciliation-seed-db');
+  const reconciliationSeedOutput = argValue(argv, '--reconciliation-seed-output');
+  const seedRequested = Boolean(reconciliationSeedDb || reconciliationSeedOutput);
+  if (seedRequested && (!reconciliationSeedDb || !reconciliationSeedOutput)) {
+    const error = new Error('Controlled reconciliation seed requires both --reconciliation-seed-db and --reconciliation-seed-output');
+    error.code = 'VF_AEAT_RECONCILIATION_SEED_PATHS_REQUIRED';
+    throw error;
+  }
+  if (seedRequested && !send) {
+    const error = new Error('Controlled reconciliation seed is only available on a real --send execution');
+    error.code = 'VF_AEAT_RECONCILIATION_SEED_SEND_REQUIRED';
+    throw error;
+  }
+  if (seedRequested && expectedStatus !== 'accepted') {
+    const error = new Error('Controlled reconciliation seed requires --expect accepted');
+    error.code = 'VF_AEAT_RECONCILIATION_SEED_EXPECT_ACCEPTED';
+    throw error;
+  }
+  if (seedRequested && env.AEAT_RECONCILIATION_SEED !== 'YES') {
+    const error = new Error('Controlled reconciliation seed requires AEAT_RECONCILIATION_SEED=YES');
+    error.code = 'VF_AEAT_RECONCILIATION_SEED_GUARD';
+    throw error;
+  }
+  if (seedRequested && !/^[0-9a-f]{40}$/i.test(sourceCommit ?? '')) {
+    const error = new Error('Controlled reconciliation seed requires --source-commit with a 40-character commit SHA');
+    error.code = 'VF_AEAT_RECONCILIATION_SEED_SOURCE_COMMIT_REQUIRED';
+    error.field = '--source-commit';
+    throw error;
+  }
+
   return {
     send,
     showXml,
     expectedStatus,
     evidenceOutput,
     sourceCommit: sourceCommit?.toLowerCase() ?? null,
+    reconciliationSeedDb,
+    reconciliationSeedOutput,
   };
 }
 

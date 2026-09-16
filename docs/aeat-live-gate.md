@@ -208,9 +208,74 @@ Gate de contrato y smoke:
 
 ```bash
 npm run aeat:reconciliation:smoke
+npm run aeat:reconcile:smoke
 ```
 
-Para cerrar el issue #6 con este mecanismo se debe provocar/controlar un escenario de resultado incierto en pruebas o documentar uno real, ejecutar la consulta oficial y conservar evidencia sanitizada de que la identidad/huella retornadas por AEAT corresponden al registro enviado. El repositorio no almacena el XML de consulta ni la respuesta SOAP cruda.
+## Semilla controlada para demostrar reconciliación
+
+Para probar la consulta oficial sin fabricar un timeout ni realizar una segunda remisión, una ejecución **aceptada** del live gate puede crear una SQLite privada de un solo uso con la misma petición ya enviada, colocada localmente en `reconciliation_required`.
+
+La semilla añade **cero llamadas `submit()`**. El orden es deliberado:
+
+1. reservar una SQLite nueva y un fichero operador nuevo con `0600`;
+2. si cualquiera existe, abortar antes de cargar el PFX o abrir red;
+3. realizar la única remisión normal a AEAT;
+4. exigir `status=accepted`;
+5. persistir la misma identidad, `RefExterna` y huella en el outbox privado como `reconciliation_required`;
+6. consultar después con `npm run aeat:reconcile`.
+
+Guard adicional:
+
+```bash
+export AEAT_LIVE_SEND=YES
+export AEAT_RECONCILIATION_SEED=YES
+```
+
+Ejecución aceptada con semilla:
+
+```bash
+npm run aeat:gate -- \
+  --send \
+  --expect accepted \
+  --source-commit <SHA40> \
+  --evidence-output ./private-evidence/aeat-accepted.json \
+  --reconciliation-seed-db ./private-evidence/reconciliation.sqlite \
+  --reconciliation-seed-output ./private-evidence/reconciliation-operator.json
+```
+
+La salida pública no muestra rutas privadas, job ID, NIF, XML, SOAP, certificado ni passphrase. El fichero `reconciliation-operator.json`, que debe permanecer fuera de Git, contiene localmente la ruta de la SQLite y el job ID necesarios para operar la consulta.
+
+Primero consultar sin mutar la SQLite:
+
+```bash
+npm run aeat:reconcile -- \
+  --db <databasePath-del-fichero-operador> \
+  --job-id <jobId-del-fichero-operador> \
+  --source-commit <SHA40> \
+  --evidence-output ./private-evidence/aeat-reconciliation-inspect.json
+```
+
+Solo si la consulta devuelve coincidencia exacta y se quiere registrar el cierre local:
+
+```bash
+export AEAT_RECONCILIATION_APPLY=YES
+npm run aeat:reconcile -- \
+  --db <databasePath-del-fichero-operador> \
+  --job-id <jobId-del-fichero-operador> \
+  --source-commit <SHA40> \
+  --evidence-output ./private-evidence/aeat-reconciliation-apply.json \
+  --apply
+```
+
+`--apply` solo puede producir `reconciliation_required -> completed` después de una nueva consulta oficial con coincidencia exacta. `SinDatos`, mismatch, paginación o fallo de consulta mantienen la cuarentena.
+
+Smoke técnico de la semilla:
+
+```bash
+npm run aeat:seed:smoke
+```
+
+Este mecanismo **no genera evidencia externa por sí solo**: el issue #6 continúa abierto hasta ejecutar la secuencia real con certificado válido y conservar la evidencia sanitizada correspondiente.
 
 ## Cadena de prueba
 

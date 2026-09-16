@@ -5,6 +5,11 @@ import { serializeAeatSoapRequest } from '../../packages/aeat-adapter/src/serial
 import { createHttpsMtlsTransport } from '../../packages/aeat-adapter/src/transport.mjs';
 import { loadPfxCredentials } from './certificate-preflight-lib.mjs';
 import {
+  assertControlledReconciliationSeedDestinations,
+  createControlledReconciliationSeed,
+  releaseControlledReconciliationSeedReservations,
+} from './reconciliation-seed-lib.mjs';
+import {
   buildLiveGateEvidence,
   buildLiveGateFixture,
   buildLiveGateSummary,
@@ -26,7 +31,8 @@ async function main() {
   const options = parseLiveGateOptions(argv, process.env);
   const fixture = buildLiveGateFixture(process.env, new Date());
   const entries = [{ intent: fixture.intent, record: fixture.record }];
-  const xml = serializeAeatSoapRequest({ issuer: fixture.issuer, entries, sif: fixture.sif });
+  const requestPayload = { issuer: fixture.issuer, entries };
+  const xml = serializeAeatSoapRequest({ ...requestPayload, sif: fixture.sif });
   const summary = buildLiveGateSummary(fixture, xml);
   const action = options.send ? 'submit' : 'dry-run';
 
@@ -54,34 +60,67 @@ async function main() {
     return;
   }
 
-  const { pfx, passphrase } = await loadPfxCredentials(process.env);
-  const transport = createHttpsMtlsTransport({
-    tls: { pfx, passphrase },
-  });
-  const adapter = new AeatVerifactuAdapter({
-    sif: fixture.sif,
-    environment: 'test',
-    transport,
-  });
-
-  const result = await adapter.submit({ issuer: fixture.issuer, entries });
-  const sanitized = sanitizeLiveGateResult(result);
-  console.log(JSON.stringify({ gate: 'aeat-test-live-result', result: sanitized }, null, 2));
-
-  if (options.evidenceOutput) {
-    await writeEvidence(options.evidenceOutput, buildLiveGateEvidence({
-      action,
-      expectedStatus: options.expectedStatus,
-      sourceCommit: options.sourceCommit,
-      summary,
-      result: sanitized,
-    }));
+  let seedReservations = null;
+  let seedCreationStarted = false;
+  if (options.reconciliationSeedDb) {
+    seedReservations = await assertControlledReconciliationSeedDestinations({
+      databasePath: options.reconciliationSeedDb,
+      operatorOutputPath: options.reconciliationSeedOutput,
+    });
   }
 
-  if (options.expectedStatus && result?.status !== options.expectedStatus) {
-    const error = new Error(`Expected AEAT status ${options.expectedStatus}, got ${result?.status ?? 'unknown'}`);
-    error.code = 'VF_AEAT_GATE_UNEXPECTED_STATUS';
-    throw error;
+  try {
+    const { pfx, passphrase } = await loadPfxCredentials(process.env);
+    const transport = createHttpsMtlsTransport({
+      tls: { pfx, passphrase },
+    });
+    const adapter = new AeatVerifactuAdapter({
+      sif: fixture.sif,
+      environment: 'test',
+      transport,
+    });
+
+    const result = await adapter.submit(requestPayload);
+    const sanitized = sanitizeLiveGateResult(result);
+    console.log(JSON.stringify({ gate: 'aeat-test-live-result', result: sanitized }, null, 2));
+
+    if (options.evidenceOutput) {
+      await writeEvidence(options.evidenceOutput, buildLiveGateEvidence({
+        action,
+        expectedStatus: options.expectedStatus,
+        sourceCommit: options.sourceCommit,
+        summary,
+        result: sanitized,
+      }));
+    }
+
+    if (options.expectedStatus && result?.status !== options.expectedStatus) {
+      const error = new Error(`Expected AEAT status ${options.expectedStatus}, got ${result?.status ?? 'unknown'}`);
+      error.code = 'VF_AEAT_GATE_UNEXPECTED_STATUS';
+      throw error;
+    }
+
+    if (seedReservations) {
+      seedCreationStarted = true;
+      const seed = await createControlledReconciliationSeed({
+        databasePath: seedReservations.databasePath,
+        operatorOutputPath: seedReservations.operatorOutputPath,
+        payload: requestPayload,
+        sourceCommit: options.sourceCommit,
+        liveResult: result,
+        recordedAt: new Date(),
+        reservationsAlreadyHeld: true,
+      });
+      console.log(JSON.stringify({
+        gate: 'aeat-controlled-reconciliation-seed',
+        result: seed,
+      }, null, 2));
+      console.log('Private reconciliation seed created. Read the private operator output file locally for the job ID, then run npm run aeat:reconcile in inspect mode.');
+    }
+  } finally {
+    if (seedReservations && !seedCreationStarted) {
+      await releaseControlledReconciliationSeedReservations(seedReservations);
+    }
   }
 }
 
