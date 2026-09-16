@@ -152,6 +152,7 @@ function validateTargetJob(job) {
 
 export function sanitizeLiveReconciliation({ options, certificateSummary, beforeJob, result, recordedAt = new Date() }) {
   const entries = result.assessment?.entries ?? [];
+  const entryRecordHashes = beforeJob.payload.entries.map((entry) => entry?.record?.hash ?? null);
   return {
     schemaVersion: 1,
     gate: 'aeat-official-reconciliation-live',
@@ -160,6 +161,7 @@ export function sanitizeLiveReconciliation({ options, certificateSummary, before
     mode: options.apply ? 'apply' : 'inspect',
     sourceCommit: options.sourceCommit,
     jobIdSha256: sha256(options.jobId),
+    entryRecordHashes,
     certificate: {
       pfxSha256: certificateSummary.pfxSha256,
       passphraseSource: certificateSummary.passphraseSource,
