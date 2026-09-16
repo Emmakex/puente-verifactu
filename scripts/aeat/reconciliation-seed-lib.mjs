@@ -146,6 +146,7 @@ export async function createControlledReconciliationSeed({
         try { await rmFn(path, { force: true }); } catch {}
       }
     }
-    throw error;
+    if (String(error?.code ?? '').startsWith('VF_AEAT_RECONCILIATION_SEED_')) throw error;
+    throw seedError('VF_AEAT_RECONCILIATION_SEED_CREATE_FAILED', 'Private reconciliation seed could not be completed safely');
   }
 }
