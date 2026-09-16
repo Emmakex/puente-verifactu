@@ -143,3 +143,40 @@ test('reservations can be released before certificate/network use', async () => 
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('incomplete seed creation is cleaned and returns a path-free diagnostic', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pvf-seed-fail-'));
+  try {
+    const databasePath = join(root, 'secret-seed.sqlite');
+    const operatorOutputPath = join(root, 'secret-operator.json');
+    const { payload } = acceptedPayload();
+    await assert.rejects(
+      async () => {
+        try {
+          await createControlledReconciliationSeed({
+            databasePath,
+            operatorOutputPath,
+            payload,
+            sourceCommit,
+            liveResult: { status: 'accepted' },
+          }, {
+            writeFileFn: async () => {
+              throw new Error(`simulated write failure at ${operatorOutputPath}`);
+            },
+          });
+        } catch (error) {
+          assert.equal(error.code, 'VF_AEAT_RECONCILIATION_SEED_CREATE_FAILED');
+          assert.doesNotMatch(error.message, /secret-operator|pvf-seed-fail/);
+          throw error;
+        }
+      },
+      { code: 'VF_AEAT_RECONCILIATION_SEED_CREATE_FAILED' },
+    );
+    await assert.rejects(() => stat(databasePath), { code: 'ENOENT' });
+    await assert.rejects(() => stat(`${databasePath}-wal`), { code: 'ENOENT' });
+    await assert.rejects(() => stat(`${databasePath}-shm`), { code: 'ENOENT' });
+    await assert.rejects(() => stat(operatorOutputPath), { code: 'ENOENT' });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
