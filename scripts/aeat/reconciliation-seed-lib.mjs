@@ -16,9 +16,9 @@ function sha256(value) {
 
 async function reserveExclusiveFile(path, field, { mkdirFn = mkdir, openFn = open } = {}) {
   const target = resolve(path);
-  await mkdirFn(dirname(target), { recursive: true });
   let handle;
   try {
+    await mkdirFn(dirname(target), { recursive: true });
     handle = await openFn(target, 'wx', 0o600);
   } catch (cause) {
     if (cause?.code === 'EEXIST') {
@@ -86,7 +86,7 @@ export async function createControlledReconciliationSeed({
   const rmFn = dependencies.rmFn ?? rm;
   const now = recordedAt.getTime();
   let persistence;
-  let seeded = false;
+  let completed = false;
 
   try {
     persistence = makePersistence({ path: paths.databasePath });
@@ -110,7 +110,6 @@ export async function createControlledReconciliationSeed({
     if (quarantined.state !== 'reconciliation_required') {
       throw seedError('VF_AEAT_RECONCILIATION_SEED_STATE_INVALID', 'Controlled reconciliation seed did not enter reconciliation_required');
     }
-    seeded = true;
     persistence.close();
     persistence = null;
     await chmodFn(paths.databasePath, 0o600);
@@ -129,6 +128,7 @@ export async function createControlledReconciliationSeed({
 
     await writeFileFn(paths.operatorOutputPath, `${JSON.stringify(privateOperator, null, 2)}\n`, { flag: 'w', mode: 0o600 });
     await chmodFn(paths.operatorOutputPath, 0o600);
+    completed = true;
 
     return {
       schemaVersion: 1,
@@ -141,7 +141,7 @@ export async function createControlledReconciliationSeed({
     };
   } catch (error) {
     try { persistence?.close?.(); } catch {}
-    if (!seeded) {
+    if (!completed) {
       for (const path of [paths.databasePath, `${paths.databasePath}-wal`, `${paths.databasePath}-shm`, paths.operatorOutputPath]) {
         try { await rmFn(path, { force: true }); } catch {}
       }
