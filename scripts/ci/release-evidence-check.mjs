@@ -29,7 +29,6 @@ assert.equal(registry.aeat_artifacts.web_service_document_version, AEAT_ARTIFACT
 assert.equal(registry.aeat_artifacts.validations_document_version, AEAT_ARTIFACTS.validationsDocumentVersion);
 assert.equal(registry.aeat_artifacts.schema_generation, AEAT_ARTIFACTS.schemaGeneration);
 assert.equal(registry.aeat_artifacts.record_version, AEAT_ARTIFACTS.recordVersion);
-assert.equal(registry.reviewed_at, AEAT_ARTIFACTS.verifiedAt);
 
 const requiredSources = new Set([
   'aeat_technical_information',
@@ -46,7 +45,10 @@ for (const source of registry.sources) {
 assert.equal(requiredSources.size, 0, `Missing regulatory sources: ${[...requiredSources].join(', ')}`);
 
 const reviewedAt = Date.parse(`${registry.reviewed_at}T00:00:00Z`);
+const artifactsVerifiedAt = Date.parse(`${AEAT_ARTIFACTS.verifiedAt}T00:00:00Z`);
 assert.ok(Number.isFinite(reviewedAt));
+assert.ok(Number.isFinite(artifactsVerifiedAt));
+assert.ok(reviewedAt >= artifactsVerifiedAt, 'Regulatory review cannot predate the pinned AEAT artifact verification');
 const ageDays = (Date.now() - reviewedAt) / 86_400_000;
 assert.ok(ageDays >= -1, 'Regulatory review date cannot be materially in the future');
 assert.ok(ageDays <= registry.expires_after_days, `Regulatory review is stale (${ageDays.toFixed(1)} days)`);
@@ -76,6 +78,7 @@ console.log(JSON.stringify({
   status: 'ok',
   release_status: evidence.release.status,
   regulatory_reviewed_at: registry.reviewed_at,
+  aeat_artifacts_verified_at: AEAT_ARTIFACTS.verifiedAt,
   regulatory_review_max_age_days: registry.expires_after_days,
   artifacts: evidence.artifacts.map(({ id, version, sha256 }) => ({ id, version, sha256 })),
   blocker: aeatGate.id,
