@@ -14,7 +14,7 @@ function sha256(value) {
   return createHash('sha256').update(String(value), 'utf8').digest('hex');
 }
 
-async function reserveExclusiveFile(path, { mkdirFn = mkdir, openFn = open } = {}) {
+async function reserveExclusiveFile(path, field, { mkdirFn = mkdir, openFn = open } = {}) {
   const target = resolve(path);
   await mkdirFn(dirname(target), { recursive: true });
   let handle;
@@ -22,9 +22,9 @@ async function reserveExclusiveFile(path, { mkdirFn = mkdir, openFn = open } = {
     handle = await openFn(target, 'wx', 0o600);
   } catch (cause) {
     if (cause?.code === 'EEXIST') {
-      throw seedError('VF_AEAT_RECONCILIATION_SEED_TARGET_EXISTS', `Refusing to overwrite existing private seed target: ${target}`);
+      throw seedError('VF_AEAT_RECONCILIATION_SEED_TARGET_EXISTS', 'Refusing to overwrite an existing private reconciliation seed target', field);
     }
-    throw seedError('VF_AEAT_RECONCILIATION_SEED_TARGET_UNAVAILABLE', `Private seed target cannot be reserved: ${target}`);
+    throw seedError('VF_AEAT_RECONCILIATION_SEED_TARGET_UNAVAILABLE', 'A private reconciliation seed target cannot be reserved', field);
   } finally {
     try { await handle?.close(); } catch {}
   }
@@ -37,9 +37,9 @@ export async function assertControlledReconciliationSeedDestinations({ databaseP
   }
   const reserved = [];
   try {
-    const db = await reserveExclusiveFile(databasePath, dependencies);
+    const db = await reserveExclusiveFile(databasePath, '--reconciliation-seed-db', dependencies);
     reserved.push(db);
-    const operator = await reserveExclusiveFile(operatorOutputPath, dependencies);
+    const operator = await reserveExclusiveFile(operatorOutputPath, '--reconciliation-seed-output', dependencies);
     reserved.push(operator);
     return { databasePath: db, operatorOutputPath: operator };
   } catch (error) {
