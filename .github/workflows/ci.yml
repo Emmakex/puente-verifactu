@@ -76,6 +76,9 @@ jobs:
       - name: AEAT controlled rejection profile smoke
         run: npm run aeat:rejection:smoke
 
+      - name: AEAT final gate evidence verifier smoke
+        run: npm run aeat:final-evidence:smoke
+
       - name: Durable AEAT outbox smoke
         run: npm run aeat:outbox:smoke
 

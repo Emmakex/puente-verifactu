@@ -139,6 +139,7 @@ test('inspect mode uses official query and leaves SQLite job quarantined', async
     assert.equal(result.assessment.allReceived, true);
     assert.equal(result.assessment.applied, false);
     assert.equal(result.assessment.shouldReissue, false);
+    assert.deepEqual(result.entryRecordHashes, ['A'.repeat(64)]);
     assert.equal(result.afterState, 'reconciliation_required');
     assert.equal(await storedState(dbPath, jobId), 'reconciliation_required');
     assert.equal(fake.networkCalls, 1);
@@ -166,6 +167,8 @@ test('apply mode completes only after exact AEAT match and double guard', async 
     assert.equal(result.mode, 'apply');
     assert.equal(result.assessment.allReceived, true);
     assert.equal(result.assessment.applied, true);
+    assert.equal(result.assessment.shouldReissue, false);
+    assert.deepEqual(result.entryRecordHashes, ['A'.repeat(64)]);
     assert.equal(result.afterState, 'completed');
     assert.equal(await storedState(dbPath, jobId), 'completed');
     assert.equal(fake.networkCalls, 1);
@@ -188,6 +191,7 @@ test('SinDatos in apply mode stays quarantined and never becomes retry-safe', as
     assert.equal(result.assessment.allReceived, false);
     assert.equal(result.assessment.applied, false);
     assert.equal(result.assessment.shouldReissue, false);
+    assert.deepEqual(result.entryRecordHashes, ['A'.repeat(64)]);
     assert.equal(result.assessment.entries[0].outcome, 'not_found');
     assert.equal(await storedState(dbPath, jobId), 'reconciliation_required');
   } finally {
@@ -209,10 +213,12 @@ test('evidence is non-overwriting, mode 0600 and sanitized', async () => {
     });
 
     const evidence = await readFile(evidencePath, 'utf8');
+    const parsed = JSON.parse(evidence);
     const mode = (await stat(evidencePath)).mode & 0o777;
     assert.equal(mode, 0o600);
     assert.match(evidence, new RegExp(sourceCommit));
     assert.match(evidence, /"shouldReissue": false/);
+    assert.deepEqual(parsed.entryRecordHashes, ['A'.repeat(64)]);
     for (const secret of [jobId, 'B12345678', 'A-42', 'secret-ref-001', 'REQ-PRIVATE-001', 'super-secret-passphrase', dbPath]) {
       assert.doesNotMatch(evidence, new RegExp(secret.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
