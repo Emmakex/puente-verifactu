@@ -199,7 +199,7 @@ test('SinDatos in apply mode stays quarantined and never becomes retry-safe', as
   }
 });
 
-test('evidence is non-overwriting, mode 0600, hash-bound and sanitized', async () => {
+test('evidence is non-overwriting, mode 0600 and sanitized', async () => {
   const root = await mkdtemp(join(tmpdir(), 'pvf-reconcile-evidence-'));
   try {
     const { dbPath, jobId } = await createUncertainDatabase(root);
