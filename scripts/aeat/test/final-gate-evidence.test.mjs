@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AEAT_ARTIFACTS } from '../../../packages/aeat-adapter/src/constants.mjs';
@@ -8,6 +9,8 @@ import {
 
 const commit = '0123456789abcdef0123456789abcdef01234567';
 const acceptedRecordHash = 'A'.repeat(64);
+const fiscalHashFingerprint = (value) => createHash('sha256').update(String(value).toUpperCase(), 'utf8').digest('hex');
+const acceptedRecordHashFingerprint = fiscalHashFingerprint(acceptedRecordHash);
 const artifacts = {
   verifiedAt: AEAT_ARTIFACTS.verifiedAt,
   webServiceDocumentVersion: AEAT_ARTIFACTS.webServiceDocumentVersion,
@@ -77,7 +80,7 @@ function reconciliationEvidence(overrides = {}) {
     mode: 'apply',
     sourceCommit: commit,
     jobIdSha256: '5'.repeat(64),
-    entryRecordHashes: [acceptedRecordHash.toLowerCase()],
+    entryRecordHashFingerprints: [acceptedRecordHashFingerprint],
     certificate: {
       pfxSha256: '6'.repeat(64),
       passphraseSource: 'file',
@@ -93,7 +96,7 @@ function reconciliationEvidence(overrides = {}) {
       entries: [{
         outcome: 'received',
         received: true,
-        storedState: 'Correcto',
+        storedState: 'accepted',
         reason: null,
         errorCode: null,
       }],
@@ -117,10 +120,11 @@ test('complete accepted rejected and applied reconciliation evidence verifies wi
   assert.equal(result.verified.officialReconciliationApplied, true);
   assert.equal(result.verified.acceptedRecordBoundToReconciliation, true);
   assert.equal(result.verified.shouldReissue, false);
-  assert.equal(result.evidenceFingerprints.reconciledRecordHash, acceptedRecordHash.toLowerCase());
+  assert.equal(result.evidenceFingerprints.reconciledRecordHashFingerprint, acceptedRecordHashFingerprint);
   assert.deepEqual(result.remainingExternalEvidence, []);
   assert.equal(result.releaseUnblocked, false);
   assert.equal(result.automaticIssueClosure, false);
+  assert.doesNotMatch(JSON.stringify(result), new RegExp(acceptedRecordHash));
 });
 
 test('final evidence rejects a different reconciliation source commit', () => {
@@ -132,11 +136,11 @@ test('final evidence rejects a different reconciliation source commit', () => {
   }), { code: 'VF_AEAT_FINAL_EVIDENCE_SOURCE_COMMIT_MISMATCH' });
 });
 
-test('final evidence cryptographically binds reconciliation to the accepted fiscal record', () => {
+test('final evidence cryptographically binds reconciliation to the accepted fiscal record fingerprint', () => {
   assert.throws(() => verifyAeatFinalGateEvidence({
     accepted: acceptedEvidence(),
     rejected: rejectedEvidence(),
-    reconciliation: reconciliationEvidence({ entryRecordHashes: ['c'.repeat(64)] }),
+    reconciliation: reconciliationEvidence({ entryRecordHashFingerprints: [fiscalHashFingerprint('C'.repeat(64))] }),
     sourceCommit: commit,
   }), { code: 'VF_AEAT_FINAL_EVIDENCE_RECORD_HASH_MISMATCH' });
 });
@@ -154,7 +158,7 @@ test('inspect-only reconciliation cannot satisfy the final external gate evidenc
         shouldReissue: false,
         applied: false,
         entryCount: 1,
-        entries: [{ outcome: 'received', received: true }],
+        entries: [{ outcome: 'received', received: true, storedState: 'accepted' }],
       },
     }),
     sourceCommit: commit,
@@ -175,7 +179,7 @@ test('unresolved reconciliation cannot satisfy the final external gate evidence'
   }), { code: 'VF_AEAT_FINAL_EVIDENCE_RECONCILIATION_STATE_INVALID' });
 });
 
-test('raw sensitive reconciliation fields fail closed', () => {
+test('raw sensitive reconciliation fields and raw fiscal hashes fail closed', () => {
   const reconciliation = reconciliationEvidence();
   reconciliation.databasePath = '/private/runtime.sqlite';
   assert.throws(() => verifyAeatFinalGateEvidence({
@@ -184,6 +188,26 @@ test('raw sensitive reconciliation fields fail closed', () => {
     reconciliation,
     sourceCommit: commit,
   }), { code: 'VF_AEAT_FINAL_EVIDENCE_RAW_SENSITIVE_FIELD' });
+
+  const rawHashEvidence = reconciliationEvidence();
+  rawHashEvidence.entryRecordHashes = [acceptedRecordHash];
+  assert.throws(() => verifyAeatFinalGateEvidence({
+    accepted: acceptedEvidence(),
+    rejected: rejectedEvidence(),
+    reconciliation: rawHashEvidence,
+    sourceCommit: commit,
+  }), { code: 'VF_AEAT_FINAL_EVIDENCE_RAW_SENSITIVE_FIELD' });
+});
+
+test('final verifier requires normalized accepted stored state', () => {
+  const reconciliation = reconciliationEvidence();
+  reconciliation.assessment.entries[0].storedState = 'accepted_with_errors';
+  assert.throws(() => verifyAeatFinalGateEvidence({
+    accepted: acceptedEvidence(),
+    rejected: rejectedEvidence(),
+    reconciliation,
+    sourceCommit: commit,
+  }), { code: 'VF_AEAT_FINAL_EVIDENCE_RECONCILIATION_ENTRIES_INVALID' });
 });
 
 test('final verifier reuses deterministic rejection profile requirements', () => {

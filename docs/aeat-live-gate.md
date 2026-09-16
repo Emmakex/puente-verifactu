@@ -291,7 +291,7 @@ npm run aeat:reconcile -- \
 
 `--apply` solo puede producir `reconciliation_required -> completed` después de una nueva consulta oficial con coincidencia exacta. `SinDatos`, mismatch, paginación o fallo de consulta mantienen la cuarentena.
 
-La evidencia de reconciliación incluye además `entryRecordHashes`, exclusivamente las huellas fiscales SHA-256 de los registros reconciliados. No añade NIF, número de factura, `RefExterna`, job ID crudo ni ruta SQLite. Esta huella permite demostrar que la reconciliación pertenece exactamente a la remisión aceptada usada para sembrar el job.
+La evidencia de reconciliación incluye `entryRecordHashFingerprints`: por cada registro toma la huella fiscal SHA-256 ya existente, la normaliza y calcula un segundo SHA-256. De este modo puede demostrar que la reconciliación corresponde al mismo registro aceptado sin almacenar la huella fiscal original en el fichero de reconciliación. Tampoco añade NIF, número de factura, `RefExterna`, job ID crudo ni ruta SQLite. Una huella fiscal ausente o inválida hace fallar la generación de evidencia.
 
 Smoke técnico de la semilla:
 
@@ -319,10 +319,10 @@ El verificador final reutiliza todas las comprobaciones del bundle aceptado/rech
 - evidencia en modo `apply`, no solo `inspect`;
 - transición `reconciliation_required -> completed`;
 - `allReceived=true`, `applied=true` y `shouldReissue=false`;
-- exactamente un registro para el fixture live-gate v1;
-- huella fiscal de `entryRecordHashes[0]` idéntica a `accepted.summary.recordHash`;
+- exactamente un registro para el fixture live-gate v1, con estado normalizado `accepted`;
+- `entryRecordHashFingerprints[0]` idéntico al SHA-256 derivado de `accepted.summary.recordHash`, sin exponer la huella fiscal cruda en la evidencia de reconciliación;
 - fingerprints válidos de job y PFX, sin incluir sus valores crudos;
-- ausencia de NIF, número fiscal, `RefExterna`, XML/SOAP, ruta SQLite, job ID crudo o secretos.
+- ausencia de NIF, número fiscal, `RefExterna`, XML/SOAP, ruta SQLite, job ID crudo, huella fiscal cruda o secretos.
 
 Si todo es coherente, la salida usa:
 

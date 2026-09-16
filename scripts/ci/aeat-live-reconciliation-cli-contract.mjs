@@ -27,11 +27,16 @@ for (const marker of [
   "environment: 'test'",
   'apply: options.apply',
   'jobIdSha256',
+  'entryRecordHashFingerprints',
+  'fiscalHashFingerprint',
   "flag: 'wx'",
   'mode: 0o600',
   'shouldReissue: false',
 ]) {
   if (!lib.includes(marker)) failures.push({ code: 'AEAT_LIVE_RECONCILIATION_SAFETY_MARKER_MISSING', marker });
+}
+if (lib.includes('entryRecordHashes')) {
+  failures.push({ code: 'AEAT_LIVE_RECONCILIATION_RAW_FISCAL_HASH_EVIDENCE_FORBIDDEN' });
 }
 
 if (/\.submit\s*\(/.test(lib) || /\.submit\s*\(/.test(cli)) {
@@ -54,7 +59,8 @@ for (const marker of [
   'inspect mode uses official query and leaves SQLite job quarantined',
   'apply mode completes only after exact AEAT match and double guard',
   'SinDatos in apply mode stays quarantined and never becomes retry-safe',
-  'evidence is non-overwriting, mode 0600 and sanitized',
+  'evidence is non-overwriting, mode 0600 and omits raw fiscal hash',
+  'invalid fiscal record hash fails closed when sanitizing live reconciliation evidence',
   'missing database fails before credentials or network are touched',
 ]) {
   if (!tests.includes(marker)) failures.push({ code: 'AEAT_LIVE_RECONCILIATION_TEST_MISSING', marker });
@@ -90,6 +96,7 @@ console.log(JSON.stringify({
     test_environment_only: true,
     no_submit_path: true,
     no_automatic_retry: true,
+    raw_fiscal_hash_omitted: true,
     sanitized_evidence: true,
   },
 }, null, 2));

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { verifyAeatEvidenceBundle } from './evidence-bundle-verifier-lib.mjs';
 
 const SHA40_RE = /^[0-9a-f]{40}$/i;
@@ -19,6 +20,10 @@ const FORBIDDEN_RECONCILIATION_KEYS = new Set([
   'refexterna',
   'databasepath',
   'jobid',
+  'recordhash',
+  'recordhashes',
+  'entryrecordhash',
+  'entryrecordhashes',
 ]);
 
 function finalGateError(code, message, field = null) {
@@ -55,6 +60,11 @@ function assertSha256(value, field) {
   if (!SHA256_RE.test(String(value ?? ''))) {
     throw finalGateError('VF_AEAT_FINAL_EVIDENCE_HASH_INVALID', `${field} must contain a SHA-256 hex digest`, field);
   }
+}
+
+function fiscalHashFingerprint(value, field) {
+  assertSha256(value, field);
+  return createHash('sha256').update(String(value).toUpperCase(), 'utf8').digest('hex');
 }
 
 function assertTimestamp(value, field) {
@@ -124,35 +134,40 @@ function verifyReconciliationEvidence(reconciliation, sourceCommit, acceptedReco
   }
 
   const entries = Array.isArray(reconciliation?.assessment?.entries) ? reconciliation.assessment.entries : [];
-  if (reconciliation?.assessment?.entryCount !== 1 || entries.length !== 1 || entries[0]?.received !== true) {
+  if (reconciliation?.assessment?.entryCount !== 1
+      || entries.length !== 1
+      || entries[0]?.received !== true
+      || entries[0]?.outcome !== 'received'
+      || entries[0]?.storedState !== 'accepted') {
     throw finalGateError(
       'VF_AEAT_FINAL_EVIDENCE_RECONCILIATION_ENTRIES_INVALID',
-      'Final live-gate evidence v1 requires exactly one received reconciled record',
+      'Final live-gate evidence v1 requires exactly one received record stored as accepted',
       'reconciliation.assessment.entries',
     );
   }
 
   assertSha256(reconciliation.jobIdSha256, 'reconciliation.jobIdSha256');
   assertSha256(reconciliation?.certificate?.pfxSha256, 'reconciliation.certificate.pfxSha256');
-  const recordHashes = reconciliation.entryRecordHashes;
-  if (!Array.isArray(recordHashes) || recordHashes.length !== 1) {
+  const recordHashFingerprints = reconciliation.entryRecordHashFingerprints;
+  if (!Array.isArray(recordHashFingerprints) || recordHashFingerprints.length !== 1) {
     throw finalGateError(
       'VF_AEAT_FINAL_EVIDENCE_RECONCILIATION_HASHES_INVALID',
-      'Reconciliation evidence must retain exactly one fiscal record hash',
-      'reconciliation.entryRecordHashes',
+      'Reconciliation evidence must retain exactly one derived fiscal record hash fingerprint',
+      'reconciliation.entryRecordHashFingerprints',
     );
   }
-  assertSha256(recordHashes[0], 'reconciliation.entryRecordHashes.0');
-  if (String(recordHashes[0]).toLowerCase() !== String(acceptedRecordHash).toLowerCase()) {
+  assertSha256(recordHashFingerprints[0], 'reconciliation.entryRecordHashFingerprints.0');
+  const acceptedRecordHashFingerprint = fiscalHashFingerprint(acceptedRecordHash, 'accepted.summary.recordHash');
+  if (String(recordHashFingerprints[0]).toLowerCase() !== acceptedRecordHashFingerprint) {
     throw finalGateError(
       'VF_AEAT_FINAL_EVIDENCE_RECORD_HASH_MISMATCH',
       'Reconciliation evidence does not belong to the accepted fiscal record',
-      'reconciliation.entryRecordHashes.0',
+      'reconciliation.entryRecordHashFingerprints.0',
     );
   }
 
   return {
-    reconciledRecordHash: String(recordHashes[0]).toLowerCase(),
+    reconciledRecordHashFingerprint: String(recordHashFingerprints[0]).toLowerCase(),
     jobIdSha256: String(reconciliation.jobIdSha256).toLowerCase(),
   };
 }
@@ -186,7 +201,7 @@ export function verifyAeatFinalGateEvidence({ accepted, rejected, reconciliation
       acceptedXmlSha256: transmission.evidenceFingerprints.acceptedXmlSha256,
       acceptedCsvSha256: transmission.evidenceFingerprints.acceptedCsvSha256,
       rejectedXmlSha256: transmission.evidenceFingerprints.rejectedXmlSha256,
-      reconciledRecordHash: reconciliationVerified.reconciledRecordHash,
+      reconciledRecordHashFingerprint: reconciliationVerified.reconciledRecordHashFingerprint,
       reconciliationJobSha256: reconciliationVerified.jobIdSha256,
     },
     remainingExternalEvidence: [],
