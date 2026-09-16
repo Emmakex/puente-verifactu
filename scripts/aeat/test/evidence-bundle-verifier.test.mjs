@@ -20,12 +20,13 @@ function evidence(status, overrides = {}) {
   return {
     schemaVersion: 1,
     gate: 'aeat-test-live',
-    recordedAt: '2026-09-15T18:00:00.000Z',
+    recordedAt: '2026-09-16T18:00:00.000Z',
     action: 'submit',
     expectedStatus: status,
     sourceCommit: commit,
     summary: {
       mode: 'test',
+      controlledRejectionProfile: accepted ? null : 'future-issue-date',
       xmlSha256: (accepted ? 'a' : 'b').repeat(64),
       recordHash: (accepted ? 'c' : 'd').repeat(64),
       aeatArtifacts: { ...artifacts },
@@ -47,7 +48,7 @@ function evidence(status, overrides = {}) {
   };
 }
 
-test('valid accepted/rejected transmission bundle verifies but remains partial', () => {
+test('valid accepted/controlled-rejected transmission bundle verifies but remains partial', () => {
   const result = verifyAeatEvidenceBundle({
     accepted: evidence('accepted'),
     rejected: evidence('rejected'),
@@ -58,6 +59,7 @@ test('valid accepted/rejected transmission bundle verifies but remains partial',
   assert.deepEqual(result.remainingExternalEvidence, ['reconciliation']);
   assert.equal(result.verified.acceptedSubmission, true);
   assert.equal(result.verified.rejectedSubmission, true);
+  assert.equal(result.verified.controlledRejectionProfile, 'future-issue-date');
   assert.deepEqual(result.observedWaitSeconds, [60]);
 });
 
@@ -97,6 +99,26 @@ test('accepted evidence must contain accepted status and CSV fingerprint', () =>
     rejected: evidence('rejected'),
     sourceCommit: commit,
   }), { code: 'VF_AEAT_EVIDENCE_ACCEPTED_CSV_MISSING' });
+});
+
+test('accepted evidence cannot use a controlled rejection profile', () => {
+  const accepted = evidence('accepted');
+  accepted.summary.controlledRejectionProfile = 'future-issue-date';
+  assert.throws(() => verifyAeatEvidenceBundle({
+    accepted,
+    rejected: evidence('rejected'),
+    sourceCommit: commit,
+  }), { code: 'VF_AEAT_EVIDENCE_ACCEPTED_REJECTION_PROFILE_FORBIDDEN' });
+});
+
+test('rejected evidence must come from the deterministic future-issue-date profile', () => {
+  const rejected = evidence('rejected');
+  rejected.summary.controlledRejectionProfile = null;
+  assert.throws(() => verifyAeatEvidenceBundle({
+    accepted: evidence('accepted'),
+    rejected,
+    sourceCommit: commit,
+  }), { code: 'VF_AEAT_EVIDENCE_REJECTION_PROFILE_INVALID' });
 });
 
 test('rejected evidence must retain a normalized diagnostic code', () => {
