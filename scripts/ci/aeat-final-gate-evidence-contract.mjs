@@ -33,14 +33,20 @@ for (const marker of [
   'reconciliation?.assessment?.allReceived !== true',
   'reconciliation?.assessment?.applied !== true',
   'reconciliation?.assessment?.shouldReissue !== false',
+  'entryRecordHashFingerprints',
+  'fiscalHashFingerprint',
   'VF_AEAT_FINAL_EVIDENCE_RECORD_HASH_MISMATCH',
+  'VF_AEAT_FINAL_EVIDENCE_RAW_SENSITIVE_FIELD',
   'verifyAeatEvidenceBundle',
 ]) {
   if (!verifier.includes(marker)) failures.push({ code: 'AEAT_FINAL_GATE_EVIDENCE_SAFETY_MARKER_MISSING', marker });
 }
 
-for (const marker of ['entryRecordHashes', 'beforeJob.payload.entries.map']) {
+for (const marker of ['entryRecordHashFingerprints', 'fiscalHashFingerprint', 'beforeJob.payload.entries.map']) {
   if (!reconciliation.includes(marker)) failures.push({ code: 'AEAT_FINAL_GATE_RECONCILIATION_BINDING_MISSING', marker });
+}
+if (reconciliation.includes('entryRecordHashes')) {
+  failures.push({ code: 'AEAT_FINAL_GATE_RAW_FISCAL_HASH_EVIDENCE_FORBIDDEN' });
 }
 
 for (const forbidden of ['update_issue', 'close_issue', 'release_candidate', 'AEAT_LIVE_SEND']) {
@@ -49,9 +55,9 @@ for (const forbidden of ['update_issue', 'close_issue', 'release_candidate', 'AE
 
 for (const marker of [
   'complete accepted rejected and applied reconciliation evidence verifies without unblocking release',
-  'final evidence cryptographically binds reconciliation to the accepted fiscal record',
+  'final evidence cryptographically binds reconciliation to the accepted fiscal record fingerprint',
   'inspect-only reconciliation cannot satisfy the final external gate evidence',
-  'raw sensitive reconciliation fields fail closed',
+  'raw sensitive reconciliation fields and raw fiscal hashes fail closed',
 ]) {
   if (!tests.includes(marker)) failures.push({ code: 'AEAT_FINAL_GATE_EVIDENCE_TEST_MISSING', marker });
 }
@@ -68,7 +74,7 @@ if (!String(pkg.scripts?.check ?? '').includes('scripts/ci/aeat-final-gate-evide
 if (!workflow.includes('AEAT final gate evidence verifier smoke') || !workflow.includes('npm run aeat:final-evidence:smoke')) {
   failures.push({ code: 'AEAT_FINAL_GATE_EVIDENCE_WORKFLOW_GATE_MISSING' });
 }
-for (const marker of ['npm run aeat:final-evidence:verify', 'external_gate_evidence_complete', 'releaseUnblocked']) {
+for (const marker of ['npm run aeat:final-evidence:verify', 'external_gate_evidence_complete', 'releaseUnblocked', 'entryRecordHashFingerprints']) {
   if (!runbook.includes(marker)) failures.push({ code: 'AEAT_FINAL_GATE_EVIDENCE_RUNBOOK_INCOMPLETE', marker });
 }
 
@@ -89,7 +95,8 @@ console.log(JSON.stringify({
   invariants: {
     accepted_rejected_reconciliation_required: true,
     reconciliation_apply_required: true,
-    fiscal_record_hash_bound: true,
+    fiscal_record_hash_bound_by_derived_fingerprint: true,
+    raw_fiscal_hash_omitted_from_reconciliation_evidence: true,
     should_reissue_false: true,
     release_unblocked_false: true,
     automatic_issue_closure_false: true,
