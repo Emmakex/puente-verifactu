@@ -18,6 +18,9 @@ const contracts = [
       'npm run aeat:reconcile',
       'SinDatos',
       'AEAT_RECONCILIATION_APPLY',
+      'AEAT_RECONCILIATION_SEED',
+      '--reconciliation-seed-db',
+      'cero submits',
     ],
   },
   {
