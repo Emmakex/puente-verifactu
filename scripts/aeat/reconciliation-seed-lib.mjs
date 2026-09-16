@@ -135,8 +135,6 @@ export async function createControlledReconciliationSeed({
       status: 'seeded',
       sourceCommit: sourceCommit.toLowerCase(),
       jobIdSha256: privateOperator.jobIdSha256,
-      databasePathSha256: sha256(paths.databasePath),
-      operatorOutputPathSha256: sha256(paths.operatorOutputPath),
       state: quarantined.state,
       submitCountAdded: 0,
       shouldReissue: false,
