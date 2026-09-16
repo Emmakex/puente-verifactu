@@ -2,7 +2,7 @@
 
 **Puente VeriFactu** es la capa de integración fiscal de Kairoseth Extensions para conectar sistemas de facturación, ERP, CRM, ecommerce, hojas de cálculo y software propio con **VERI*FACTU / AEAT** sin obligar al negocio a sustituir lo que ya utiliza.
 
-> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 técnicamente cerrada con WooCommerce y PrestaShop `0.4.0` validados bajo Connector Contract Suite v2. Fase 6 está en curso y ya incorpora backup/restore SQLite verificable, outbox AEAT durable single-node con leases, cuarentena `reconciliation_required`, reconciliación oficial por `ConsultaFactuSistemaFacturacion` y CLI operativo read-only/apply con doble guard, todo sin reemisión ciega. No usar todavía en producción: el gate externo AEAT #6 y los gates restantes de Production Readiness siguen bloqueando release/piloto fiscal real. Este repositorio no constituye asesoramiento fiscal o jurídico.
+> Estado: Fases 0–2 cerradas; Fase 3 implementada y pendiente únicamente del gate externo AEAT con certificado válido; Fase 4 cerrada con API/SDK/webhook, CSV/XLSX, onboarding cero-código, runtime HTTP y persistencia durable single-node; Fase 5 técnicamente cerrada con WooCommerce y PrestaShop `0.4.0` validados bajo Connector Contract Suite v2. Fase 6 está en curso y ya incorpora backup/restore SQLite verificable, outbox AEAT durable single-node con leases, cuarentena `reconciliation_required`, reconciliación oficial por `ConsultaFactuSistemaFacturacion`, CLI operativo read-only/apply con doble guard y semilla controlada para demostrar reconciliación real a partir de una única remisión aceptada, sin reemisión ciega. No usar todavía en producción: el gate externo AEAT #6 y los gates restantes de Production Readiness siguen bloqueando release/piloto fiscal real. Este repositorio no constituye asesoramiento fiscal o jurídico.
 
 ## Principio Camaleón
 
@@ -73,7 +73,7 @@ Documentación revisada el **15 de septiembre de 2026**. Antes de cada release c
 
 ## Desarrollo
 
-Requiere Node.js 22.13+ para las herramientas actuales del repositorio. Los gates de conectores validan además sintaxis PHP 7.4. WooCommerce dispone de matriz real WordPress/WooCommerce y ZIP reproducible. PrestaShop dispone de contrato estático, fixtures de factura y rectificativa, ZIP reproducible, upgrade smoke y matriz real en PrestaShop 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1. Connector Contract Suite v2 añade un gate nativo común de seis escenarios para factura y rectificativa. El perfil SQLite single-node dispone además de backup/restore verificado y outbox AEAT durable: snapshot consistente, SHA-256 + manifest, chequeo de integridad/foreign keys, restore con staging, persistencia de backoff/intentos y leases de dispatch. Los resultados remotos ambiguos quedan en `reconciliation_required`; el reconciliador oficial consulta AEAT por `PeriodoImputacion` + `RefExterna` y solo completa ante coincidencia exacta de identidad y huella. `aeat:reconcile` permite ejecutar esa consulta sobre un job durable: inspección read-only por defecto y persistencia del cierre únicamente con `--apply` + `AEAT_RECONCILIATION_APPLY=YES`.
+Requiere Node.js 22.13+ para las herramientas actuales del repositorio. Los gates de conectores validan además sintaxis PHP 7.4. WooCommerce dispone de matriz real WordPress/WooCommerce y ZIP reproducible. PrestaShop dispone de contrato estático, fixtures de factura y rectificativa, ZIP reproducible, upgrade smoke y matriz real en PrestaShop 1.7.8.11/PHP 7.4, 8.1.7/PHP 8.1 y 8.2.7/PHP 8.1. Connector Contract Suite v2 añade un gate nativo común de seis escenarios para factura y rectificativa. El perfil SQLite single-node dispone además de backup/restore verificado y outbox AEAT durable: snapshot consistente, SHA-256 + manifest, chequeo de integridad/foreign keys, restore con staging, persistencia de backoff/intentos y leases de dispatch. Los resultados remotos ambiguos quedan en `reconciliation_required`; el reconciliador oficial consulta AEAT por `PeriodoImputacion` + `RefExterna` y solo completa ante coincidencia exacta de identidad y huella. `aeat:reconcile` permite ejecutar esa consulta sobre un job durable: inspección read-only por defecto y persistencia del cierre únicamente con `--apply` + `AEAT_RECONCILIATION_APPLY=YES`. El live gate puede crear opcionalmente una semilla privada `reconciliation_required` después de una remisión aceptada real para demostrar la consulta con la misma identidad/huella y **sin añadir otra remisión**.
 
 ```bash
 npm run check
@@ -92,6 +92,7 @@ npm run aeat:cert:check
 npm run aeat:evidence:verify -- --accepted <accepted.json> --rejected <rejected.json> --source-commit <SHA40>
 npm run aeat:reconciliation:smoke
 npm run aeat:reconcile -- --db <runtime.sqlite> --job-id <job-id>
+npm run aeat:seed:smoke
 npm run aeat:outbox:smoke
 npm run woo:contract
 npm run woo:package:check
