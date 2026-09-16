@@ -54,7 +54,7 @@ for (const marker of [
   'inspect mode uses official query and leaves SQLite job quarantined',
   'apply mode completes only after exact AEAT match and double guard',
   'SinDatos in apply mode stays quarantined and never becomes retry-safe',
-  'evidence is non-overwriting, mode 0600, hash-bound and sanitized',
+  'evidence is non-overwriting, mode 0600 and sanitized',
   'missing database fails before credentials or network are touched',
 ]) {
   if (!tests.includes(marker)) failures.push({ code: 'AEAT_LIVE_RECONCILIATION_TEST_MISSING', marker });
