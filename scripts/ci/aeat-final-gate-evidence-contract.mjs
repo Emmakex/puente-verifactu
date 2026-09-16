@@ -26,7 +26,7 @@ for (const marker of [
   "status: 'external_gate_evidence_complete'",
   'releaseUnblocked: false',
   'automaticIssueClosure: false',
-  "nextAction: 'review_issue_6_and_release_candidate_procedure'",
+  "nextAction: 'review_issue_6_and_release_procedure'",
   "reconciliation.mode !== 'apply'",
   "reconciliation.beforeState !== 'reconciliation_required'",
   "reconciliation.afterState !== 'completed'",
