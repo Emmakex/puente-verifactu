@@ -29,6 +29,18 @@ function sha256(value) {
   return createHash('sha256').update(String(value), 'utf8').digest('hex');
 }
 
+function fiscalHashFingerprint(value) {
+  const hash = String(value ?? '').trim().toUpperCase();
+  if (!/^[0-9A-F]{64}$/.test(hash)) {
+    throw cliError(
+      'VF_AEAT_RECONCILIATION_RECORD_HASH_REQUIRED',
+      'Reconciliation evidence requires a valid 64-character fiscal record hash',
+      'record.hash',
+    );
+  }
+  return sha256(hash);
+}
+
 export function parseLiveReconciliationOptions(argv = [], env = process.env) {
   const allowedFlags = new Set(['--db', '--job-id', '--apply', '--source-commit', '--evidence-output']);
   for (let index = 0; index < argv.length; index += 1) {
@@ -152,7 +164,7 @@ function validateTargetJob(job) {
 
 export function sanitizeLiveReconciliation({ options, certificateSummary, beforeJob, result, recordedAt = new Date() }) {
   const entries = result.assessment?.entries ?? [];
-  const entryRecordHashes = beforeJob.payload.entries.map((entry) => entry?.record?.hash ?? null);
+  const entryRecordHashFingerprints = beforeJob.payload.entries.map((entry) => fiscalHashFingerprint(entry?.record?.hash));
   return {
     schemaVersion: 1,
     gate: 'aeat-official-reconciliation-live',
@@ -161,7 +173,7 @@ export function sanitizeLiveReconciliation({ options, certificateSummary, before
     mode: options.apply ? 'apply' : 'inspect',
     sourceCommit: options.sourceCommit,
     jobIdSha256: sha256(options.jobId),
-    entryRecordHashes,
+    entryRecordHashFingerprints,
     certificate: {
       pfxSha256: certificateSummary.pfxSha256,
       passphraseSource: certificateSummary.passphraseSource,
