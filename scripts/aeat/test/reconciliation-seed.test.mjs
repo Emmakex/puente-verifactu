@@ -48,7 +48,9 @@ test('controlled seed creates private SQLite quarantine and private operator fil
     assert.equal(result.submitCountAdded, 0);
     assert.equal(result.shouldReissue, false);
     assert.match(result.jobIdSha256, /^[0-9a-f]{64}$/);
-    assert.doesNotMatch(JSON.stringify(result), /B12345678|DO-NOT-PERSIST-CSV|gate-20260915080000/);
+    const publicText = JSON.stringify(result);
+    assert.doesNotMatch(publicText, /B12345678|DO-NOT-PERSIST-CSV|gate-20260915080000/);
+    assert.doesNotMatch(publicText, /reconciliation\.sqlite|operator\.json|databasePath|operatorOutputPath/);
     assert.equal((await stat(databasePath)).mode & 0o777, 0o600);
     assert.equal((await stat(operatorOutputPath)).mode & 0o777, 0o600);
 
@@ -56,6 +58,8 @@ test('controlled seed creates private SQLite quarantine and private operator fil
     assert.equal(operator.sourceCommit, sourceCommit);
     assert.equal(operator.state, 'reconciliation_required');
     assert.equal(operator.jobIdSha256, result.jobIdSha256);
+    assert.equal(operator.databasePath, databasePath);
+    assert.match(operator.jobId, /^aeat_/);
 
     const persistence = createSqlitePersistence({ path: databasePath });
     try {
@@ -97,14 +101,23 @@ test('seed rejects non-accepted result before creating private files', async () 
   }
 });
 
-test('destination reservation is exclusive and never overwrites existing data', async () => {
+test('destination reservation is exclusive and never overwrites existing data or leaks its path', async () => {
   const root = await mkdtemp(join(tmpdir(), 'pvf-seed-existing-'));
   try {
     const databasePath = join(root, 'seed.sqlite');
     const operatorOutputPath = join(root, 'operator.json');
     await writeFile(databasePath, 'existing-sensitive-database-placeholder', { mode: 0o600 });
     await assert.rejects(
-      () => assertControlledReconciliationSeedDestinations({ databasePath, operatorOutputPath }),
+      async () => {
+        try {
+          await assertControlledReconciliationSeedDestinations({ databasePath, operatorOutputPath });
+        } catch (error) {
+          assert.equal(error.code, 'VF_AEAT_RECONCILIATION_SEED_TARGET_EXISTS');
+          assert.equal(error.field, '--reconciliation-seed-db');
+          assert.doesNotMatch(error.message, /pvf-seed-existing|seed\.sqlite/);
+          throw error;
+        }
+      },
       { code: 'VF_AEAT_RECONCILIATION_SEED_TARGET_EXISTS' },
     );
     assert.equal(await readFile(databasePath, 'utf8'), 'existing-sensitive-database-placeholder');
