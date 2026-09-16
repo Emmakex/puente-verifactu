@@ -33,6 +33,9 @@ for (const marker of [
   'releaseUnblocked: false',
   'AEAT_ARTIFACTS',
   'VF_AEAT_EVIDENCE_RAW_SENSITIVE_FIELD',
+  "REQUIRED_REJECTION_PROFILE = 'future-issue-date'",
+  'VF_AEAT_EVIDENCE_REJECTION_PROFILE_INVALID',
+  "validationsDocumentVersion !== '1.2.2'",
 ]) {
   if (!verifier.includes(marker)) failures.push({ code: 'AEAT_EVIDENCE_BUNDLE_SAFETY_MARKER_MISSING', marker });
 }
@@ -44,7 +47,7 @@ for (const forbidden of ['update_issue', 'release_candidate', 'AEAT_LIVE_SEND'])
 }
 
 const runbook = readFileSync('docs/aeat-live-gate.md', 'utf8');
-for (const marker of ['npm run aeat:evidence:verify', 'remainingExternalEvidence', 'reconciliation']) {
+for (const marker of ['npm run aeat:evidence:verify', 'remainingExternalEvidence', 'reconciliation', 'future-issue-date']) {
   if (!runbook.includes(marker)) failures.push({ code: 'AEAT_EVIDENCE_BUNDLE_RUNBOOK_INCOMPLETE', marker });
 }
 
@@ -62,5 +65,6 @@ console.log(JSON.stringify({
   schema_version: 1,
   status: 'ok',
   check: 'aeat-evidence-bundle-contract',
+  controlled_rejection_profile: 'future-issue-date',
   release_unblocked: false,
 }, null, 2));
