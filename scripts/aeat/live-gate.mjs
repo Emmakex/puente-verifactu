@@ -29,7 +29,9 @@ async function writeEvidence(path, evidence) {
 async function main() {
   const argv = process.argv.slice(2);
   const options = parseLiveGateOptions(argv, process.env);
-  const fixture = buildLiveGateFixture(process.env, new Date());
+  const fixture = buildLiveGateFixture(process.env, new Date(), {
+    rejectionProfile: options.rejectionProfile,
+  });
   const entries = [{ intent: fixture.intent, record: fixture.record }];
   const requestPayload = { issuer: fixture.issuer, entries };
   const xml = serializeAeatSoapRequest({ ...requestPayload, sif: fixture.sif });

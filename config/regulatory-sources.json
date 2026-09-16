@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reviewed_at": "2026-09-15",
+  "reviewed_at": "2026-09-16",
   "expires_after_days": 90,
   "aeat_artifacts": {
     "web_service_document_version": "1.0.3",
@@ -13,7 +13,7 @@
       "id": "aeat_technical_information",
       "authority": "AEAT",
       "reference": "Sede AEAT > VERI*FACTU > Informacion tecnica",
-      "purpose": "WSDL, XSD, validaciones, huella, QR y ejemplos de declaracion responsable"
+      "purpose": "WSDL 1.0.3, XSD, documento de validaciones v1.2.2 — incluida la regla FechaExpedicionFactura no posterior a la fecha actual —, huella, QR y ejemplos de declaracion responsable"
     },
     {
       "id": "aeat_responsible_declaration_faq",

@@ -2,6 +2,7 @@ import { AEAT_ARTIFACTS } from '../../packages/aeat-adapter/src/constants.mjs';
 
 const SHA40_RE = /^[0-9a-f]{40}$/i;
 const SHA256_RE = /^[0-9a-f]{64}$/i;
+const REQUIRED_REJECTION_PROFILE = 'future-issue-date';
 const FORBIDDEN_RAW_KEYS = new Set([
   'pfx',
   'pfxpath',
@@ -114,6 +115,13 @@ function assertAccepted(evidence, sourceCommit) {
   if (evidence.expectedStatus !== 'accepted' || evidence?.result?.status !== 'accepted') {
     throw verificationError('VF_AEAT_EVIDENCE_ACCEPTED_STATUS_INVALID', 'Accepted evidence must expect and receive accepted', 'accepted.result.status');
   }
+  if (evidence?.summary?.controlledRejectionProfile != null) {
+    throw verificationError(
+      'VF_AEAT_EVIDENCE_ACCEPTED_REJECTION_PROFILE_FORBIDDEN',
+      'Accepted evidence must come from the normal live-gate profile',
+      'accepted.summary.controlledRejectionProfile',
+    );
+  }
   if (evidence.result.csvPresent !== true) {
     throw verificationError('VF_AEAT_EVIDENCE_ACCEPTED_CSV_MISSING', 'Accepted evidence must confirm an AEAT CSV fingerprint', 'accepted.result.csvPresent');
   }
@@ -125,6 +133,20 @@ function assertRejected(evidence, sourceCommit) {
   const artifacts = assertCommonEvidence(evidence, 'rejected', sourceCommit);
   if (evidence.expectedStatus !== 'rejected' || evidence?.result?.status !== 'rejected') {
     throw verificationError('VF_AEAT_EVIDENCE_REJECTED_STATUS_INVALID', 'Rejected evidence must expect and receive rejected', 'rejected.result.status');
+  }
+  if (evidence?.summary?.controlledRejectionProfile !== REQUIRED_REJECTION_PROFILE) {
+    throw verificationError(
+      'VF_AEAT_EVIDENCE_REJECTION_PROFILE_INVALID',
+      `Rejected evidence must use the controlled ${REQUIRED_REJECTION_PROFILE} profile`,
+      'rejected.summary.controlledRejectionProfile',
+    );
+  }
+  if (evidence?.summary?.aeatArtifacts?.validationsDocumentVersion !== '1.2.2') {
+    throw verificationError(
+      'VF_AEAT_EVIDENCE_REJECTION_VALIDATION_VERSION_INVALID',
+      'Controlled rejection evidence must be pinned to AEAT validations document 1.2.2',
+      'rejected.summary.aeatArtifacts.validationsDocumentVersion',
+    );
   }
   const records = Array.isArray(evidence?.result?.records) ? evidence.result.records : [];
   const hasDiagnostic = Boolean(evidence?.result?.errorCode)
@@ -170,6 +192,7 @@ export function verifyAeatEvidenceBundle({ accepted, rejected, sourceCommit }) {
     verified: {
       acceptedSubmission: true,
       rejectedSubmission: true,
+      controlledRejectionProfile: REQUIRED_REJECTION_PROFILE,
       artifactVersions: true,
       waitSecondsObserved: true,
       sanitizedEvidence: true,

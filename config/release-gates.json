@@ -10,7 +10,7 @@
       "github_issue": 6,
       "required_before": ["release", "real_fiscal_pilot"],
       "evidence_document": "docs/aeat-live-gate.md",
-      "reason": "Falta remision real controlada al entorno oficial de pruebas con certificado valido y evidencia no sensible."
+      "reason": "Falta ejecutar contra AEAT, con certificado valido y para el mismo commit candidato, el bundle externo de aceptacion, rechazo controlado determinista, reconciliacion oficial y evidencia no sensible."
     }
   ],
   "profile_decisions": [

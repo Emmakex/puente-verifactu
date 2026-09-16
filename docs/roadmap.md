@@ -62,12 +62,17 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Outbox/reintentos técnicos de referencia.
 - [x] Tests contractuales sin secretos.
 - [x] Harness `npm run aeat:gate` con dry-run, doble guard y salida sanitizada.
+- [x] Consulta oficial `ConsultaFactuSistemaFacturacion` y reconciliación exacta por identidad + `RefExterna` + huella, sin reemisión ciega.
+- [x] CLI `npm run aeat:reconcile` read-only por defecto y `--apply` con doble guard para `reconciliation_required -> completed` solo tras coincidencia oficial exacta.
+- [x] Semilla privada controlada para demostrar reconciliación sobre una única remisión aceptada, sin fabricar timeouts ni añadir otra llamada `submit()`.
+- [x] Perfil de rechazo controlado `future-issue-date`, basado en la validación AEAT v1.2.2 que prohíbe una `FechaExpedicionFactura` posterior a la fecha actual.
+- [x] Verificador de bundle aceptado + rechazo que exige mismo commit, artefactos vigentes, perfil de rechazo determinista y evidencia sanitizada; mantiene `partial` mientras falte reconciliación externa.
 - [ ] Provisionar certificado válido exclusivamente en entorno seguro.
 - [ ] Remisión real controlada al endpoint AEAT de pruebas.
 - [ ] Confirmar caso aceptado + rechazo controlado + reconciliación.
 - [ ] Documentar evidencia no sensible de la prueba externa.
 
-**Estado:** implementación y harness preparados. El gate externo se difiere bajo ADR-0003 y permanece registrado en #6. Se permite continuar desarrollo, pero **release, piloto fiscal real y production readiness siguen bloqueados** hasta cerrar este gate.
+**Estado:** toda la infraestructura interna del gate está preparada y protegida por CI. La ejecución externa se difiere bajo ADR-0003 y permanece registrada en #6. El bundle de prueba es determinista para aceptación, rechazo y reconciliación, pero **release, piloto fiscal real y production readiness siguen bloqueados** hasta ejecutar esas pruebas contra AEAT con certificado válido y cerrar el gate.
 
 ## Fase 4 — Universal Integration Kit ✅
 

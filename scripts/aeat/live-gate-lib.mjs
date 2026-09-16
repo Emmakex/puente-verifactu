@@ -4,6 +4,7 @@ import { createAltaFiscalRecord } from '../../packages/core/src/fiscal-records.m
 import { timestampForZone } from '../../packages/core/src/hash.mjs';
 
 const EXPECTED_STATUSES = new Set(['accepted', 'partial', 'rejected', 'fault']);
+const CONTROLLED_REJECTION_PROFILES = new Set(['future-issue-date']);
 
 function required(env, key) {
   const value = String(env?.[key] ?? '').trim();
@@ -18,6 +19,12 @@ function required(env, key) {
 
 function compactTimestamp(date) {
   return date.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+}
+
+function nextIsoDate(value) {
+  const [year, month, day] = String(value).split('-').map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + 1));
+  return next.toISOString().slice(0, 10);
 }
 
 function sha256(value) {
@@ -44,10 +51,25 @@ export function maskTaxId(value) {
   return `${text.slice(0, 2)}${'*'.repeat(Math.max(1, text.length - 4))}${text.slice(-2)}`;
 }
 
-export function buildLiveGateFixture(env = process.env, now = new Date()) {
+export function buildLiveGateFixture(env = process.env, now = new Date(), { rejectionProfile = null } = {}) {
   const timeZone = String(env.AEAT_TEST_TIMEZONE || 'Europe/Madrid').trim();
   const generatedAt = timestampForZone(now, timeZone);
-  const issueDate = String(env.AEAT_TEST_ISSUE_DATE || generatedAt.slice(0, 10)).trim();
+  const localToday = generatedAt.slice(0, 10);
+  if (rejectionProfile && !CONTROLLED_REJECTION_PROFILES.has(rejectionProfile)) {
+    const error = new Error(`Unsupported controlled rejection profile: ${rejectionProfile}`);
+    error.code = 'VF_AEAT_GATE_REJECTION_PROFILE_INVALID';
+    error.field = '--rejection-profile';
+    throw error;
+  }
+  if (rejectionProfile === 'future-issue-date' && String(env.AEAT_TEST_ISSUE_DATE ?? '').trim()) {
+    const error = new Error('future-issue-date controls the issue date and cannot be combined with AEAT_TEST_ISSUE_DATE');
+    error.code = 'VF_AEAT_GATE_REJECTION_PROFILE_DATE_CONFLICT';
+    error.field = 'AEAT_TEST_ISSUE_DATE';
+    throw error;
+  }
+  const issueDate = rejectionProfile === 'future-issue-date'
+    ? nextIsoDate(localToday)
+    : String(env.AEAT_TEST_ISSUE_DATE || localToday).trim();
   const suffix = compactTimestamp(now);
 
   const issuer = {
@@ -103,7 +125,7 @@ export function buildLiveGateFixture(env = process.env, now = new Date()) {
   };
 
   const record = createAltaFiscalRecord(intent, { sif, generatedAt });
-  return { issuer, sif, intent, record, timeZone };
+  return { issuer, sif, intent, record, timeZone, rejectionProfile };
 }
 
 export function parseLiveGateOptions(argv = [], env = process.env) {
@@ -134,6 +156,35 @@ export function parseLiveGateOptions(argv = [], env = process.env) {
     const error = new Error('--evidence-output requires --source-commit with a 40-character commit SHA');
     error.code = 'VF_AEAT_GATE_SOURCE_COMMIT_REQUIRED';
     error.field = '--source-commit';
+    throw error;
+  }
+
+  const rejectionProfile = argValue(argv, '--rejection-profile');
+  if (rejectionProfile && !CONTROLLED_REJECTION_PROFILES.has(rejectionProfile)) {
+    const error = new Error(`Unsupported controlled rejection profile: ${rejectionProfile}`);
+    error.code = 'VF_AEAT_GATE_REJECTION_PROFILE_INVALID';
+    error.field = '--rejection-profile';
+    throw error;
+  }
+  if (rejectionProfile && !send) {
+    const error = new Error('Controlled rejection profile is only available on a real --send execution');
+    error.code = 'VF_AEAT_GATE_REJECTION_SEND_REQUIRED';
+    throw error;
+  }
+  if (rejectionProfile && expectedStatus !== 'rejected') {
+    const error = new Error('Controlled rejection profile requires --expect rejected');
+    error.code = 'VF_AEAT_GATE_REJECTION_EXPECT_REJECTED';
+    throw error;
+  }
+  if (rejectionProfile && env.AEAT_CONTROLLED_REJECTION !== 'YES') {
+    const error = new Error('Controlled rejection profile requires AEAT_CONTROLLED_REJECTION=YES');
+    error.code = 'VF_AEAT_GATE_REJECTION_GUARD';
+    throw error;
+  }
+  if (rejectionProfile === 'future-issue-date' && String(env.AEAT_TEST_ISSUE_DATE ?? '').trim()) {
+    const error = new Error('future-issue-date cannot be combined with AEAT_TEST_ISSUE_DATE');
+    error.code = 'VF_AEAT_GATE_REJECTION_PROFILE_DATE_CONFLICT';
+    error.field = 'AEAT_TEST_ISSUE_DATE';
     throw error;
   }
 
@@ -173,6 +224,7 @@ export function parseLiveGateOptions(argv = [], env = process.env) {
     expectedStatus,
     evidenceOutput,
     sourceCommit: sourceCommit?.toLowerCase() ?? null,
+    rejectionProfile,
     reconciliationSeedDb,
     reconciliationSeedOutput,
   };
@@ -183,7 +235,7 @@ export function assertLiveSendAllowed(argv = [], env = process.env) {
 }
 
 export function buildLiveGateSummary(fixture, xml) {
-  const { issuer, sif, record, timeZone } = fixture;
+  const { issuer, sif, record, timeZone, rejectionProfile } = fixture;
   return {
     mode: 'test',
     endpoint: AEAT_ENDPOINTS.test,
@@ -192,6 +244,7 @@ export function buildLiveGateSummary(fixture, xml) {
     fiscalNumber: record.invoice.fiscalNumber,
     generatedAt: record.generatedAt,
     timeZone,
+    controlledRejectionProfile: rejectionProfile ?? null,
     recordHash: record.hash,
     xmlBytes: Buffer.byteLength(xml, 'utf8'),
     xmlSha256: createHash('sha256').update(xml, 'utf8').digest('hex'),
