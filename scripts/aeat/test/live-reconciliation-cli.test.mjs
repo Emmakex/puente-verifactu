@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
@@ -47,6 +48,7 @@ const record = {
   hash: 'A'.repeat(64),
   source: { installationId: 'source-1', sourceSystem: 'test', sourceInvoiceId: 'secret-ref-001' },
 };
+const recordHashFingerprint = createHash('sha256').update(record.hash, 'utf8').digest('hex');
 
 function queryResponse({ found = true, hash = 'A'.repeat(64) } = {}) {
   const row = found ? `<q:RegistroRespuestaConsultaFactuSistemaFacturacion>
@@ -58,10 +60,10 @@ function queryResponse({ found = true, hash = 'A'.repeat(64) } = {}) {
   return `<?xml version="1.0"?><env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/" xmlns:q="urn:q" xmlns:sf="urn:sf"><env:Body><q:RespuestaConsultaFactuSistemaFacturacion><q:PeriodoImputacion><sf:Ejercicio>2026</sf:Ejercicio><sf:Periodo>09</sf:Periodo></q:PeriodoImputacion><q:IndicadorPaginacion>N</q:IndicadorPaginacion><q:ResultadoConsulta>${found ? 'ConDatos' : 'SinDatos'}</q:ResultadoConsulta>${row}</q:RespuestaConsultaFactuSistemaFacturacion></env:Body></env:Envelope>`;
 }
 
-async function createUncertainDatabase(root, jobId = 'very-secret-job-id') {
+async function createUncertainDatabase(root, jobId = 'very-secret-job-id', recordOverride = record) {
   const dbPath = join(root, 'runtime.sqlite');
   const persistence = createSqlitePersistence({ path: dbPath });
-  const job = persistence.aeatOutbox.enqueue({ issuer, entries: [{ intent, record }] }, { id: jobId, availableAt: 0, now: 1 });
+  const job = persistence.aeatOutbox.enqueue({ issuer, entries: [{ intent, record: recordOverride }] }, { id: jobId, availableAt: 0, now: 1 });
   persistence.aeatOutbox.claim(job.id, { owner: 'dispatch', now: 2, leaseMs: 1000 });
   persistence.aeatOutbox.settle(job.id, {
     owner: 'dispatch',
@@ -139,13 +141,13 @@ test('inspect mode uses official query and leaves SQLite job quarantined', async
     assert.equal(result.assessment.allReceived, true);
     assert.equal(result.assessment.applied, false);
     assert.equal(result.assessment.shouldReissue, false);
-    assert.deepEqual(result.entryRecordHashes, ['A'.repeat(64)]);
+    assert.deepEqual(result.entryRecordHashFingerprints, [recordHashFingerprint]);
     assert.equal(result.afterState, 'reconciliation_required');
     assert.equal(await storedState(dbPath, jobId), 'reconciliation_required');
     assert.equal(fake.networkCalls, 1);
 
     const publicOutput = JSON.stringify(result);
-    for (const secret of [jobId, 'B12345678', 'A-42', 'secret-ref-001', 'REQ-PRIVATE-001', 'super-secret-passphrase', dbPath]) {
+    for (const secret of [jobId, 'B12345678', 'A-42', 'secret-ref-001', 'REQ-PRIVATE-001', 'super-secret-passphrase', dbPath, record.hash]) {
       assert.doesNotMatch(publicOutput, new RegExp(secret.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
   } finally {
@@ -168,7 +170,7 @@ test('apply mode completes only after exact AEAT match and double guard', async 
     assert.equal(result.assessment.allReceived, true);
     assert.equal(result.assessment.applied, true);
     assert.equal(result.assessment.shouldReissue, false);
-    assert.deepEqual(result.entryRecordHashes, ['A'.repeat(64)]);
+    assert.deepEqual(result.entryRecordHashFingerprints, [recordHashFingerprint]);
     assert.equal(result.afterState, 'completed');
     assert.equal(await storedState(dbPath, jobId), 'completed');
     assert.equal(fake.networkCalls, 1);
@@ -191,7 +193,7 @@ test('SinDatos in apply mode stays quarantined and never becomes retry-safe', as
     assert.equal(result.assessment.allReceived, false);
     assert.equal(result.assessment.applied, false);
     assert.equal(result.assessment.shouldReissue, false);
-    assert.deepEqual(result.entryRecordHashes, ['A'.repeat(64)]);
+    assert.deepEqual(result.entryRecordHashFingerprints, [recordHashFingerprint]);
     assert.equal(result.assessment.entries[0].outcome, 'not_found');
     assert.equal(await storedState(dbPath, jobId), 'reconciliation_required');
   } finally {
@@ -199,7 +201,7 @@ test('SinDatos in apply mode stays quarantined and never becomes retry-safe', as
   }
 });
 
-test('evidence is non-overwriting, mode 0600 and sanitized', async () => {
+test('evidence is non-overwriting, mode 0600 and omits raw fiscal hash', async () => {
   const root = await mkdtemp(join(tmpdir(), 'pvf-reconcile-evidence-'));
   try {
     const { dbPath, jobId } = await createUncertainDatabase(root);
@@ -218,8 +220,9 @@ test('evidence is non-overwriting, mode 0600 and sanitized', async () => {
     assert.equal(mode, 0o600);
     assert.match(evidence, new RegExp(sourceCommit));
     assert.match(evidence, /"shouldReissue": false/);
-    assert.deepEqual(parsed.entryRecordHashes, ['A'.repeat(64)]);
-    for (const secret of [jobId, 'B12345678', 'A-42', 'secret-ref-001', 'REQ-PRIVATE-001', 'super-secret-passphrase', dbPath]) {
+    assert.deepEqual(parsed.entryRecordHashFingerprints, [recordHashFingerprint]);
+    assert.equal(Object.hasOwn(parsed, 'entryRecordHashes'), false);
+    for (const secret of [jobId, 'B12345678', 'A-42', 'secret-ref-001', 'REQ-PRIVATE-001', 'super-secret-passphrase', dbPath, record.hash]) {
       assert.doesNotMatch(evidence, new RegExp(secret.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
 
@@ -230,6 +233,25 @@ test('evidence is non-overwriting, mode 0600 and sanitized', async () => {
         dependencies: fake.deps,
       }),
       { code: 'VF_AEAT_RECONCILIATION_EVIDENCE_EXISTS' },
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('invalid fiscal record hash fails closed when sanitizing live reconciliation evidence', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pvf-reconcile-invalid-hash-'));
+  try {
+    const invalidRecord = { ...record, hash: 'invalid' };
+    const { dbPath, jobId } = await createUncertainDatabase(root, 'invalid-hash-job', invalidRecord);
+    const fake = fakeDependencies(queryResponse({ hash: 'invalid' }));
+    await assert.rejects(
+      () => runLiveReconciliation({
+        argv: ['--db', dbPath, '--job-id', jobId],
+        env: {},
+        dependencies: fake.deps,
+      }),
+      { code: 'VF_AEAT_RECONCILIATION_RECORD_HASH_REQUIRED' },
     );
   } finally {
     await rm(root, { recursive: true, force: true });
