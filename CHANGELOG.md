@@ -4,6 +4,10 @@ Todos los cambios relevantes se documentarán aquí siguiendo un formato compati
 
 ## [Unreleased]
 
+### Changed
+
+- La evidencia `aeat:reconcile` ya no conserva la huella fiscal cruda del registro. Publica `entryRecordHashFingerprints`, calculado como SHA-256 de la huella fiscal normalizada; el verificador final deriva el mismo fingerprint desde la evidencia aceptada y mantiene la vinculación criptográfica sin duplicar la huella fiscal en el fichero de reconciliación.
+
 ### Added
 
 - Perfil de rechazo controlado AEAT `future-issue-date` para el live gate: deriva una fecha de expedición futura en la zona configurada, exige `--send`, `--expect rejected` y `AEAT_CONTROLLED_REJECTION=YES`, está ligado a la validación oficial AEAT v1.2.2 y queda exigido por el verificador del bundle aceptado+rechazado; nunca se activa en el caso aceptado ni elimina `release_blocked`.
