@@ -117,21 +117,43 @@ npm run aeat:gate -- \
 
 El fichero de evidencia se crea sin sobrescritura y con permisos restrictivos. No contiene certificado, passphrase, XML, respuesta SOAP cruda ni CSV completo.
 
-## Rechazo controlado
+## Rechazo controlado determinista
 
-El harness permite que un rechazo esperado cuente como prueba correcta del mecanismo de diagnóstico:
+El rechazo del gate ya no depende de escoger manualmente un dato fiscal inválido. El perfil `future-issue-date` aplica una validación oficial y estable del documento AEAT de validaciones **v1.2.2, apartado 3.1.3**: `FechaExpedicionFactura` no puede ser posterior a la fecha actual.
+
+El perfil calcula el día siguiente en el calendario de `AEAT_TEST_TIMEZONE` —`Europe/Madrid` por defecto— y lo usa únicamente como fecha de expedición del fixture de prueba. No altera NIF, importes, clasificación tributaria ni el resto del registro.
+
+Su ejecución exige simultáneamente:
+
+1. `--send` + `AEAT_LIVE_SEND=YES`;
+2. `--expect rejected`;
+3. `--rejection-profile future-issue-date`;
+4. `AEAT_CONTROLLED_REJECTION=YES`.
+
+Comando:
 
 ```bash
+export AEAT_LIVE_SEND=YES
+export AEAT_CONTROLLED_REJECTION=YES
 npm run aeat:gate -- \
   --send \
   --expect rejected \
+  --rejection-profile future-issue-date \
   --source-commit <SHA40> \
   --evidence-output ./private-evidence/aeat-rejected.json
 ```
 
-El dato utilizado para provocar el rechazo debe elegirse deliberadamente conforme a una validación oficial vigente y documentarse fuera del repositorio si contiene información sensible. El harness **no inventa ni altera automáticamente** una regla fiscal para forzar el rechazo.
+`future-issue-date` no puede combinarse con `AEAT_TEST_ISSUE_DATE`: el perfil controla esa fecha para evitar que la prueba deje de ser determinista. Sigue usando exclusivamente el endpoint AEAT de `test`; no existe un bypass a producción.
 
-Estados aceptados por `--expect`: `accepted`, `partial`, `rejected` y `fault`. Si AEAT devuelve un estado distinto del esperado, el proceso falla con `VF_AEAT_GATE_UNEXPECTED_STATUS`.
+La evidencia registra `controlledRejectionProfile: "future-issue-date"`, la versión de validaciones `1.2.2`, el SHA-256 del XML y el diagnóstico normalizado de AEAT, pero no el XML ni la descripción cruda. Si AEAT devuelve cualquier estado distinto de `rejected`, el proceso falla con `VF_AEAT_GATE_UNEXPECTED_STATUS` y la discrepancia debe investigarse antes de cerrar #6.
+
+Smoke técnico:
+
+```bash
+npm run aeat:rejection:smoke
+```
+
+Estados aceptados por `--expect`: `accepted`, `partial`, `rejected` y `fault`. El perfil controlado de rechazo exige específicamente `rejected`.
 
 ## Evidencia sanitizada
 
@@ -288,7 +310,7 @@ Para pruebas específicas de encadenamiento se deberá configurar un número de 
 El issue #6 solo puede cerrarse cuando exista evidencia no sensible de:
 
 - remisión aceptada;
-- rechazo funcional controlado con diagnóstico esperado;
+- rechazo funcional controlado con `future-issue-date` y diagnóstico esperado;
 - `TiempoEsperaEnvio`/comportamiento de control de flujo observado;
 - reconciliación comprobada mediante `ConsultaFactuSistemaFacturacion` para el escenario elegido;
 - fecha/hora y commit exacto;
