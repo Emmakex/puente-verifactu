@@ -192,7 +192,7 @@ export function verifyAeatFinalGateEvidence({ accepted, rejected, reconciliation
     remainingExternalEvidence: [],
     releaseUnblocked: false,
     automaticIssueClosure: false,
-    nextAction: 'review_issue_6_and_release_candidate_procedure',
+    nextAction: 'review_issue_6_and_release_procedure',
   };
 }
 
