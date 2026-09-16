@@ -41,6 +41,7 @@ for (const marker of [
   'submitCountAdded: 0',
   'shouldReissue: false',
   'jobIdSha256',
+  'VF_AEAT_RECONCILIATION_SEED_CREATE_FAILED',
 ]) {
   if (!seedLib.includes(marker)) failures.push({ code: 'AEAT_RECONCILIATION_SEED_SAFETY_MARKER_MISSING', marker });
 }
@@ -70,6 +71,7 @@ for (const marker of [
   'seed rejects non-accepted result before creating private files',
   'destination reservation is exclusive and never overwrites existing data or leaks its path',
   'reservations can be released before certificate/network use',
+  'incomplete seed creation is cleaned and returns a path-free diagnostic',
 ]) {
   if (!tests.includes(marker)) failures.push({ code: 'AEAT_RECONCILIATION_SEED_TEST_MISSING', marker });
 }
@@ -106,6 +108,7 @@ console.log(JSON.stringify({
     one_live_submit_only: true,
     seed_adds_no_submit: true,
     no_automatic_retry: true,
+    incomplete_seed_cleanup: true,
     public_paths_hidden: true,
   },
 }, null, 2));
