@@ -291,6 +291,8 @@ npm run aeat:reconcile -- \
 
 `--apply` solo puede producir `reconciliation_required -> completed` después de una nueva consulta oficial con coincidencia exacta. `SinDatos`, mismatch, paginación o fallo de consulta mantienen la cuarentena.
 
+La evidencia de reconciliación incluye además `entryRecordHashes`, exclusivamente las huellas fiscales SHA-256 de los registros reconciliados. No añade NIF, número de factura, `RefExterna`, job ID crudo ni ruta SQLite. Esta huella permite demostrar que la reconciliación pertenece exactamente a la remisión aceptada usada para sembrar el job.
+
 Smoke técnico de la semilla:
 
 ```bash
@@ -298,6 +300,48 @@ npm run aeat:seed:smoke
 ```
 
 Este mecanismo **no genera evidencia externa por sí solo**: el issue #6 continúa abierto hasta ejecutar la secuencia real con certificado válido y conservar la evidencia sanitizada correspondiente.
+
+## Verificación final del gate externo
+
+Cuando existan los tres artefactos sanitizados del **mismo commit candidato** —aceptación, rechazo determinista y reconciliación aplicada— se verifican juntos:
+
+```bash
+npm run aeat:final-evidence:verify -- \
+  --accepted ./private-evidence/aeat-accepted.json \
+  --rejected ./private-evidence/aeat-rejected.json \
+  --reconciliation ./private-evidence/aeat-reconciliation-apply.json \
+  --source-commit <SHA40>
+```
+
+El verificador final reutiliza todas las comprobaciones del bundle aceptado/rechazado y añade las siguientes condiciones obligatorias:
+
+- reconciliación oficial en entorno `test` y para el mismo `sourceCommit`;
+- evidencia en modo `apply`, no solo `inspect`;
+- transición `reconciliation_required -> completed`;
+- `allReceived=true`, `applied=true` y `shouldReissue=false`;
+- exactamente un registro para el fixture live-gate v1;
+- huella fiscal de `entryRecordHashes[0]` idéntica a `accepted.summary.recordHash`;
+- fingerprints válidos de job y PFX, sin incluir sus valores crudos;
+- ausencia de NIF, número fiscal, `RefExterna`, XML/SOAP, ruta SQLite, job ID crudo o secretos.
+
+Si todo es coherente, la salida usa:
+
+```text
+status: external_gate_evidence_complete
+remainingExternalEvidence: []
+releaseUnblocked: false
+automaticIssueClosure: false
+```
+
+`external_gate_evidence_complete` significa únicamente que el conjunto de evidencia externa exigido por #6 es internamente consistente y está ligado al mismo registro aceptado. **No cambia `config/release-gates.json`, no cierra #6, no convierte el commit en `release_candidate` y no prepara por sí solo la declaración responsable.**
+
+Después de obtener este resultado y confirmar CI verde sobre el mismo commit candidato, el siguiente paso es una revisión explícita del issue #6 y, en una unidad separada, actualizar los gates de release y preparar/aprobar la declaración responsable definitiva.
+
+Smoke técnico del verificador final:
+
+```bash
+npm run aeat:final-evidence:smoke
+```
 
 ## Cadena de prueba
 
@@ -313,9 +357,10 @@ El issue #6 solo puede cerrarse cuando exista evidencia no sensible de:
 - rechazo funcional controlado con `future-issue-date` y diagnóstico esperado;
 - `TiempoEsperaEnvio`/comportamiento de control de flujo observado;
 - reconciliación comprobada mediante `ConsultaFactuSistemaFacturacion` para el escenario elegido;
+- `npm run aeat:final-evidence:verify` con `status: external_gate_evidence_complete`;
 - fecha/hora y commit exacto;
 - versiones WSDL/XSD/validaciones usadas;
 - hashes de XML/evidencia, sin payload fiscal;
 - CI final verde sobre el estado de código que se va a declarar candidato.
 
-Después se actualizan roadmap y `config/release-gates.json`; solo entonces `release_status` puede pasar de `release_blocked` a `release_candidate` y se prepara la declaración responsable definitiva de esa versión.
+Después se revisa explícitamente #6 y se actualizan roadmap y `config/release-gates.json` en una unidad separada; solo entonces `release_status` puede pasar de `release_blocked` a `release_candidate` y se prepara la declaración responsable definitiva de esa versión.
