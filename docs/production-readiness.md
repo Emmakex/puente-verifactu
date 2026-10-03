@@ -208,6 +208,8 @@ Contrato interno:
 - construye en memoria los ZIP reproducibles WooCommerce y PrestaShop y registra versión + SHA-256;
 - los fingerprints deben ser idénticos entre ejecuciones sobre el mismo código;
 - la evidencia referencia el checklist previo a la declaración responsable, pero no lo presenta como documento firmado ni como certificación AEAT.
+- la declaración responsable se genera desde un fichero privado del productor, fuera de Git, y el runtime la expone de manera autenticada en `GET /declaracion-responsable`;
+- un deployment candidato debe configurar `PV_RESPONSIBLE_DECLARATION_PATH`; si falta o el fichero no es legible, la ruta falla cerrada y no simula una declaración inexistente.
 
 Comandos:
 

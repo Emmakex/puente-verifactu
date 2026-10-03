@@ -28,6 +28,7 @@ export function createPuenteRuntime({
   clock = () => new Date(),
   observabilityClock = () => Date.now(),
   backupManifestPath = null,
+  responsibleDeclarationPath = null,
   observabilityThresholds = {},
 } = {}) {
   const normalizedSif = {
@@ -75,6 +76,7 @@ export function createPuenteRuntime({
     authenticateHttp,
     rateLimiter,
     onboardingDir,
+    responsibleDeclarationPath,
     readiness: async () => {
       try {
         const row = persistence.database.db.prepare('SELECT 1 AS ok').get();

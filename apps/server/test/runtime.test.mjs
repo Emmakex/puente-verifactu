@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { hashBasicPassword, hashBearerToken } from '../src/auth.mjs';
 import { createIntegrationResolvers, validateIntegrationConfig } from '../src/integration-config.mjs';
 import { createPuenteRuntime } from '../src/runtime.mjs';
@@ -146,6 +149,67 @@ test('concrete runtime serves protected onboarding, API auth and rate limits', a
     assert.equal(limited.status, 429);
     assert.equal((await limited.json()).error.code, 'VF_RATE_LIMITED');
     assert.ok(Number(limited.headers.get('retry-after')) >= 1);
+  } finally {
+    await runtime.close();
+  }
+});
+
+
+test('runtime exposes configured responsible declaration only after authentication', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'puente-verifactu-declaration-'));
+  const declarationPath = join(directory, 'declaracion.md');
+  writeFileSync(declarationPath, '# DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN\n\nVersión 0.1.0\n');
+
+  const runtime = createPuenteRuntime({
+    databasePath: ':memory:',
+    authConfig: authConfig(),
+    responsibleDeclarationPath: declarationPath,
+    sif: { systemId: 'PV', installationNumber: '001', timeZone: 'Europe/Madrid' },
+  });
+
+  try {
+    const baseUrl = await listen(runtime);
+
+    const unauthenticated = await fetch(`${baseUrl}/declaracion-responsable`);
+    assert.equal(unauthenticated.status, 401);
+
+    const basic = Buffer.from(`demo:${uiPassword}`).toString('base64');
+    const response = await fetch(`${baseUrl}/declaracion-responsable`, {
+      headers: { authorization: `Basic ${basic}` },
+    });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /^text\/plain/);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.match(response.headers.get('content-disposition'), /^inline/);
+    assert.match(await response.text(), /DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN/);
+
+    const head = await fetch(`${baseUrl}/declaracion-responsable`, {
+      method: 'HEAD',
+      headers: { authorization: `Basic ${basic}` },
+    });
+    assert.equal(head.status, 200);
+    assert.equal(await head.text(), '');
+  } finally {
+    await runtime.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('runtime fails closed when responsible declaration is not configured', async () => {
+  const runtime = createPuenteRuntime({
+    databasePath: ':memory:',
+    authConfig: authConfig(),
+    sif: { systemId: 'PV', installationNumber: '001', timeZone: 'Europe/Madrid' },
+  });
+
+  try {
+    const baseUrl = await listen(runtime);
+    const basic = Buffer.from(`demo:${uiPassword}`).toString('base64');
+    const response = await fetch(`${baseUrl}/declaracion-responsable`, {
+      headers: { authorization: `Basic ${basic}` },
+    });
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).error.code, 'VF_RESPONSIBLE_DECLARATION_NOT_CONFIGURED');
   } finally {
     await runtime.close();
   }

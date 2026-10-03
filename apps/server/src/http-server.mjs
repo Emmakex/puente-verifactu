@@ -97,6 +97,36 @@ async function serveStatic(res, onboardingDir, path, method) {
   return true;
 }
 
+async function serveResponsibleDeclaration(res, path, method, rate) {
+  if (!path) {
+    return sendJson(res, 503, errorEnvelope(
+      'VF_RESPONSIBLE_DECLARATION_NOT_CONFIGURED',
+      'Responsible declaration is not configured',
+    ), rateHeaders(rate));
+  }
+
+  let content;
+  try {
+    content = await readFile(path);
+  } catch {
+    return sendJson(res, 503, errorEnvelope(
+      'VF_RESPONSIBLE_DECLARATION_UNAVAILABLE',
+      'Responsible declaration is unavailable',
+      true,
+    ), rateHeaders(rate));
+  }
+
+  const headers = {
+    ...securityHeaders({ staticContent: true }),
+    ...rateHeaders(rate),
+    'content-type': 'text/plain; charset=utf-8',
+    'content-disposition': 'inline; filename="declaracion-responsable.txt"',
+    'content-length': String(content.length),
+  };
+  if (method === 'HEAD') send(res, 200, null, headers);
+  else send(res, 200, content, headers);
+}
+
 function normalizedApiResponse(response, rate) {
   const headers = {
     ...(response?.headers ?? {}),
@@ -121,6 +151,7 @@ export function createPuenteHttpServer({
   authenticateHttp,
   rateLimiter,
   onboardingDir,
+  responsibleDeclarationPath = null,
   readiness = async () => ({ ok: true }),
   operationalStatus = async () => ({ schemaVersion: 1, summary: { status: 'ok', critical: 0, warning: 0 } }),
   maxBodyBytes = 6 * 1024 * 1024,
@@ -161,6 +192,16 @@ export function createPuenteHttpServer({
           'x-ratelimit-remaining': '0',
           'x-ratelimit-reset': String(Math.ceil(rate.resetAt / 1000)),
         });
+      }
+
+      if (path === '/declaracion-responsable') {
+        if (!['GET', 'HEAD'].includes(method)) {
+          return sendJson(res, 405, errorEnvelope('VF_HTTP_METHOD_NOT_ALLOWED', 'Method not allowed'), {
+            allow: 'GET, HEAD',
+            ...rateHeaders(rate),
+          });
+        }
+        return serveResponsibleDeclaration(res, responsibleDeclarationPath, method, rate);
       }
 
       if (path === '/v1/ops/status') {
