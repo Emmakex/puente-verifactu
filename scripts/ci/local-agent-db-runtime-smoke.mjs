@@ -52,7 +52,7 @@ async function smokePostgres() {
       });
       assert.equal(result.fetched, 2);
       assert.equal(store.list().length, 2);
-      assert.equal(store.getCheckpoint('postgres-smoke').cursor.value, '2');
+      assert.equal(String(store.getCheckpoint('postgres-smoke').cursor.value), '2');
       await assert.rejects(() => reader.query("INSERT INTO pv_invoices VALUES (3, 'NO', 30.30)"));
       store.close();
     } finally {
@@ -106,7 +106,7 @@ async function smokeMysql(mysqlDialect) {
       });
       assert.equal(result.fetched, 2);
       assert.equal(store.list().length, 2);
-      assert.equal(store.getCheckpoint(`${mysqlDialect}-smoke`).cursor.value, '2');
+      assert.equal(String(store.getCheckpoint(`${mysqlDialect}-smoke`).cursor.value), '2');
       await assert.rejects(() => reader.query("INSERT INTO pv_invoices VALUES (3, 'NO', 30.30)"));
       store.close();
     } finally {
@@ -176,7 +176,7 @@ async function smokeSqlServer() {
     });
     assert.equal(result.fetched, 2);
     assert.equal(store.list().length, 2);
-    assert.equal(store.getCheckpoint('sqlserver-smoke').cursor.value, 2);
+    assert.equal(String(store.getCheckpoint('sqlserver-smoke').cursor.value), '2');
     await assert.rejects(() => reader.request().query("INSERT INTO dbo.pv_invoices VALUES (3, 'NO', 30.30)"));
     store.close();
   } finally {
