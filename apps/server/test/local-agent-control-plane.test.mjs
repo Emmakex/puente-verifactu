@@ -61,6 +61,13 @@ test('Kairoseth control plane provisions, observes, rotates and revokes Local Ag
   try {
     const baseUrl = await listen(runtime);
 
+    const adminDataPlane = await jsonRequest(baseUrl, '/v1/preflight', {
+      method: 'POST',
+      body: { intent: {} },
+    });
+    assert.equal(adminDataPlane.response.status, 403);
+    assert.equal(adminDataPlane.body.error.code, 'VF_API_DATA_PLANE_FORBIDDEN');
+
     const provision = await jsonRequest(baseUrl, '/v1/control-plane/local-agents', {
       method: 'POST',
       body: {
