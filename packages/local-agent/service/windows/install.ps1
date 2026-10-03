@@ -30,9 +30,13 @@ $npm = (Get-Command npm.cmd -ErrorAction Stop).Source
 
 New-Item -ItemType Directory -Force (Join-Path $appRoot 'releases'), $configRoot, $dataDir | Out-Null
 if (-not (Test-Path $release)) {
-  Copy-Item -Recurse -Force $BundleDir $release
+  New-Item -ItemType Directory -Force $release | Out-Null
+  Copy-Item -Recurse -Force (Join-Path $BundleDir '*') $release
   & $npm --prefix $release install --omit=dev --ignore-scripts --package-lock=false
-  if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
+  if ($LASTEXITCODE -ne 0) {
+    Remove-Item -Recurse -Force $release -ErrorAction SilentlyContinue
+    throw 'npm install failed'
+  }
 }
 if (Test-Path $current) {
   & cmd.exe /c rmdir "$current"
