@@ -19,12 +19,16 @@ const integrationConfig = loadIntegrationConfig(process.env.PV_INTEGRATION_CONFI
 const backupManifestPath = process.env.PV_BACKUP_MANIFEST_PATH?.trim()
   ? resolve(process.env.PV_BACKUP_MANIFEST_PATH.trim())
   : null;
+const responsibleDeclarationPath = process.env.PV_RESPONSIBLE_DECLARATION_PATH?.trim()
+  ? resolve(process.env.PV_RESPONSIBLE_DECLARATION_PATH.trim())
+  : null;
 
 const runtime = createPuenteRuntime({
   databasePath,
   authConfig,
   integrationConfig,
   backupManifestPath,
+  responsibleDeclarationPath,
   sif: {
     systemId: process.env.PV_SIF_SYSTEM_ID,
     installationNumber: process.env.PV_SIF_INSTALLATION_NUMBER,
@@ -47,6 +51,7 @@ console.log(JSON.stringify({
   databasePath,
   mode: 'single-node-sqlite',
   backupMonitoringConfigured: backupManifestPath != null,
+  responsibleDeclarationConfigured: responsibleDeclarationPath != null,
   aeatLiveSend: false,
 }));
 
