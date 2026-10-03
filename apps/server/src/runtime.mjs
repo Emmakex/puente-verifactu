@@ -32,6 +32,7 @@ export function createPuenteRuntime({
   responsibleDeclarationPath = null,
   presentationEnvironment = 'test',
   observabilityThresholds = {},
+  localAgentRegistryStore = null,
 } = {}) {
   const normalizedSif = {
     systemId: requiredString(sif?.systemId, 'sif.systemId'),
@@ -61,7 +62,9 @@ export function createPuenteRuntime({
   });
   const imports = new ImportSessionService({ store: persistence.importStore });
   const localAgents = new KairosethLocalAgentControlPlane({
-    store: persistence.localAgentRegistry,
+    // SQLite is the single-node reference store only. Kairoseth production can inject
+    // its shared tenant-aware persistence without changing the control-plane service.
+    store: localAgentRegistryStore ?? persistence.localAgentRegistry,
     clock: observabilityClock,
   });
   const authenticateHttp = createHttpAuthenticator(authConfig, {
