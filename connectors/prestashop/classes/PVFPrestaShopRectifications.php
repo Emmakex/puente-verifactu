@@ -218,6 +218,7 @@ final class PVFPrestaShopRectifications
                 return $module->displayWarning($module->l('This credit slip already has a Puente VeriFactu corrective record. Refresh its status instead of creating another one.'));
             }
 
+            PVFPrestaShopCompatibility::assertCorrectivePresentationReady();
             $result = $client->issue($payload, $idempotencyKey);
             if (empty($result['recordId'])) {
                 throw new RuntimeException('Puente VeriFactu did not return a corrective record ID.');

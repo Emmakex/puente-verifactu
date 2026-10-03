@@ -30,6 +30,18 @@ WooCommerce recomienda CRUD para mantener compatibilidad con HPOS; el conector s
 
 La matriz CI completa y las versiones vigentes se documentan en `docs/woocommerce-compatibility.md`. El gate instala el ZIP real sobre WordPress + WooCommerce, activa HPOS, ejecuta un smoke CRUD y aplica Connector Contract Suite v2 sobre factura y refund.
 
+## Neutralidad de versión y presentación de factura
+
+El conector evita lógica condicionada por números concretos de WooCommerce. Usa CRUD público, detección de capacidades y fallback Action Scheduler/WP-Cron. La matriz CI indica las combinaciones realmente probadas, pero el runtime no contiene ramas del tipo “si WooCommerce es X”.
+
+WooCommerce no tiene un único motor PDF universal. Por eso Puente **no depende de ningún plugin de facturación/PDF**. La versión 0.3.0 persiste el contrato neutral de presentación VERI*FACTU y lo expone mediante:
+
+- `pv_woo_get_invoice_presentation($order)`;
+- filtro `pv_woo_invoice_presentation`;
+- acción `pv_woo_invoice_presentation_updated`.
+
+Así cualquier renderer actual o futuro puede consumir la misma URL QR, textos y parámetros sin duplicar reglas AEAT ni obligarnos a mantener integraciones por proveedor.
+
 ## Configuración
 
 En `WooCommerce → Puente VeriFactu`:
@@ -227,7 +239,7 @@ El artefacto instalable se construye desde una allowlist de runtime:
 npm run woo:package
 ```
 
-El ZIP queda en `dist/puente-verifactu-woocommerce-0.2.0.zip`. `npm run woo:package:check` lo construye dos veces y exige identidad byte a byte, estructura segura y exclusión de perfiles server-side, scripts y secretos.
+El ZIP queda en `dist/puente-verifactu-woocommerce-0.3.0.zip`. `npm run woo:package:check` lo construye dos veces y exige identidad byte a byte, estructura segura y exclusión de perfiles server-side, scripts y secretos.
 
 El CI instala ese ZIP real en la matriz WordPress/WooCommerce antes de considerar compatible el conector.
 
@@ -237,6 +249,6 @@ Si una actualización de WooCommerce rompe temporalmente el conector, el negocio
 
 ## Estado dentro de Fase 5
 
-El bloque WooCommerce está técnicamente cerrado y su aceptación transversal también: factura ordinaria, refunds rectificativos, semáforo, packaging, conversión EUR server-side y Connector Contract Suite v2 están cubiertos en la matriz real. Fase 5 queda cerrada junto con PrestaShop `0.4.0`.
+El bloque WooCommerce está técnicamente cerrado y su aceptación transversal también: factura ordinaria, refunds rectificativos, semáforo, packaging, conversión EUR server-side y Connector Contract Suite v2 están cubiertos en la matriz real. Fase 5 queda cerrada y la versión `0.3.0` añade en Fase 6 el contrato neutral de presentación VERI*FACTU sin depender de un proveedor PDF.
 
-El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real o release.
+El gate externo AEAT #6 está cerrado. El cierre actual de Fase 6 valida la presentación QR/textos y el piloto progresivo antes de publicación.

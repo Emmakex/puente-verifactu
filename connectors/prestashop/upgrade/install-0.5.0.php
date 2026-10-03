@@ -10,6 +10,9 @@ function upgrade_module_0_5_0($module)
         return false;
     }
 
+    require_once dirname(__DIR__) . '/classes/PVFPrestaShopInvoicePresentation.php';
+    require_once dirname(__DIR__) . '/classes/PVFPrestaShopCompatibility.php';
+
     foreach (array('pvf_order_sync', 'pvf_order_slip_sync') as $suffix) {
         $table = _DB_PREFIX_ . $suffix;
         $columnCount = (int) Db::getInstance()->getValue(
@@ -27,11 +30,8 @@ function upgrade_module_0_5_0($module)
         }
     }
 
-    foreach (array('displayPDFInvoice', 'displayPDFOrderSlip') as $hook) {
-        if (!$module->isRegisteredInHook($hook) && !$module->registerHook($hook)) {
-            return false;
-        }
-    }
-
-    return true;
+    return PVFPrestaShopCompatibility::registerAvailableHooks($module, array(
+        'displayPDFInvoice',
+        'displayPDFOrderSlip',
+    ));
 }

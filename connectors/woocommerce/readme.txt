@@ -4,7 +4,7 @@ Tags: verifactu, woocommerce, invoicing, aeat, accounting
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -20,7 +20,7 @@ The connector includes manual preflight/send/reconcile actions, optional asynchr
 
 Spanish UI translations are bundled. Full technical documentation in Spanish is included in README.md.
 
-Important: the repository is not production-ready while the external AEAT test gate remains open. Do not interpret the plugin as tax or legal advice.
+Important: the connector is still a release candidate while final invoice-presentation and pilot gates are completed. Do not interpret the plugin as tax or legal advice.
 
 == Installation ==
 
@@ -33,6 +33,12 @@ Important: the repository is not production-ready while the external AEAT test g
 7. For refunds, validate a separate corrective MappingProfile and refund invoice numbering before enabling automatic refunds.
 
 == Changelog ==
+
+= 0.3.0 =
+* Added vendor-neutral VERI*FACTU invoice presentation metadata.
+* Added HPOS-safe persistence for QR/text presentation data.
+* Added public helper/filter/action integration points for any invoice renderer.
+* No dependency on a specific WooCommerce PDF plugin.
 
 = 0.2.0 =
 * Added explicit WooCommerce refunds/corrective-operation flow.

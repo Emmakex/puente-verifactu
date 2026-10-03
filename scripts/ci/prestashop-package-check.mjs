@@ -38,6 +38,7 @@ assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopSecretStore.php')
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopAdminStatus.php'));
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopAutomation.php'));
 assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopInvoicePresentation.php'));
+assert.ok(names.includes('puenteverifactu/classes/PVFPrestaShopCompatibility.php'));
 assert.ok(names.includes('puenteverifactu/upgrade/install-0.1.0.php'));
 assert.ok(names.includes('puenteverifactu/upgrade/install-0.2.0.php'));
 assert.ok(names.includes('puenteverifactu/upgrade/install-0.3.0.php'));
@@ -59,5 +60,6 @@ console.log(JSON.stringify({
   typed_api_errors: true,
   native_reconciliation_v2: true,
   verifactu_pdf_presentation: true,
+  capability_first_compatibility: true,
   sha256: createHash('sha256').update(first.buffer).digest('hex'),
 }, null, 2));

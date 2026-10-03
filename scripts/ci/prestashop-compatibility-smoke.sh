@@ -105,13 +105,22 @@ if (!$module->isRegisteredInHook('actionOrderStatusPostUpdate') || !$module->isR
 if (!$module->isRegisteredInHook('displayPDFInvoice')) {
     pvfFail('PRESTA_PDF_INVOICE_HOOK_MISSING', 'displayPDFInvoice was not registered.');
 }
+$capabilities = PVFPrestaShopCompatibility::presentationCapabilities();
+if (empty($capabilities['invoice_pdf_hook'])
+    || empty($capabilities['order_slip_pdf_hook'])
+    || empty($capabilities['qr_renderer'])
+    || !PVFPrestaShopCompatibility::invoicePresentationReady()
+    || !PVFPrestaShopCompatibility::correctivePresentationReady()) {
+    pvfFail('PRESTA_CAPABILITY_CONTRACT_FAILED', 'Validated runtime does not satisfy the capability-first presentation contract.');
+}
 if (!class_exists('PVFPrestaShopOrderPayload')
     || !class_exists('PVFPrestaShopOrderSlipPayload')
     || !class_exists('PVFPrestaShopRectifications')
     || !class_exists('PVFPrestaShopAutomation')
     || !class_exists('PVFPrestaShopTaxBreakdown')
     || !class_exists('PVFPrestaShopAdminStatus')
-    || !class_exists('PVFPrestaShopInvoicePresentation')) {
+    || !class_exists('PVFPrestaShopInvoicePresentation')
+    || !class_exists('PVFPrestaShopCompatibility')) {
     pvfFail('PRESTA_RUNTIME_CLASSES_MISSING', 'Connector runtime classes were not loaded.');
 }
 
@@ -315,6 +324,7 @@ fwrite(STDOUT, json_encode(array(
     'automation_default_off' => true,
     'pdf_invoice_hook_registered' => true,
     'verifactu_qr_rendered' => true,
+    'capability_first_compatibility' => true,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 PHP
 

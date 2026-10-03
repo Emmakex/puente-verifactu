@@ -81,6 +81,11 @@ if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
 if (!$module->isRegisteredInHook('actionOrderStatusPostUpdate') || !$module->isRegisteredInHook('actionOrderSlipAdd')) {
     failUpgrade('PRESTA_UPGRADE_BASELINE_AUTO_HOOK_MISSING', '0.4.0 baseline must contain automatic event hooks.');
 }
+foreach (array('displayPDFInvoice', 'displayPDFOrderSlip') as $pdfHook) {
+    if ($module->isRegisteredInHook($pdfHook) && !$module->unregisterHook($pdfHook)) {
+        failUpgrade('PRESTA_UPGRADE_BASELINE_PDF_HOOK_REMOVE_FAILED', 'Could not remove synthetic 0.5.0 PDF hook from the 0.4.0 baseline.');
+    }
+}
 if ($module->isRegisteredInHook('displayPDFInvoice') || $module->isRegisteredInHook('displayPDFOrderSlip')) {
     failUpgrade('PRESTA_UPGRADE_BASELINE_PDF_HOOK_PRESENT', '0.4.0 baseline must not contain 0.5.0 PDF hooks.');
 }
@@ -154,8 +159,15 @@ if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
 if (!$module->isRegisteredInHook('actionOrderStatusPostUpdate') || !$module->isRegisteredInHook('actionOrderSlipAdd')) {
     failUpgrade('PRESTA_UPGRADE_AUTOMATION_HOOK_MISSING', '0.5.0 upgrade lost automation hooks.');
 }
-if (!$module->isRegisteredInHook('displayPDFInvoice') || !$module->isRegisteredInHook('displayPDFOrderSlip')) {
-    failUpgrade('PRESTA_UPGRADE_PDF_HOOK_MISSING', '0.5.0 upgrade did not register both PDF presentation hooks.');
+$capabilities = PVFPrestaShopCompatibility::presentationCapabilities();
+if (!empty($capabilities['invoice_pdf_hook']) && !$module->isRegisteredInHook('displayPDFInvoice')) {
+    failUpgrade('PRESTA_UPGRADE_PDF_INVOICE_HOOK_MISSING', '0.5.0 upgrade did not register an available displayPDFInvoice hook.');
+}
+if (!empty($capabilities['order_slip_pdf_hook']) && !$module->isRegisteredInHook('displayPDFOrderSlip')) {
+    failUpgrade('PRESTA_UPGRADE_PDF_ORDER_SLIP_HOOK_MISSING', '0.5.0 upgrade did not register an available displayPDFOrderSlip hook.');
+}
+if (empty($capabilities['qr_renderer'])) {
+    failUpgrade('PRESTA_UPGRADE_QR_RENDERER_MISSING', 'Validated runtime lost its QR renderer capability after upgrade.');
 }
 
 $row = Db::getInstance()->getRow(
@@ -219,7 +231,8 @@ fwrite(STDOUT, json_encode(array(
     'status_hook_registered' => true,
     'automation_hooks_registered' => true,
     'pdf_invoice_hook_registered' => true,
-    'pdf_order_slip_hook_registered' => true,
+    'pdf_order_slip_hook_registered' => !empty($capabilities['order_slip_pdf_hook']),
+    'capability_first_compatibility' => true,
     'presentation_column_added' => true,
     'corrective_presentation_column_added' => true,
     'automation_default_off' => true,
