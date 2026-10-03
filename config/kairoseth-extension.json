@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "kind": "kairoseth-extension-product",
+  "ecosystem": "kairoseth",
+  "catalog": "extensions",
+  "product_id": "puente-verifactu",
+  "slug": "puente-verifactu",
+  "name": "Puente VeriFactu",
+  "version": "0.1.0",
+  "status": "release_candidate",
+  "entry_model": "capability-first",
+  "core": {
+    "shared": true,
+    "fiscal_engine": "single",
+    "mode": "VERI*FACTU"
+  },
+  "channels": [
+    "native_plugin",
+    "rest_api",
+    "webhook",
+    "file_upload",
+    "database_read",
+    "watch_folder",
+    "sftp",
+    "local_agent",
+    "manual"
+  ],
+  "native_connectors": [
+    "woocommerce",
+    "prestashop"
+  ],
+  "principles": {
+    "one_product_many_adapters": true,
+    "adapters_are_not_products": true,
+    "server_side_fiscal_authority": true,
+    "capability_first_onboarding": true
+  }
+}
