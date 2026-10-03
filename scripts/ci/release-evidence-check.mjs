@@ -11,11 +11,11 @@ const registry = JSON.parse(await readFile(join(REPO_ROOT, 'config/regulatory-so
 
 assert.equal(gates.schema_version, 1);
 assert.equal(gates.deployment_profile, 'sqlite-single-node');
-assert.equal(gates.release_status, 'release_blocked');
+assert.equal(gates.release_status, 'release_candidate');
 
 const aeatGate = gates.blockers.find((blocker) => blocker.id === 'AEAT_EXTERNAL_GATE_6');
 assert.ok(aeatGate, 'AEAT external gate #6 must be represented');
-assert.equal(aeatGate.status, 'open');
+assert.equal(aeatGate.status, 'closed');
 assert.equal(aeatGate.github_issue, 6);
 assert.ok(aeatGate.required_before.includes('release'));
 assert.ok(aeatGate.required_before.includes('real_fiscal_pilot'));
@@ -62,9 +62,8 @@ const evidence = await buildReleaseEvidence(fixture);
 const evidenceAgain = await buildReleaseEvidence(fixture);
 
 assert.equal(evidence.schema_version, 1);
-assert.equal(evidence.release.status, 'release_blocked');
-assert.equal(evidence.release.blockers.length, 1);
-assert.equal(evidence.release.blockers[0].id, 'AEAT_EXTERNAL_GATE_6');
+assert.equal(evidence.release.status, 'release_candidate');
+assert.equal(evidence.release.blockers.length, 0);
 assert.equal(evidence.responsible_declaration.status, 'required_before_publication');
 assert.equal(evidence.artifacts.length, 2);
 assert.deepEqual(evidence.artifacts, evidenceAgain.artifacts, 'Release artifact fingerprints must be reproducible');
@@ -81,5 +80,5 @@ console.log(JSON.stringify({
   aeat_artifacts_verified_at: AEAT_ARTIFACTS.verifiedAt,
   regulatory_review_max_age_days: registry.expires_after_days,
   artifacts: evidence.artifacts.map(({ id, version, sha256 }) => ({ id, version, sha256 })),
-  blocker: aeatGate.id,
+  blocker: `${aeatGate.id}:${aeatGate.status}`,
 }, null, 2));

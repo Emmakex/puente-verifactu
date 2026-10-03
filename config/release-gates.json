@@ -1,16 +1,21 @@
 {
   "schema_version": 1,
   "deployment_profile": "sqlite-single-node",
-  "release_status": "release_blocked",
+  "release_status": "release_candidate",
   "blockers": [
     {
       "id": "AEAT_EXTERNAL_GATE_6",
       "type": "external",
-      "status": "open",
+      "status": "closed",
       "github_issue": 6,
-      "required_before": ["release", "real_fiscal_pilot"],
-      "evidence_document": "docs/aeat-live-gate.md",
-      "reason": "Falta ejecutar contra AEAT, con certificado valido y para el mismo commit candidato, el bundle externo de aceptacion, rechazo controlado determinista, reconciliacion oficial y evidencia no sensible."
+      "required_before": [
+        "release",
+        "real_fiscal_pilot"
+      ],
+      "evidence_document": "docs/release/aeat-gate-6-evidence-2026-10-03.md",
+      "reason": "Gate externo completado el 2026-10-03 sobre el commit 1b1f4facef23bba98b67e0041e7143b0c2224baa: aceptacion real en AEAT test, rechazo controlado, reconciliacion oficial aplicada y verificador final external_gate_evidence_complete.",
+      "closed_at": "2026-10-03",
+      "source_commit": "1b1f4facef23bba98b67e0041e7143b0c2224baa"
     }
   ],
   "profile_decisions": [

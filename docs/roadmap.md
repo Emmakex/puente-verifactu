@@ -46,7 +46,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 
 **Salida cumplida:** cadena reproducible y verificada contra los tres vectores oficiales AEAT de hash. La persistencia durable de esa cadena se incorpora posteriormente en Fase 4 sin alterar el contrato de core.
 
-## Fase 3 — AEAT Test Adapter ⚠️ gate externo diferido
+## Fase 3 — AEAT Test Adapter ✅
 
 - [x] Manifest de artefactos oficiales/versiones verificadas.
 - [x] Endpoints oficiales de pruebas/producción y certificado/sello.
@@ -67,12 +67,12 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Semilla privada controlada para demostrar reconciliación sobre una única remisión aceptada, sin fabricar timeouts ni añadir otra llamada `submit()`.
 - [x] Perfil de rechazo controlado `future-issue-date`, basado en la validación AEAT v1.2.2 que prohíbe una `FechaExpedicionFactura` posterior a la fecha actual.
 - [x] Verificador de bundle aceptado + rechazo que exige mismo commit, artefactos vigentes, perfil de rechazo determinista y evidencia sanitizada; mantiene `partial` mientras falte reconciliación externa.
-- [ ] Provisionar certificado válido exclusivamente en entorno seguro.
-- [ ] Remisión real controlada al endpoint AEAT de pruebas.
-- [ ] Confirmar caso aceptado + rechazo controlado + reconciliación.
-- [ ] Documentar evidencia no sensible de la prueba externa.
+- [x] Provisionar certificado válido exclusivamente en entorno seguro.
+- [x] Remisión real controlada al endpoint AEAT de pruebas.
+- [x] Confirmar caso aceptado + rechazo controlado + reconciliación.
+- [x] Documentar evidencia no sensible de la prueba externa.
 
-**Estado:** toda la infraestructura interna del gate está preparada y protegida por CI. La ejecución externa se difiere bajo ADR-0003 y permanece registrada en #6. El bundle de prueba es determinista para aceptación, rechazo y reconciliación, pero **release, piloto fiscal real y production readiness siguen bloqueados** hasta ejecutar esas pruebas contra AEAT con certificado válido y cerrar el gate.
+**Estado:** gate externo #6 cerrado el 2026-10-03 sobre `1b1f4facef23bba98b67e0041e7143b0c2224baa`. AEAT test confirmó aceptación real, rechazo controlado `future-issue-date`, `TiempoEsperaEnvio=60` y reconciliación oficial exacta aplicada sin reemisión. El verificador final devolvió `external_gate_evidence_complete`; la evidencia sanitizada está en `docs/release/aeat-gate-6-evidence-2026-10-03.md`.
 
 ## Fase 4 — Universal Integration Kit ✅
 
@@ -100,7 +100,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 
 **Salida cumplida:** cualquier sistema puede integrarse mediante archivo, webhook, API/SDK o conector sin tocar el motor fiscal. Existe además un deployment single-node ejecutable y durable adecuado para desarrollo, staging y pilotos técnicos no fiscales.
 
-**Límite explícito:** SQLite/rate limit local son un perfil de una sola instancia. Multi-réplica/HA, backups/restauración automatizados y outbox durable de producción se endurecen en Fase 6. El gate AEAT #6 sigue bloqueando piloto fiscal real/release.
+**Límite explícito:** SQLite/rate limit local son un perfil de una sola instancia. Multi-réplica/HA, backups/restauración automatizados y outbox durable de producción se endurecen en Fase 6. El gate AEAT #6 ya está cerrado; release y piloto continúan sujetos a los gates restantes de Fase 6 y a la declaración responsable definitiva de la versión.
 
 ## Fase 5 — Kairoseth Extensions ✅
 
@@ -156,7 +156,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 
 **Estado:** Fase 5 técnicamente cerrada. Connector Contract Suite v2 fija y valida la misma semántica sobre WooCommerce y PrestaShop reales: con `recordId` existente solo se consulta/reconcilia y nunca se reemite como fallback; fallos retryable preservan identidad/idempotencia; operaciones nuevas mantienen preflight e idempotencia estable. El gate común ejecuta seis escenarios equivalentes de factura y rectificativa en las matrices reales de ambos conectores. Durante este gate se detectó y corrigió además la compatibilidad de reconciliación de refunds WooCommerce/HPOS usando la abstracción CRUD común `WC_Abstract_Order`.
 
-**Salida cumplida:** conectores nativos WooCommerce y PrestaShop end-to-end técnicamente validados bajo un contrato transversal común. El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real o release.
+**Salida cumplida:** conectores nativos WooCommerce y PrestaShop end-to-end técnicamente validados bajo un contrato transversal común. El gate externo AEAT #6 ya está cerrado; cualquier release o piloto fiscal real queda condicionado a los gates restantes de Fase 6.
 
 ## Fase 6 — Production Readiness 🚧
 
@@ -165,12 +165,12 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Outbox durable AEAT para el perfil single-node: persistencia de estado/backoff/intentos, leases, recuperación tras reinicio y `reconciliation_required` para resultados inciertos sin reemisión ciega.
 - [x] Observabilidad y alertas operativas v1: endpoint agregado protegido por `ops:read`, métricas de outbox/backup y códigos `VF_OBS_*` estables sin datos fiscales.
 - [x] Runbooks operativos single-node: deploy/rollback, incidente AEAT y `reconciliation_required`, backup/restore y rotación de credenciales; protegidos por gate CI.
-- [x] Evidencia de release v1 y revisión regulatoria interna: registro versionado de fuentes, cruce con `AEAT_ARTIFACTS`, caducidad de revisión, commit/CI explícitos y SHA-256 reproducible de artefactos; `release_blocked` mientras #6 esté abierto.
-- [ ] Cierre regulatorio final de una versión candidata: completar AEAT #6, generar evidencia para el commit exacto y preparar/aprobar la declaración responsable definitiva de esa versión.
+- [x] Evidencia de release v1 y revisión regulatoria interna: registro versionado de fuentes, cruce con `AEAT_ARTIFACTS`, caducidad de revisión, commit/CI explícitos y SHA-256 reproducible de artefactos; transición a `release_candidate` tras el cierre documentado de #6.
+- [ ] Cierre regulatorio final de una versión candidata: generar evidencia de release para el commit candidato final y preparar/aprobar la declaración responsable definitiva de esa versión.
 - [ ] Perfil HA/multi-réplica con store/locking/rate limiting compartidos **solo si el despliegue real lo requiere**; para el perfil `sqlite-single-node` actual figura como `not_applicable` y no bloquea el desarrollo interno.
 - [ ] Piloto progresivo con rollback y monitorización activa.
 
-**Estado:** Fase 6 en curso con seis gates internos implementados para el perfil single-node: backup/restore SQLite, política de ciclo de vida de backups, outbox AEAT durable, observabilidad/alertas v1, runbooks operativos y evidencia de release/regulatoria reproducible. El gate de evidencia genera fingerprints de los paquetes oficiales, fija las versiones regulatorias revisadas y falla si la revisión supera 90 días. Ningún CI verde cambia por sí solo `release_blocked`: el cierre regulatorio final continúa condicionado al gate externo AEAT #6 y a la declaración responsable de la versión candidata.
+**Estado:** Fase 6 en curso con seis gates internos implementados para el perfil single-node y el gate externo AEAT #6 ya cerrado. La configuración puede avanzar a `release_candidate`, pero eso no autoriza publicación: todavía deben generarse la evidencia de release del commit candidato final y la declaración responsable definitiva, además de completar el piloto progresivo con los controles previstos.
 
 **Gate de entrada a release/piloto:** Fase 3 externa cerrada (#6), evidencia de release correspondiente al mismo commit candidato, revisión regulatoria vigente, declaración responsable final de esa versión y todos los gates aplicables al perfil de despliegue con evidencia real del entorno seleccionado.
 

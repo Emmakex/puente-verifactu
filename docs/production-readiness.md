@@ -2,7 +2,7 @@
 
 Fase 6 convierte los componentes ya funcionales de Puente VeriFactu en un sistema operable con procedimientos de recuperación, observabilidad y controles de release verificables.
 
-No sustituye el gate externo AEAT de Fase 3. **No puede existir release ni piloto fiscal real mientras #6 siga abierto**, aunque todos los gates internos de esta fase estén verdes.
+El gate externo AEAT de Fase 3 quedó cerrado el 2026-10-03 con evidencia sanitizada. **Esto no autoriza por sí solo un release ni un piloto fiscal real**: la versión candidata aún debe cumplir los gates restantes de esta fase y contar con su declaración responsable definitiva.
 
 ## Principios
 
@@ -195,14 +195,14 @@ La decisión queda fijada en `config/release-gates.json` como `HA_MULTI_REPLICA 
 
 ### 6.6 Evidencia de release y verificación regulatoria
 
-Estado: **tooling/evidencia interna v1 implementados; cierre regulatorio final pendiente del gate externo #6 y de la declaración responsable definitiva de la versión candidata**.
+Estado: **tooling/evidencia interna v1 implementados; gate externo #6 cerrado; cierre regulatorio final pendiente de evidencia de release del commit candidato final y de la declaración responsable definitiva**.
 
 Contrato interno:
 
 - `config/regulatory-sources.json` registra la fecha de revisión y las fuentes oficiales mínimas AEAT/BOE;
 - las versiones WSDL/documento de validaciones/esquema/registro deben coincidir exactamente con `AEAT_ARTIFACTS` del adaptador;
 - la revisión regulatoria caduca a los 90 días y el gate falla si no se vuelve a validar;
-- `config/release-gates.json` mantiene AEAT #6 como blocker explícito de `release` y `real_fiscal_pilot`;
+- `config/release-gates.json` conserva AEAT #6 como blocker auditado en estado `closed` y permite `release_candidate` al no quedar blockers abiertos;
 - mientras exista cualquier blocker abierto, el único estado válido es `release_blocked`;
 - el generador exige el commit fuente explícito y no inspecciona variables de entorno de forma implícita;
 - construye en memoria los ZIP reproducibles WooCommerce y PrestaShop y registra versión + SHA-256;
@@ -213,18 +213,18 @@ Comandos:
 
 ```bash
 npm run release:evidence:check
-npm run release:evidence -- --commit <SHA40> --expect release_blocked
+npm run release:evidence -- --commit <SHA40> --expect release_candidate
 ```
 
 Opcionalmente puede escribirse `--output dist/release-evidence.json`; el fichero no se sobrescribe si ya existe.
 
 Ver `docs/release-evidence.md` y `docs/release/declaracion-responsable-template.md`.
 
-**Cierre regulatorio final:** requiere cerrar AEAT #6 con prueba externa controlada y evidencia no sensible, revalidar fuentes regulatorias para el commit candidato, ejecutar CI completo para ese mismo commit, generar una evidencia nueva y preparar/aprobar la declaración responsable definitiva de la versión. Hasta entonces `release_blocked` es obligatorio.
+**Cierre regulatorio final:** AEAT #6 ya está cerrado con prueba externa controlada y evidencia no sensible. Resta mantener vigente la revisión regulatoria, ejecutar CI completo para el commit candidato final, generar una evidencia de release nueva para ese mismo commit y preparar/aprobar la declaración responsable definitiva. `release_candidate` no equivale a versión publicada ni autorizada para producción.
 
 ### 6.7 Piloto progresivo
 
-Bloqueado por Fase 3 externa y por el cierre regulatorio final.
+Pendiente del cierre regulatorio final, de la declaración responsable definitiva y de la validación controlada del propio piloto.
 
 El piloto debe empezar con alcance controlado, rollback definido y métricas/alertas activas. No se habilita únicamente porque CI esté verde.
 

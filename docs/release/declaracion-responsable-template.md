@@ -11,11 +11,11 @@ Este archivo es una **plantilla interna de preparación**. No constituye una dec
 - Componentes incluidos: `<COMPONENTES>`
 - Perfil de instalación: `<PERFIL_DESPLIEGUE>`
 - Funcionalidades fiscales incluidas: `<FUNCIONALIDADES>`
-- Razón social del productor: `<RAZON_SOCIAL>`
+- Nombre completo o razón social del productor: `<NOMBRE_O_RAZON_SOCIAL>`
 - NIF del productor: `<NIF>`
 - Dirección y contacto del productor: `<DIRECCION_Y_CONTACTO>`
 - Lugar y fecha: `<LUGAR_Y_FECHA>`
-- Persona firmante y cargo: `<FIRMANTE_Y_CARGO>`
+- Persona firmante y, si aplica, cargo: `<FIRMANTE_Y_CARGO>`
 
 ## Evidencia técnica previa obligatoria
 
