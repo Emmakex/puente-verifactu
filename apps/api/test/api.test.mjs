@@ -19,7 +19,7 @@ function invoice(overrides = {}) {
     issueDate: '2026-09-15',
     invoiceType: 'F2',
     description: 'Servicio de prueba',
-    issuer: { name: 'Empresa Demo', taxId: 'TESTISSUER' },
+    issuer: { name: 'Empresa Demo', taxId: '89890001K' },
     currency: 'EUR',
     taxBreakdown: [{ taxCode: '01', regimeKey: '01', operationClass: 'S1', rate: '21', baseAmount: '100.00', taxAmount: '21.00' }],
     adjustments: [],
@@ -55,6 +55,15 @@ test('issue requires idempotency key and retries return the same record', async 
   const first = await handler(request);
   assert.equal(first.status, 202);
   assert.match(first.body.recordId, /^fr_[a-f0-9]{24}$/);
+  assert.equal(first.body.presentation.mode, 'VERI*FACTU');
+  assert.equal(first.body.presentation.qr.prefixText, 'QR tributario:');
+  assert.equal(first.body.presentation.qr.errorCorrection, 'M');
+  assert.match(first.body.presentation.qr.url, /^https:\/\/prewww2\.aeat\.es\/wlpl\/TIKE-CONT\/ValidarQR\?/);
+  assert.match(first.body.presentation.qr.url, /nif=89890001K/);
+  assert.match(first.body.presentation.qr.url, /numserie=A-1/);
+  assert.match(first.body.presentation.qr.url, /fecha=15-09-2026/);
+  assert.match(first.body.presentation.qr.url, /importe=121\.00/);
+  assert.equal(first.body.presentation.verificationText, 'Factura verificable en la sede electrónica de la AEAT');
   const retry = await handler(request);
   assert.equal(retry.status, 200);
   assert.equal(retry.body.recordId, first.body.recordId);
@@ -76,6 +85,8 @@ test('record lookup never crosses organization boundaries', async () => {
   const created = await handler({ method: 'POST', path: '/v1/fiscal-records', body: { intent: invoice() }, headers: { 'Idempotency-Key': 'evt-tenant' } });
   const own = await handler({ method: 'GET', path: `/v1/fiscal-records/${created.body.recordId}`, headers: {} });
   assert.equal(own.status, 200);
+  assert.equal(own.body.presentation.specificationVersion, '0.5.0');
+  assert.equal(own.body.presentation.structuredInvoice.verificationUrlFieldRequired, true);
 
   const foreign = await handler({ method: 'GET', path: `/v1/fiscal-records/${created.body.recordId}`, headers: {}, authContext: { organizationId: 'org-2', installationId: 'source-install-2', sourceSystem: 'sdk-test' } });
   assert.equal(foreign.status, 404);
