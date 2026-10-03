@@ -93,8 +93,8 @@ $module = Module::getInstanceByName('puenteverifactu');
 if (!$module || empty($module->active)) {
     pvfFail('PRESTA_MODULE_NOT_ACTIVE', 'puenteverifactu is not active.');
 }
-if ((string) $module->version !== '0.4.0') {
-    pvfFail('PRESTA_MODULE_VERSION_MISMATCH', 'Expected module 0.4.0, received ' . (string) $module->version);
+if ((string) $module->version !== '0.5.0') {
+    pvfFail('PRESTA_MODULE_VERSION_MISMATCH', 'Expected module 0.5.0, received ' . (string) $module->version);
 }
 if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
     pvfFail('PRESTA_ORDER_STATUS_HOOK_MISSING', 'displayAdminOrderMainBottom was not registered.');
@@ -102,12 +102,19 @@ if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
 if (!$module->isRegisteredInHook('actionOrderStatusPostUpdate') || !$module->isRegisteredInHook('actionOrderSlipAdd')) {
     pvfFail('PRESTA_AUTOMATION_HOOK_MISSING', 'Opt-in automation hooks were not registered.');
 }
+$presentationCapabilities = PVFPrestaShopCompatibility::invoicePresentationCapabilities();
+if (empty($presentationCapabilities['ready'])
+    || !$module->isRegisteredInHook('displayPDFInvoice')) {
+    pvfFail('PRESTA_PRESENTATION_CAPABILITY_MISSING', 'Validated runtime must provide the PDF hook and QR renderer.');
+}
 if (!class_exists('PVFPrestaShopOrderPayload')
     || !class_exists('PVFPrestaShopOrderSlipPayload')
     || !class_exists('PVFPrestaShopRectifications')
     || !class_exists('PVFPrestaShopAutomation')
     || !class_exists('PVFPrestaShopTaxBreakdown')
-    || !class_exists('PVFPrestaShopAdminStatus')) {
+    || !class_exists('PVFPrestaShopAdminStatus')
+    || !class_exists('PVFPrestaShopInvoicePresentation')
+    || !class_exists('PVFPrestaShopCompatibility')) {
     pvfFail('PRESTA_RUNTIME_CLASSES_MISSING', 'Connector runtime classes were not loaded.');
 }
 
@@ -131,6 +138,12 @@ $tableExists = (int) Db::getInstance()->getValue(
 );
 if ($tableExists !== 1) {
     pvfFail('PRESTA_SYNC_TABLE_MISSING', 'Connector sync table was not created.');
+}
+$presentationColumn = Db::getInstance()->getRow(
+    "SHOW COLUMNS FROM `" . _DB_PREFIX_ . "pvf_order_sync` LIKE 'presentation_json'"
+);
+if (!is_array($presentationColumn)) {
+    pvfFail('PRESTA_PRESENTATION_COLUMN_MISSING', 'presentation_json was not created.');
 }
 
 $rectTable = _DB_PREFIX_ . 'pvf_order_slip_sync';
@@ -216,6 +229,20 @@ if (!isset($payload['total_amount']) || !isset($payload['tax_amount']) || !isset
     pvfFail('PRESTA_REAL_PAYLOAD_TOTALS_MISSING', 'Real invoice payload misses totals/currency.');
 }
 
+$presentationResult = array(
+    'presentation' => array(
+        'mode' => 'VERI*FACTU',
+        'qr' => array(
+            'url' => 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR?nif=89890001K&numserie=VF-1&fecha=03-10-2026&importe=1.00',
+            'prefixText' => 'QR tributario:',
+            'errorCorrection' => 'M',
+        ),
+        'verificationText' => 'Factura verificable en la sede electrónica de la AEAT',
+        'specificationVersion' => '0.5.0',
+    ),
+);
+$presentationJson = PVFPrestaShopInvoicePresentation::encode($presentationResult);
+
 Db::getInstance()->delete('pvf_order_sync', '`id_shop` = ' . (int) $order->id_shop . ' AND `id_order` = ' . (int) $order->id);
 if (!Db::getInstance()->insert('pvf_order_sync', array(
     'id_shop' => (int) $order->id_shop,
@@ -223,6 +250,7 @@ if (!Db::getInstance()->insert('pvf_order_sync', array(
     'record_id' => 'status-smoke-record',
     'idempotency_key' => 'status-smoke-key',
     'status' => 'accepted',
+    'presentation_json' => $presentationJson,
     'last_error' => '',
     'date_upd' => date('Y-m-d H:i:s'),
 ))) {
@@ -232,6 +260,24 @@ if (!Db::getInstance()->insert('pvf_order_sync', array(
 $statusHtml = $module->hookDisplayAdminOrderMainBottom(array('id_order' => (int) $order->id));
 if (strpos($statusHtml, 'badge-success') === false || strpos($statusHtml, 'status-smoke-record') === false) {
     pvfFail('PRESTA_ORDER_STATUS_GREEN_RENDER_FAILED', 'Accepted state did not render a green native order card.');
+}
+
+$nativeInvoices = $order->getInvoicesCollection();
+$invoiceForPdf = null;
+foreach ($nativeInvoices as $candidateInvoice) {
+    if ($candidateInvoice instanceof OrderInvoice) {
+        $invoiceForPdf = $candidateInvoice;
+        break;
+    }
+}
+if (!$invoiceForPdf instanceof OrderInvoice) {
+    pvfFail('PRESTA_PRESENTATION_INVOICE_MISSING', 'Could not load native invoice for PDF presentation smoke.');
+}
+$pdfPresentation = $module->hookDisplayPDFInvoice(array('object' => $invoiceForPdf));
+if (strpos($pdfPresentation, 'QR tributario:') === false
+    || strpos($pdfPresentation, 'VERI*FACTU') === false
+    || strpos($pdfPresentation, 'Factura verificable en la sede electrónica de la AEAT') === false) {
+    pvfFail('PRESTA_PRESENTATION_RENDER_FAILED', 'Native PDF hook did not render the VERI*FACTU presentation.');
 }
 
 if (!Db::getInstance()->update('pvf_order_sync', array(
@@ -272,6 +318,8 @@ fwrite(STDOUT, json_encode(array(
     'corrective_runtime_loaded' => true,
     'automation_hooks_registered' => true,
     'automation_default_off' => true,
+    'verifactu_pdf_presentation' => true,
+    'capability_first_compatibility' => true,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 PHP
 
