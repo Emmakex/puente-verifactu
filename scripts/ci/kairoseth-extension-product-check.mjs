@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 const product = JSON.parse(readFileSync('config/kairoseth-extension.json', 'utf8'));
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const adapter = JSON.parse(readFileSync('connectors/reference/adapter-manifest.json', 'utf8'));
+const localAgent = JSON.parse(readFileSync('packages/local-agent/adapter-manifest.json', 'utf8'));
 
 const failures = [];
 function expect(condition, code, details = {}) {
@@ -24,6 +25,13 @@ expect(product.core?.shared === true && product.core?.fiscal_engine === 'single'
 expect(product.principles?.one_product_many_adapters === true, 'KAIROSETH_ONE_PRODUCT_INVARIANT_MISSING');
 expect(product.principles?.adapters_are_not_products === true, 'KAIROSETH_ADAPTER_BOUNDARY_MISSING');
 expect(product.principles?.server_side_fiscal_authority === true, 'KAIROSETH_SERVER_AUTHORITY_MISSING');
+expect(product.infrastructure?.control_plane === 'kairoseth', 'KAIROSETH_CONTROL_PLANE_INVALID');
+expect(product.infrastructure?.fiscal_authority === 'server-side', 'KAIROSETH_FISCAL_AUTHORITY_INVALID');
+expect(product.infrastructure?.tenant_authority === 'server-side', 'KAIROSETH_TENANT_AUTHORITY_INVALID');
+expect(product.infrastructure?.certificate_custody === 'server-side', 'KAIROSETH_CERTIFICATE_CUSTODY_INVALID');
+expect(product.infrastructure?.local_agent_role === 'edge-connector', 'KAIROSETH_LOCAL_AGENT_ROLE_INVALID');
+expect(product.infrastructure?.local_agent_inbound_ports === false, 'KAIROSETH_LOCAL_AGENT_INBOUND_PORTS_FORBIDDEN');
+expect(product.infrastructure?.local_agent_direct_aeat_authority === false, 'KAIROSETH_LOCAL_AGENT_DIRECT_AEAT_FORBIDDEN');
 expect(product.technical_identity?.name === 'Puente VeriFactu', 'KAIROSETH_TECHNICAL_NAME_INVALID');
 expect(product.technical_identity?.slug === 'puente-verifactu', 'KAIROSETH_TECHNICAL_SLUG_INVALID');
 expect(product.commercial_facade?.enabled === true, 'KAIROSETH_COMMERCIAL_FACADE_DISABLED');
@@ -43,6 +51,18 @@ expect(Array.isArray(product.native_connectors)
 expect(adapter.product?.ecosystem === 'kairoseth', 'ADAPTER_PRODUCT_ECOSYSTEM_MISSING');
 expect(adapter.product?.catalog === 'extensions', 'ADAPTER_PRODUCT_CATALOG_MISSING');
 expect(adapter.product?.product_id === product.product_id, 'ADAPTER_PRODUCT_BINDING_MISMATCH');
+
+expect(localAgent.product?.ecosystem === 'kairoseth', 'LOCAL_AGENT_KAIROSETH_ECOSYSTEM_MISSING');
+expect(localAgent.product?.catalog === 'extensions', 'LOCAL_AGENT_KAIROSETH_CATALOG_MISSING');
+expect(localAgent.product?.product_id === product.product_id, 'LOCAL_AGENT_PRODUCT_BINDING_MISMATCH');
+expect(localAgent.mapping === 'server-side', 'LOCAL_AGENT_SERVER_MAPPING_REQUIRED');
+expect(localAgent.security?.control_plane === 'kairoseth', 'LOCAL_AGENT_CONTROL_PLANE_INVALID');
+expect(localAgent.security?.secrets_server_side === true, 'LOCAL_AGENT_SERVER_SECRETS_REQUIRED');
+expect(localAgent.security?.aeat_certificate_server_side === true, 'LOCAL_AGENT_SERVER_CERTIFICATE_REQUIRED');
+expect(localAgent.security?.tenant_server_authoritative === true, 'LOCAL_AGENT_SERVER_TENANT_AUTHORITY_REQUIRED');
+expect(localAgent.security?.local_agent_role === 'edge-connector', 'LOCAL_AGENT_EDGE_ROLE_REQUIRED');
+expect(localAgent.security?.inbound_listener === false, 'LOCAL_AGENT_INBOUND_LISTENER_FORBIDDEN');
+expect(localAgent.security?.direct_aeat_authority === false, 'LOCAL_AGENT_DIRECT_AEAT_AUTHORITY_FORBIDDEN');
 
 if (failures.length) {
   console.error(JSON.stringify({
@@ -65,4 +85,6 @@ console.log(JSON.stringify({
   model: 'one-product-many-adapters',
   commercial_facade: product.commercial_facade.status,
   commercial_pattern: product.commercial_facade.pattern_reference,
+  infrastructure: 'kairoseth-control-plane',
+  local_agent_role: 'edge-connector',
 }, null, 2));
