@@ -250,6 +250,7 @@ export class LocalAgentRuntime {
     this.log = log;
     this.databaseResource = null;
     this.closed = false;
+    this.lastHeartbeatAt = null;
     this.control = Object.freeze({
       desiredVersion: null,
       updatePolicy: 'manual',
@@ -369,7 +370,16 @@ export class LocalAgentRuntime {
     });
   }
 
-  async sendHeartbeat({ queue, status = 'ok' } = {}) {
+  async sendHeartbeat({ queue, status = 'ok', force = false } = {}) {
+    const now = this.now();
+    if (
+      !force
+      && this.lastHeartbeatAt != null
+      && now - this.lastHeartbeatAt < this.config.runtime.heartbeatIntervalMs
+    ) {
+      return Object.freeze({ ok: true, skipped: true, control: this.control });
+    }
+    this.lastHeartbeatAt = now;
     try {
       const response = await this.client.localAgentHeartbeat({
         agentVersion: LOCAL_AGENT_VERSION,
