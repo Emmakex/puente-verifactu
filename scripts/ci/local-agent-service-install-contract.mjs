@@ -22,7 +22,7 @@ function expect(condition, code) {
 }
 
 function forbidsSensitiveMaterial(value, prefix) {
-  expect(!/\\.pfx\\b|\\.p12\\b|privateKeyPem|aeatCertificate|AEAT_CERTIFICATE/i.test(value), prefix + '_AEAT_SECRET_FORBIDDEN');
+  expect(!/\.pfx\b|\.p12\b|privateKeyPem|aeatCertificate|AEAT_CERTIFICATE/i.test(value), prefix + '_AEAT_SECRET_FORBIDDEN');
 }
 
 expect(linuxUnit.includes('NoNewPrivileges=true'), 'LINUX_NO_NEW_PRIVILEGES_REQUIRED');
@@ -46,10 +46,10 @@ expect(macInstall.includes('SERVICE_USER=') && macInstall.includes('SUDO_USER'),
 expect(macInstall.includes('if [[ ! -f "$CONFIG_FILE" || $REPLACE_CONFIG -eq 1 ]]'), 'MACOS_CONFIG_PRESERVATION_REQUIRED');
 expect(macInstall.includes('ln -sfn "$RELEASE_DIR" "$CURRENT"'), 'MACOS_CURRENT_LINK_REQUIRED');
 expect(macRunner.includes('export "$key=$value"'), 'MACOS_ENV_EXPORT_REQUIRED');
-expect(!/\\bsource\\s+["']?\\$ENV_FILE|\\beval\\b/.test(macRunner), 'MACOS_ENV_EVAL_FORBIDDEN');
+expect(!/\bsource\s+["']?\$ENV_FILE|\beval\b/.test(macRunner), 'MACOS_ENV_EVAL_FORBIDDEN');
 expect(!macUninstall.includes('rm -rf "/Library/Application Support/Kairoseth/LocalAgent"'), 'MACOS_UNINSTALL_STATE_DELETE_FORBIDDEN');
 
-expect(winInstall.includes("Join-Path $env:ProgramData 'Kairoseth\\\\LocalAgent'"), 'WINDOWS_PROGRAMDATA_ROOT_REQUIRED');
+expect(winInstall.includes('$env:ProgramData') && winInstall.includes('Kairoseth\\LocalAgent'), 'WINDOWS_PROGRAMDATA_ROOT_REQUIRED');
 expect(winInstall.includes('Register-ScheduledTask -TaskName $taskName'), 'WINDOWS_NATIVE_TASK_REQUIRED');
 expect(winInstall.includes('New-ScheduledTaskTrigger -AtStartup'), 'WINDOWS_STARTUP_TRIGGER_REQUIRED');
 expect(winInstall.includes("New-ScheduledTaskPrincipal -UserId 'SYSTEM'"), 'WINDOWS_SYSTEM_PRINCIPAL_REQUIRED');
@@ -60,7 +60,7 @@ expect(winInstall.includes("*S-1-5-32-544:F"), 'WINDOWS_ADMIN_FILE_ACL_REQUIRED'
 expect(winInstall.includes('cmd.exe /c rmdir "$current"'), 'WINDOWS_SAFE_JUNCTION_REPLACE_REQUIRED');
 expect(winInstall.includes('if ($ReplaceConfig -or -not (Test-Path $configFile))'), 'WINDOWS_CONFIG_PRESERVATION_REQUIRED');
 expect(!/nssm|winsw|node-windows/i.test(winInstall + winRunner), 'WINDOWS_THIRD_PARTY_SERVICE_WRAPPER_FORBIDDEN');
-expect(!/Remove-Item[^\\n]*(?:config|data)/i.test(winUninstall), 'WINDOWS_UNINSTALL_STATE_DELETE_FORBIDDEN');
+expect(!/Remove-Item[^\n]*(?:config|data)/i.test(winUninstall), 'WINDOWS_UNINSTALL_STATE_DELETE_FORBIDDEN');
 expect(winRunner.includes("[Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], 'Process')"), 'WINDOWS_ENV_PROCESS_SCOPE_REQUIRED');
 
 expect(envExample.includes('PV_LOCAL_AGENT_API_KEY=replace-me'), 'LOCAL_AGENT_ENV_API_KEY_EXAMPLE_REQUIRED');
@@ -75,7 +75,7 @@ for (const item of [
   ['MACOS', macInstall + macUninstall],
   ['WINDOWS', winInstall + winUninstall],
 ]) {
-  expect(!/curl\\s+.*\\|\\s*(?:sh|bash|powershell)|Invoke-Expression|iex\\s/i.test(item[1]), item[0] + '_REMOTE_EXECUTION_FORBIDDEN');
+  expect(!/curl\s+.*\|\s*(?:sh|bash|powershell)|Invoke-Expression|iex\s/i.test(item[1]), item[0] + '_REMOTE_EXECUTION_FORBIDDEN');
 }
 
 if (failures.length > 0) {
