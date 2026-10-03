@@ -18,6 +18,7 @@ const SOURCE_ROOTS = Object.freeze([
   'packages/local-agent/src',
   'packages/core/src',
   'packages/sdk/src',
+  'packages/contracts/src',
   'connectors/file-import/src',
 ]);
 
