@@ -227,9 +227,25 @@ Ver `docs/release-evidence.md` y `docs/release/declaracion-responsable-template.
 
 ### 6.7 Piloto progresivo
 
-Pendiente del cierre regulatorio final, de la declaración responsable definitiva y de la validación controlada del propio piloto.
+Estado: **tooling de readiness implementado; ejecución real pendiente de aprobación explícita y evidencia del deployment**.
 
-El piloto debe empezar con alcance controlado, rollback definido y métricas/alertas activas. No se habilita únicamente porque CI esté verde.
+El gate `npm run pilot:readiness` falla cerrado y exige, para el mismo commit candidato:
+
+- bundle final `candidate_evidence_complete`;
+- aprobación humana privada que referencia exactamente el SHA-256 de la declaración revisada;
+- CI del candidato en `success` y cero blockers;
+- snapshot `/v1/ops/status` completamente `ok`, sin warnings ni critical;
+- cero `reconciliation_required`, cero `blocked` y cero leases expirados;
+- backup monitoring configurado y `ok`;
+- backup lifecycle real `ok` con copia remota/restore drill según la política del deployment;
+- política de piloto con stop conditions obligatorias;
+- rollback `code-first-no-automatic-db-restore`.
+
+El recibo `pilot_ready` es sanitizado, no incluye la declaración, tokens, NIF ni rutas privadas. La aprobación privada se conserva fuera de Git y no es creada automáticamente por el sistema.
+
+La política de ejemplo comienza con una ventana interna conservadora de hasta 5 operaciones o 120 minutos. Es una decisión de ingeniería del proyecto, no un límite normativo.
+
+El piloto real sigue pendiente hasta que el productor apruebe expresamente la declaración responsable definitiva y la apertura de la ventana controlada.
 
 ## Gate global de salida
 

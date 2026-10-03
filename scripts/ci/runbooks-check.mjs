@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 const contracts = [
   {
     path: 'docs/runbooks/README.md',
-    markers: ['reconciliation_required', 'deploy-rollback.md', 'backup-restore.md', 'credential-rotation.md'],
+    markers: ['reconciliation_required', 'deploy-rollback.md', 'backup-restore.md', 'credential-rotation.md', 'pilot-progressive.md'],
   },
   {
     path: 'docs/runbooks/deploy-rollback.md',
@@ -30,6 +30,17 @@ const contracts = [
   {
     path: 'docs/runbooks/credential-rotation.md',
     markers: ['npm run auth:hash', 'ops:read', 'recibe 401', 'no reactivarla'],
+  },
+  {
+    path: 'docs/runbooks/pilot-progressive.md',
+    markers: [
+      'npm run pilot:readiness',
+      'candidate_evidence_complete',
+      'reconciliation_required',
+      'code-first-no-automatic-db-restore',
+      'stop_on_warning',
+      'approval-v0.1.0.json',
+    ],
   },
 ];
 
