@@ -323,7 +323,6 @@ export async function ingestWatchFolder({
   maxRows = DEFAULT_MAX_ROWS,
   sheet,
   headerRow,
-  maxRows = DEFAULT_MAX_ROWS,
   now = Date.now(),
 } = {}) {
   if (!store) throw new TypeError('store is required');
@@ -477,6 +476,7 @@ export async function recoverProcessingWatchFiles({
   issueEnabled = false,
   sheet,
   headerRow,
+  maxRows = DEFAULT_MAX_ROWS,
   now = Date.now(),
 } = {}) {
   if (!store) throw new TypeError('store is required');
