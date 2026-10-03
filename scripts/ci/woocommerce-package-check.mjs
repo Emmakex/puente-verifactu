@@ -19,7 +19,7 @@ function listLocalEntries(buffer) {
 
 const first = await buildWooCommerceZip();
 const second = await buildWooCommerceZip();
-assert.equal(first.version, '0.2.0');
+assert.equal(first.version, '0.3.0');
 assert.deepEqual(first.buffer, second.buffer, 'WooCommerce ZIP must be byte-for-byte reproducible');
 
 const names = listLocalEntries(first.buffer);
@@ -29,6 +29,7 @@ assert.ok(names.includes('puente-verifactu-woocommerce/readme.txt'));
 assert.ok(names.includes('puente-verifactu-woocommerce/README.md'));
 assert.ok(names.includes('puente-verifactu-woocommerce/includes/class-pv-woo-connector.php'));
 assert.ok(names.includes('puente-verifactu-woocommerce/includes/class-pv-woo-refund-payload.php'));
+assert.ok(names.includes('puente-verifactu-woocommerce/includes/class-pv-woo-invoice-presentation.php'));
 assert.ok(names.includes('puente-verifactu-woocommerce/languages/puente-verifactu-woocommerce-es_ES.mo'));
 assert.equal(names.some((name) => name.includes('/examples/')), false, 'Server-side mapping examples must not ship in the WordPress runtime ZIP');
 assert.equal(names.some((name) => name.includes('/scripts/')), false);
