@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { applyMapping } from '../../../packages/core/src/mapping.mjs';
 import { stableStringify } from '../../../packages/core/src/idempotency.mjs';
+import { composeFiscalNumber } from '../../../packages/core/src/fiscal-records.mjs';
 import { validateInvoiceIntent } from '../../../packages/core/src/validation.mjs';
 import { buildVerifactuInvoicePresentation } from '../../../packages/core/src/verifactu-presentation.mjs';
 
@@ -125,9 +126,52 @@ export class UniversalBridgeService {
     };
   }
 
+  assertPresentationIntent(intent) {
+    try {
+      buildVerifactuInvoicePresentation({
+        environment: this.presentationEnvironment,
+        issuerTaxId: intent?.issuer?.taxId,
+        invoiceNumber: composeFiscalNumber(intent ?? {}),
+        issueDate: intent?.issueDate,
+        totalAmount: intent?.totals?.totalAmount,
+      });
+    } catch {
+      throw apiError(
+        'VF_API_PRESENTATION_INVALID',
+        'Invoice data is not valid for VERI*FACTU invoice presentation',
+        422,
+        [{
+          code: 'VF_VALIDATION_PRESENTATION',
+          path: 'presentation',
+          severity: 'error',
+          message: {
+            es: 'Los datos de la factura no permiten generar la presentación QR VERI*FACTU.',
+            en: 'Invoice data cannot generate the VERI*FACTU QR presentation.',
+          },
+        }],
+      );
+    }
+  }
+
   preflight(input, context) {
     const intent = stampServerIdentity(input, context);
     const validation = validateInvoiceIntent(intent);
+    if (validation.ok) {
+      try {
+        this.assertPresentationIntent(intent);
+      } catch (error) {
+        if (error?.status === 422 && Array.isArray(error.details)) {
+          return {
+            mode: 'dry-run',
+            ok: false,
+            errors: [...validation.errors, ...error.details],
+            warnings: validation.warnings,
+            preview: intent,
+          };
+        }
+        throw error;
+      }
+    }
     return {
       mode: 'dry-run',
       ok: validation.ok,
@@ -148,6 +192,7 @@ export class UniversalBridgeService {
     }
     const intent = stampServerIdentity(input, context);
     assertValid(intent);
+    this.assertPresentationIntent(intent);
     const requestKey = `${context.organizationId}\u001f${context.installationId}\u001f${idempotencyKey}`;
     const reservation = this.store.reserve(requestKey, intent);
 
