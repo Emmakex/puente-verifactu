@@ -9,12 +9,15 @@ function output(value) {
 }
 
 function outputError(error) {
+  const code = String(error?.code ?? 'VF_LOCAL_AGENT_CLI_ERROR');
   process.stderr.write(JSON.stringify({
     schemaVersion: 1,
     status: 'error',
     error: {
-      code: String(error?.code ?? 'VF_LOCAL_AGENT_CLI_ERROR'),
-      message: String(error?.message ?? 'Local Agent command failed').slice(0, 300),
+      code,
+      message: code.startsWith('VF_LOCAL_AGENT_')
+        ? String(error?.message ?? 'Local Agent command failed').slice(0, 300)
+        : 'Local Agent command failed',
       retryable: Boolean(error?.retryable),
     },
   }) + '\n');
