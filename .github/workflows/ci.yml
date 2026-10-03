@@ -398,11 +398,24 @@ jobs:
         if: runner.os == 'Linux'
         run: bash scripts/ci/local-agent-service-linux-smoke.sh .tmp/local-agent-bundle/kairoseth-local-agent
 
+      - name: Native Linux upgrade + code-only rollback smoke
+        if: runner.os == 'Linux'
+        run: bash scripts/ci/local-agent-upgrade-linux-smoke.sh .tmp/local-agent-bundle/kairoseth-local-agent
+
       - name: Native macOS service lifecycle smoke
         if: runner.os == 'macOS'
         run: bash scripts/ci/local-agent-service-macos-smoke.sh .tmp/local-agent-bundle/kairoseth-local-agent
+
+      - name: Native macOS upgrade + code-only rollback smoke
+        if: runner.os == 'macOS'
+        run: bash scripts/ci/local-agent-upgrade-macos-smoke.sh .tmp/local-agent-bundle/kairoseth-local-agent
 
       - name: Native Windows service lifecycle smoke
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/ci/local-agent-service-windows-smoke.ps1 -BundleRoot .tmp/local-agent-bundle/kairoseth-local-agent
+
+      - name: Native Windows upgrade + code-only rollback smoke
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/ci/local-agent-upgrade-windows-smoke.ps1 -BundleRoot .tmp/local-agent-bundle/kairoseth-local-agent
