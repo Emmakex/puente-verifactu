@@ -8,6 +8,41 @@ final class PVFPrestaShopInvoicePresentation
 {
     const SPEC_VERSION = '0.5.0';
 
+    public static function rendererAvailable()
+    {
+        if (class_exists('TCPDF2DBarcode', false)) {
+            return true;
+        }
+
+        foreach (self::barcodeCandidates() as $path) {
+            if ($path !== '' && is_file($path)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static function getForOrder($shopId, $orderId)
+    {
+        $row = Db::getInstance()->getRow(
+            'SELECT record_id,presentation_json FROM ' . _DB_PREFIX_ . 'pvf_order_sync'
+            . ' WHERE id_shop = ' . (int) $shopId
+            . ' AND id_order = ' . (int) $orderId
+        );
+        return self::decodeStoredRow($row, 'invoice');
+    }
+
+    public static function getForOrderSlip($shopId, $slipId)
+    {
+        $row = Db::getInstance()->getRow(
+            'SELECT record_id,presentation_json FROM ' . _DB_PREFIX_ . 'pvf_order_slip_sync'
+            . ' WHERE id_shop = ' . (int) $shopId
+            . ' AND id_order_slip = ' . (int) $slipId
+        );
+        return self::decodeStoredRow($row, 'corrective invoice');
+    }
+
     public static function encodeApiResult(array $result)
     {
         if (!isset($result['presentation']) || !is_array($result['presentation'])) {
@@ -40,27 +75,12 @@ final class PVFPrestaShopInvoicePresentation
             return '';
         }
 
-        $row = Db::getInstance()->getRow(
-            'SELECT record_id,presentation_json FROM ' . _DB_PREFIX_ . 'pvf_order_sync'
-            . ' WHERE id_shop = ' . (int) $order->id_shop
-            . ' AND id_order = ' . (int) $order->id
-        );
-
-        if (!is_array($row) || trim((string) $row['record_id']) === '') {
+        $presentation = self::getForOrder((int) $order->id_shop, (int) $order->id);
+        if ($presentation === null) {
             return '';
         }
 
-        $raw = isset($row['presentation_json']) ? trim((string) $row['presentation_json']) : '';
-        if ($raw === '') {
-            throw new RuntimeException('Puente VeriFactu presentation metadata is missing for this fiscalized invoice.');
-        }
-
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded)) {
-            throw new RuntimeException('Puente VeriFactu presentation metadata is invalid.');
-        }
-
-        return self::renderPresentation(self::normalize($decoded));
+        return self::renderPresentation($presentation);
     }
 
     public static function renderForOrderSlip(Module $module, array $params)
@@ -75,27 +95,12 @@ final class PVFPrestaShopInvoicePresentation
             return '';
         }
 
-        $row = Db::getInstance()->getRow(
-            'SELECT record_id,presentation_json FROM ' . _DB_PREFIX_ . 'pvf_order_slip_sync'
-            . ' WHERE id_shop = ' . (int) $order->id_shop
-            . ' AND id_order_slip = ' . (int) $slip->id
-        );
-
-        if (!is_array($row) || trim((string) $row['record_id']) === '') {
+        $presentation = self::getForOrderSlip((int) $order->id_shop, (int) $slip->id);
+        if ($presentation === null) {
             return '';
         }
 
-        $raw = isset($row['presentation_json']) ? trim((string) $row['presentation_json']) : '';
-        if ($raw === '') {
-            throw new RuntimeException('Puente VeriFactu presentation metadata is missing for this fiscalized corrective invoice.');
-        }
-
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded)) {
-            throw new RuntimeException('Puente VeriFactu corrective presentation metadata is invalid.');
-        }
-
-        return self::renderPresentation(self::normalize($decoded));
+        return self::renderPresentation($presentation);
     }
 
     private static function renderPresentation(array $presentation)
@@ -212,17 +217,48 @@ final class PVFPrestaShopInvoicePresentation
         return true;
     }
 
-    private static function qrPng($url)
+    private static function decodeStoredRow($row, $kind)
     {
-        if (!class_exists('TCPDF2DBarcode')) {
-            $barcodeFile = defined('_PS_TOOL_DIR_') ? _PS_TOOL_DIR_ . 'tcpdf/tcpdf_barcodes_2d.php' : '';
-            if ($barcodeFile === '' || !is_file($barcodeFile)) {
-                return '';
-            }
-            require_once $barcodeFile;
+        if (!is_array($row) || trim((string) $row['record_id']) === '') {
+            return null;
         }
 
-        if (!class_exists('TCPDF2DBarcode')) {
+        $raw = isset($row['presentation_json']) ? trim((string) $row['presentation_json']) : '';
+        if ($raw === '') {
+            throw new RuntimeException('Puente VeriFactu presentation metadata is missing for this fiscalized ' . $kind . '.');
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            throw new RuntimeException('Puente VeriFactu presentation metadata is invalid for this ' . $kind . '.');
+        }
+
+        return self::normalize($decoded);
+    }
+
+    private static function barcodeCandidates()
+    {
+        return array(
+            defined('_PS_ROOT_DIR_') ? _PS_ROOT_DIR_ . '/vendor/tecnickcom/tcpdf/tcpdf_barcodes_2d.php' : '',
+            defined('_PS_TOOL_DIR_') ? _PS_TOOL_DIR_ . 'tcpdf/tcpdf_barcodes_2d.php' : '',
+            defined('_PS_ROOT_DIR_') ? _PS_ROOT_DIR_ . '/tools/tcpdf/tcpdf_barcodes_2d.php' : '',
+        );
+    }
+
+    private static function qrPng($url)
+    {
+        if (!class_exists('TCPDF2DBarcode', false)) {
+            foreach (self::barcodeCandidates() as $barcodeFile) {
+                if ($barcodeFile !== '' && is_file($barcodeFile)) {
+                    require_once $barcodeFile;
+                    if (class_exists('TCPDF2DBarcode', false)) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!class_exists('TCPDF2DBarcode', false)) {
             return '';
         }
 
