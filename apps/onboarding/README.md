@@ -36,6 +36,26 @@ Un nombre de software no soportado no determina la estrategia: si el sistema exp
 
 El fallback manual es únicamente una superficie de captura dentro de Kairoseth; usa el mismo preflight y motor fiscal server-side y no constituye un segundo motor fiscal.
 
+## Perfiles persistentes U6.3
+
+En producción Kairoseth, la resolución de capacidades puede persistirse como un perfil tenant-bound dentro de **MongoDB de Kairoseth en Hostinger**.
+
+Rutas:
+
+- `POST /v1/control-plane/onboarding/profiles` — crea un perfil usando la organización del contexto autenticado;
+- `GET /v1/control-plane/onboarding/profiles` — lista únicamente perfiles de la organización autenticada;
+- `GET /v1/control-plane/onboarding/profiles/{profileId}` — consulta tenant-bound;
+- `PATCH /v1/control-plane/onboarding/profiles/{profileId}/integration` — enlaza referencias server-side de `MappingProfile` / `IntegrationProfile`;
+- `POST /v1/control-plane/onboarding/profiles/{profileId}/provision-local-agent` — transición controlada a Local Agent cuando la estrategia lo requiere.
+
+El cliente **no puede enviar `organizationId` ni elegir `installationId`** durante esta transición. Kairoseth deriva el tenant de la autenticación y genera un identificador determinista del agente a partir del perfil.
+
+El perfil almacena capacidades técnicas, estrategia resuelta, referencias de integración y estado de provisioning. No almacena certificados, claves privadas, API keys, passwords, URI MongoDB ni credenciales reutilizables.
+
+Si un provisioning queda interrumpido después de crear el agente pero antes de cerrar el perfil, el reintento detecta la instalación determinista existente y rota la credencial one-time antes de finalizar. Así no crea agentes duplicados ni reutiliza un token perdido.
+
+MongoDB es inyectado desde la infraestructura Kairoseth. Puente VeriFactu no crea `MongoClient`, colecciones ni índices automáticamente. Los índices requeridos se exponen mediante `mongoOnboardingProfileIndexes()`.
+
 ## Flujo
 
 1. subir el CSV/XLSX existente;
