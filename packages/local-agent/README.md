@@ -227,12 +227,41 @@ npm run local-agent:cli -- start --config /etc/puente-verifactu/agent.json
 
 See `config/local-agent.example.json` for the fail-closed starting configuration (`issueEnabled=false`).
 
+## Portable bundle
+
+U4.3 builds one architecture-neutral JavaScript ZIP and tests that exact artifact on supported native GitHub-hosted runners before compatibility is claimed.
+
+The bundle contains only the Local Agent runtime plus the core, SDK and file-import modules it imports. It excludes repository tests, certificates, private keys, environment files and unrelated server/connector code.
+
+Release properties:
+
+- exact 40-character source commit embedded in `bundle-manifest.json`;
+- reproducible stored ZIP with deterministic entry ordering/timestamps;
+- SHA-256 sidecar for the whole artifact;
+- content fingerprint over every bundled file;
+- Node.js `>=22.13.0` bootstrap check;
+- runtime dependencies pinned to exact versions;
+- same ZIP downloaded by Linux x64, Windows x64, macOS Intel x64 and macOS ARM64 jobs;
+- native smoke installs the pinned dependencies and runs `status` + non-destructive `doctor`;
+- the smoke fixture keeps `issueEnabled=false`.
+
+Build:
+
+```bash
+PV_SOURCE_COMMIT=<40-char-sha> npm run local-agent:package -- \
+  --source-commit "$PV_SOURCE_COMMIT" \
+  --output dist/kairoseth-local-agent.zip
+```
+
+The portable bundle is deliberately separate from system service installation. U4.4 adds systemd, launchd and Windows startup/service integration on top of the already-tested artifact.
+
 ## Gate
 
 ```bash
 npm run local-agent:smoke
 npm run local-agent:contract
 npm run local-agent:runtime:smoke
+npm run local-agent:package:check
 npm run local-agent:sftp:smoke # Docker + ssh2-sftp-client@12.1.1
 ```
 
