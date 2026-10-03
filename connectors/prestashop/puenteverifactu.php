@@ -46,6 +46,7 @@ class PuenteVerifactu extends Module
             && PVFPrestaShopAutomation::installDefaults($shopId)
             && $this->registerHook('displayAdminOrderMainBottom')
             && $this->registerHook('displayPDFInvoice')
+            && $this->registerHook('displayPDFOrderSlip')
             && $this->registerHook('actionOrderStatusPostUpdate')
             && $this->registerHook('actionOrderSlipAdd');
     }
@@ -100,6 +101,14 @@ class PuenteVerifactu extends Module
     public function hookDisplayPDFInvoice($params)
     {
         return PVFPrestaShopInvoicePresentation::renderForInvoice(
+            $this,
+            is_array($params) ? $params : array()
+        );
+    }
+
+    public function hookDisplayPDFOrderSlip($params)
+    {
+        return PVFPrestaShopInvoicePresentation::renderForOrderSlip(
             $this,
             is_array($params) ? $params : array()
         );
