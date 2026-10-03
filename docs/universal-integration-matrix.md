@@ -251,6 +251,7 @@ Todos los canales deben cumplir:
 - [x] watch-folder -> parser -> mapped-source -> server-side mapping/preflight -> issue;
 - [x] processed/error quarantine por batch;
 - [x] opt-in explícito antes de permitir emisión desde watch-folder;
+- [x] redacción de payload/result al cerrar el lote, preservando fingerprint e idempotencia;
 - [ ] DB read-only;
 - [ ] empaquetado/servicio por sistema operativo.
 
