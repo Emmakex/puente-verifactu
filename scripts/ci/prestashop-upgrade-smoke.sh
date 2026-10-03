@@ -76,14 +76,14 @@ if ((string) $module->version !== '0.4.0') {
     failUpgrade('PRESTA_UPGRADE_BASELINE_VERSION', 'Expected baseline 0.4.0, received ' . (string) $module->version);
 }
 if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
-    failUpgrade('PRESTA_UPGRADE_BASELINE_STATUS_HOOK_MISSING', '0.3.0 baseline must contain the native order status hook.');
+    failUpgrade('PRESTA_UPGRADE_BASELINE_STATUS_HOOK_MISSING', '0.4.0 baseline must contain the native order status hook.');
 }
-if ($module->isRegisteredInHook('actionOrderStatusPostUpdate') || $module->isRegisteredInHook('actionOrderSlipAdd')) {
-    failUpgrade('PRESTA_UPGRADE_BASELINE_AUTO_HOOK_PRESENT', '0.3.0 baseline must not contain automatic event hooks.');
+if (!$module->isRegisteredInHook('actionOrderStatusPostUpdate') || !$module->isRegisteredInHook('actionOrderSlipAdd')) {
+    failUpgrade('PRESTA_UPGRADE_BASELINE_AUTO_HOOK_MISSING', '0.4.0 baseline must contain automatic event hooks.');
 }
-
-Configuration::deleteByName('PVF_AUTO_INVOICES');
-Configuration::deleteByName('PVF_AUTO_RECTIFICATIONS');
+if ($module->isRegisteredInHook('displayPDFInvoice') || $module->isRegisteredInHook('displayPDFOrderSlip')) {
+    failUpgrade('PRESTA_UPGRADE_BASELINE_PDF_HOOK_PRESENT', '0.4.0 baseline must not contain 0.5.0 PDF hooks.');
+}
 
 Db::getInstance()->delete('pvf_order_sync', '`id_shop` = 1 AND `id_order` = 424242');
 $ok = Db::getInstance()->insert('pvf_order_sync', array(
