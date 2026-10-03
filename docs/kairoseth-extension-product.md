@@ -115,6 +115,20 @@ El producto queda identificado internamente por:
 
 La versión del producto es distinta de la versión de cada adapter empaquetado. Por ejemplo, Puente puede ser 0.1.0 mientras WooCommerce es 0.3.0 y PrestaShop 0.5.0.
 
+## Infraestructura Kairoseth
+
+La superficie productiva de esta extensión debe respetar la infraestructura real de Kairoseth:
+
+- hosting: **Hostinger**;
+- persistencia de plataforma/control plane: **MongoDB**;
+- tenant/organization authority: Kairoseth;
+- secretos y certificado: backend de Kairoseth;
+- Local Agent: edge connector sin autoridad fiscal.
+
+El runtime SQLite de este repositorio es una implementación standalone de referencia y pruebas. No debe interpretarse como sustituto de MongoDB en el deployment productivo Kairoseth.
+
+Las bases PostgreSQL, MySQL/MariaDB y SQL Server pertenecen al catálogo de **fuentes externas read-only** que el Local Agent puede consultar en instalaciones de clientes. No son infraestructura de Kairoseth.
+
 ## Regla de arquitectura
 
 Los adapters pueden evolucionar y versionarse de forma independiente, pero:

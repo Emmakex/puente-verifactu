@@ -93,3 +93,8 @@ console.log(JSON.stringify({
   infrastructure: 'kairoseth-control-plane',
   local_agent_role: 'edge-connector',
 }, null, 2));
+
+expect(product.infrastructure?.hosting_provider === 'hostinger', 'KAIROSETH_HOSTINGER_REQUIRED');
+expect(product.infrastructure?.primary_database === 'mongodb', 'KAIROSETH_MONGODB_REQUIRED');
+expect(product.infrastructure?.control_plane_persistence === 'mongodb', 'KAIROSETH_MONGODB_CONTROL_PLANE_REQUIRED');
+expect(product.infrastructure?.local_agent_registry === 'mongodb-injected', 'KAIROSETH_MONGODB_AGENT_REGISTRY_REQUIRED');

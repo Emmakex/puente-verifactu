@@ -60,6 +60,11 @@
     "certificate_custody": "server-side",
     "local_agent_role": "edge-connector",
     "local_agent_inbound_ports": false,
-    "local_agent_direct_aeat_authority": false
+    "local_agent_direct_aeat_authority": false,
+    "hosting_provider": "hostinger",
+    "primary_database": "mongodb",
+    "control_plane_persistence": "mongodb",
+    "local_agent_registry": "mongodb-injected",
+    "deployment_boundary": "kairoseth-hostinger"
   }
 }

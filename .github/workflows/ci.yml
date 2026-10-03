@@ -263,8 +263,8 @@ jobs:
         run: bash scripts/ci/local-agent-db-compatibility-smoke.sh
 
 
-  kairoseth-local-agent-postgres-registry:
-    name: Kairoseth control plane / PostgreSQL 16 registry
+  kairoseth-mongodb-registry:
+    name: Kairoseth / Hostinger / MongoDB registry
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -276,14 +276,16 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Verify injected registry architecture
-        run: npm run kairoseth:agents:postgres:check
+      - name: Verify Hostinger + MongoDB architecture
+        run: npm run kairoseth:mongodb:check
 
-      - name: Install PostgreSQL client for CI only
-        run: npm install --no-save --package-lock=false --ignore-scripts "pg@8.23.1"
+      - name: Install official MongoDB Node driver for CI only
+        run: npm install --no-save --package-lock=false --ignore-scripts "mongodb@7.7.0"
 
-      - name: Real Kairoseth PostgreSQL registry smoke
-        run: npm run kairoseth:agents:postgres:smoke
+      - name: Real Kairoseth MongoDB registry smoke
+        env:
+          MONGODB_IMAGE: mongo:8.0
+        run: npm run kairoseth:mongodb:smoke
 
 
   local-agent-sftp-compatibility:

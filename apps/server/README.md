@@ -1,6 +1,6 @@
 # Puente VeriFactu — HTTP Server
 
-Runtime concreto para un despliegue simple de una sola instancia.
+Runtime de referencia para un despliegue simple de una sola instancia. En producción, la extensión se integra dentro de la infraestructura Kairoseth desplegada en Hostinger y usa MongoDB para el control plane/tenancy.
 
 ## Perfil de despliegue
 
@@ -205,33 +205,35 @@ A Kairoseth management credential example:
 
 No Local Agent management route moves AEAT certificates, fiscal rules or tenant authority out of Kairoseth.
 
-### Binding PostgreSQL productivo de Kairoseth
+### Binding productivo Kairoseth: Hostinger + MongoDB
 
-El registry de Local Agent puede conectarse a la persistencia PostgreSQL ya existente de Kairoseth mediante un store inyectado. El adapter vive en:
+Kairoseth se despliega en Hostinger y su persistencia de control plane/tenant utiliza MongoDB. Puente VeriFactu no crea una base paralela para instalaciones, onboarding o agentes.
+
+El adapter vive en:
 
 ```text
-packages/kairoseth-control-plane/src/postgres-local-agent-registry.mjs
+packages/kairoseth-control-plane/src/mongodb-local-agent-registry.mjs
 ```
 
 Reglas del binding:
 
-- el adapter **no importa `pg`** ni crea pools;
-- no recibe connection strings ni passwords;
-- Kairoseth crea y gestiona el pool PostgreSQL;
+- el adapter **no importa el driver MongoDB** ni crea `MongoClient`;
+- no recibe URI, usuario, password ni otros secretos de conexión;
+- Kairoseth crea y gestiona la conexión/base MongoDB en Hostinger;
 - `createPuenteRuntime({ localAgentRegistryStore })` recibe el store ya enlazado;
-- la migración se expone como SQL explícito y **no se ejecuta automáticamente**;
-- la tabla se crea dentro de la base/esquema administrados por Kairoseth, no en una base paralela;
-- el token del agente nunca se persiste en claro, solo `token_sha256`;
-- el control plane sigue usando la identidad tenant autoritativa de Kairoseth.
+- colecciones e índices se aplican explícitamente desde la infraestructura Kairoseth, nunca automáticamente desde el adapter;
+- el token del agente nunca se persiste en claro, solo `tokenSha256`;
+- organización, instalación y tenant continúan siendo autoridad de Kairoseth;
+- el SQLite de este repo queda como runtime standalone de referencia/pruebas, no como base productiva del control plane Kairoseth.
 
-Ejemplo de composición desde la infraestructura Kairoseth:
+Ejemplo de composición:
 
 ```js
-import { createPostgresKairosethLocalAgentRegistryStore } from '../../packages/kairoseth-control-plane/src/index.mjs';
+import { createMongoKairosethLocalAgentRegistryStore } from '../../packages/kairoseth-control-plane/src/index.mjs';
 
-const localAgentRegistryStore = createPostgresKairosethLocalAgentRegistryStore({
-  pool: kairosethPostgresPool,
-  tableName: 'public.kairoseth_local_agent_installations',
+const localAgentRegistryStore = createMongoKairosethLocalAgentRegistryStore({
+  database: kairosethMongoDatabase,
+  collectionName: 'kairoseth_local_agent_installations',
 });
 
 const runtime = createPuenteRuntime({
@@ -240,9 +242,11 @@ const runtime = createPuenteRuntime({
 });
 ```
 
-El equipo de infraestructura aplica previamente `postgresLocalAgentRegistryMigrationSql()` con el mecanismo de migraciones propio de Kairoseth. El runtime de Puente VeriFactu no adquiere autoridad para crear bases, usuarios PostgreSQL o tenants.
+Los índices requeridos se obtienen mediante `mongoLocalAgentRegistryIndexes()` y se aplican usando el mecanismo de infraestructura/migraciones de Kairoseth.
 
-CI valida este binding contra PostgreSQL 16 con un pool real inyectado y comprueba persistencia tras reiniciar el runtime HTTP, rotación/revocación de credenciales y ausencia de tokens en claro.
+CI valida este binding con MongoDB real y comprueba persistencia tras reiniciar el runtime HTTP, aislamiento tenant, rotación/revocación y ausencia de tokens en claro.
+
+PostgreSQL, MySQL/MariaDB y SQL Server siguen soportados exclusivamente como **fuentes read-only de sistemas de clientes** mediante Local Agent. No forman parte de la persistencia productiva de Kairoseth.
 
 ## Rate limiting
 
