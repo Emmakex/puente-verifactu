@@ -9,6 +9,11 @@ function manifest(overrides = {}) {
   return {
     schema_version: 1,
     kind: 'puente-verifactu-adapter-manifest',
+    product: {
+      ecosystem: 'kairoseth',
+      catalog: 'extensions',
+      product_id: 'puente-verifactu',
+    },
     id: 'reference-api',
     channel: 'api',
     transport: 'https-json',
@@ -33,6 +38,19 @@ function manifest(overrides = {}) {
     ...overrides,
   };
 }
+
+test('rejects an adapter that is not bound to the Puente VeriFactu Kairoseth Extension', () => {
+  assert.throws(
+    () => validateUniversalAdapterManifest(manifest({
+      product: {
+        ecosystem: 'other',
+        catalog: 'extensions',
+        product_id: 'puente-verifactu',
+      },
+    })),
+    (error) => error.code === 'VF_ADAPTER_MANIFEST_PRODUCT_MISMATCH',
+  );
+});
 
 test('validates a neutral API adapter manifest', () => {
   const validated = validateUniversalAdapterManifest(manifest());
