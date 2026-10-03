@@ -9,6 +9,17 @@ function serializeError(error) {
   };
 }
 
+function normalizeTransportError(error) {
+  if (typeof error?.retryable === 'boolean' || error?.code) return error;
+  if (error instanceof TypeError) {
+    return Object.assign(error, {
+      code: 'VF_LOCAL_AGENT_NETWORK_ERROR',
+      retryable: true,
+    });
+  }
+  return error;
+}
+
 export function retryDelayMs(attempt) {
   const normalized = Math.max(1, Number(attempt) || 1);
   return Math.min(15 * 60_000, 5_000 * (2 ** Math.min(8, normalized - 1)));
@@ -90,17 +101,21 @@ export class LocalAgentWorker {
 export function createPuenteApiTransport(client) {
   if (!client) throw new TypeError('Puente API client is required');
   return async function transport(payload, { idempotencyKey } = {}) {
-    if (payload?.kind === 'invoice-intent') {
-      await client.preflight(payload.intent);
-      return client.issue(payload.intent, { idempotencyKey });
+    try {
+      if (payload?.kind === 'invoice-intent') {
+        await client.preflight(payload.intent);
+        return await client.issue(payload.intent, { idempotencyKey });
+      }
+      if (payload?.kind === 'mapped-source') {
+        await client.preflightMapped(payload.profileId, payload.source);
+        return await client.issueMapped(payload.profileId, payload.source, { idempotencyKey });
+      }
+      throw Object.assign(new Error('Unsupported Local Agent payload kind'), {
+        code: 'VF_LOCAL_AGENT_PAYLOAD_KIND_UNSUPPORTED',
+        retryable: false,
+      });
+    } catch (error) {
+      throw normalizeTransportError(error);
     }
-    if (payload?.kind === 'mapped-source') {
-      await client.preflightMapped(payload.profileId, payload.source);
-      return client.issueMapped(payload.profileId, payload.source, { idempotencyKey });
-    }
-    throw Object.assign(new Error('Unsupported Local Agent payload kind'), {
-      code: 'VF_LOCAL_AGENT_PAYLOAD_KIND_UNSUPPORTED',
-      retryable: false,
-    });
   };
 }
