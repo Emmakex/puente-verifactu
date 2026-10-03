@@ -342,6 +342,28 @@ backup remains: 1 queued operation
 
 Thus a code rollback cannot silently erase work accepted after the upgrade.
 
+## Kairoseth control plane heartbeat
+
+The Local Agent is subordinate to Kairoseth. It sends an outbound heartbeat to the same authenticated bridge API; it never opens an inbound listener and never becomes a fiscal authority.
+
+Heartbeat payloads contain only operational metadata:
+
+- Local Agent version;
+- operating system and architecture;
+- source kind;
+- summarized queue counters;
+- coarse reported status.
+
+They never contain invoice rows, tax IDs, source payloads, database credentials or AEAT certificate material.
+
+The server derives organization, installation and source identity exclusively from the Local Agent bearer credential. Heartbeat requests containing `organizationId`, `installationId` or `sourceSystem` are rejected.
+
+Kairoseth may return `desiredVersion` and `updatePolicy` as control-plane intent. U5 v1 explicitly returns `autoUpdate=false`; receiving a desired version never triggers an unattended upgrade.
+
+Heartbeat cadence is independent from source polling and defaults to 60 seconds.
+
+Production integration note: the SQLite Local Agent registry in `apps/server` is the single-node reference store only. `createPuenteRuntime()` accepts an injected `localAgentRegistryStore`, so Kairoseth production must bind this service to its shared tenant-aware persistence/auth infrastructure rather than deploy a second control plane.
+
 ## Gate
 
 ```bash

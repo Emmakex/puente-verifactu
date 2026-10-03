@@ -1,7 +1,7 @@
 import { createHash, scryptSync, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
-const ALLOWED_PERMISSIONS = new Set(['ops:read']);
+const ALLOWED_PERMISSIONS = new Set(['ops:read', 'agents:manage']);
 
 function authError(code, message = 'Unauthorized') {
   return Object.assign(new Error(message), { code, status: 401 });
@@ -93,11 +93,15 @@ export function loadAuthConfig(path) {
   return validateAuthConfig(JSON.parse(readFileSync(path, 'utf8')));
 }
 
-function authenticateBearer(token, config) {
+function authenticateBearer(token, config, resolveBearerDigest) {
   const digest = createHash('sha256').update(token).digest('hex');
   for (const credential of config.credentials) {
     if (credential.type !== 'bearer') continue;
     if (safeHexEqual(digest, credential.tokenSha256)) return contextFor(credential);
+  }
+  if (typeof resolveBearerDigest === 'function') {
+    const resolved = resolveBearerDigest(digest);
+    if (resolved) return Object.freeze(resolved);
   }
   throw authError('VF_AUTH_INVALID_BEARER');
 }
@@ -124,12 +128,15 @@ function authenticateBasic(encoded, config) {
   return contextFor(credential);
 }
 
-export function createHttpAuthenticator(configInput) {
+export function createHttpAuthenticator(configInput, { resolveBearerDigest = null } = {}) {
   const config = validateAuthConfig(configInput);
+  if (resolveBearerDigest != null && typeof resolveBearerDigest !== 'function') {
+    throw new TypeError('resolveBearerDigest must be a function');
+  }
   return function authenticate(request) {
     const authorization = String(header(request?.headers, 'authorization') ?? '');
     const bearer = authorization.match(/^Bearer\s+(.+)$/i);
-    if (bearer) return authenticateBearer(bearer[1], config);
+    if (bearer) return authenticateBearer(bearer[1], config, resolveBearerDigest);
     const basic = authorization.match(/^Basic\s+(.+)$/i);
     if (basic) return authenticateBasic(basic[1], config);
     throw authError('VF_AUTH_REQUIRED');

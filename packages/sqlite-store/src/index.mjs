@@ -102,6 +102,32 @@ export class PuenteSqliteDatabase {
 
       CREATE INDEX IF NOT EXISTS idx_import_sessions_expiry
         ON import_sessions(expires_at_ms);
+
+      CREATE TABLE IF NOT EXISTS local_agent_installations (
+        organization_id TEXT NOT NULL,
+        installation_id TEXT NOT NULL,
+        source_system TEXT NOT NULL,
+        label TEXT,
+        token_sha256 TEXT NOT NULL UNIQUE,
+        credential_version INTEGER NOT NULL DEFAULT 1,
+        revoked_at_ms INTEGER,
+        created_at_ms INTEGER NOT NULL,
+        updated_at_ms INTEGER NOT NULL,
+        last_seen_at_ms INTEGER,
+        agent_version TEXT,
+        platform TEXT,
+        arch TEXT,
+        source_kind TEXT,
+        reported_status TEXT,
+        queue_json TEXT,
+        desired_version TEXT,
+        update_policy TEXT NOT NULL DEFAULT 'manual'
+          CHECK (update_policy IN ('manual', 'disabled')),
+        PRIMARY KEY (organization_id, installation_id)
+      ) STRICT;
+
+      CREATE INDEX IF NOT EXISTS idx_local_agent_installations_seen
+        ON local_agent_installations(last_seen_at_ms);
     `);
   }
 
@@ -296,6 +322,165 @@ export class SqliteImportSessionStore {
   }
 }
 
+
+function localAgentPublicRow(row) {
+  if (!row) return null;
+  return immutableClone({
+    organizationId: row.organization_id,
+    installationId: row.installation_id,
+    sourceSystem: row.source_system,
+    label: row.label ?? null,
+    credentialVersion: Number(row.credential_version),
+    revoked: row.revoked_at_ms != null,
+    revokedAt: row.revoked_at_ms == null ? null : Number(row.revoked_at_ms),
+    createdAt: Number(row.created_at_ms),
+    updatedAt: Number(row.updated_at_ms),
+    lastSeenAt: row.last_seen_at_ms == null ? null : Number(row.last_seen_at_ms),
+    agentVersion: row.agent_version ?? null,
+    platform: row.platform ?? null,
+    arch: row.arch ?? null,
+    sourceKind: row.source_kind ?? null,
+    reportedStatus: row.reported_status ?? null,
+    queue: parseJson(row.queue_json),
+    desiredVersion: row.desired_version ?? null,
+    updatePolicy: row.update_policy,
+  });
+}
+
+export class SqliteLocalAgentRegistryStore {
+  constructor(database) {
+    this.database = database;
+    this.db = database.db;
+    this.insert = this.db.prepare(`
+      INSERT INTO local_agent_installations (
+        organization_id, installation_id, source_system, label, token_sha256,
+        credential_version, revoked_at_ms, created_at_ms, updated_at_ms,
+        last_seen_at_ms, agent_version, platform, arch, source_kind,
+        reported_status, queue_json, desired_version, update_policy
+      ) VALUES (?, ?, ?, ?, ?, 1, NULL, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ?, ?)
+    `);
+    this.select = this.db.prepare(`
+      SELECT * FROM local_agent_installations
+      WHERE organization_id = ? AND installation_id = ?
+    `);
+    this.selectByToken = this.db.prepare(`
+      SELECT * FROM local_agent_installations
+      WHERE token_sha256 = ? AND revoked_at_ms IS NULL
+      LIMIT 1
+    `);
+    this.listAll = this.db.prepare(`
+      SELECT * FROM local_agent_installations
+      ORDER BY organization_id ASC, installation_id ASC
+    `);
+    this.rotate = this.db.prepare(`
+      UPDATE local_agent_installations
+      SET token_sha256 = ?, credential_version = credential_version + 1,
+          revoked_at_ms = NULL, updated_at_ms = ?
+      WHERE organization_id = ? AND installation_id = ?
+    `);
+    this.revokeStmt = this.db.prepare(`
+      UPDATE local_agent_installations
+      SET revoked_at_ms = ?, updated_at_ms = ?
+      WHERE organization_id = ? AND installation_id = ?
+    `);
+    this.control = this.db.prepare(`
+      UPDATE local_agent_installations
+      SET desired_version = ?, update_policy = ?, label = ?, updated_at_ms = ?
+      WHERE organization_id = ? AND installation_id = ?
+    `);
+    this.heartbeatStmt = this.db.prepare(`
+      UPDATE local_agent_installations
+      SET last_seen_at_ms = ?, agent_version = ?, platform = ?, arch = ?,
+          source_kind = ?, reported_status = ?, queue_json = ?, updated_at_ms = ?
+      WHERE organization_id = ? AND installation_id = ? AND revoked_at_ms IS NULL
+    `);
+  }
+
+  create(record) {
+    try {
+      this.insert.run(
+        record.organizationId,
+        record.installationId,
+        record.sourceSystem,
+        record.label,
+        record.tokenSha256,
+        record.now,
+        record.now,
+        record.desiredVersion,
+        record.updatePolicy,
+      );
+    } catch (error) {
+      const normalized = constraintError(
+        error,
+        'VF_LOCAL_AGENT_INSTALLATION_EXISTS',
+        'Local Agent installation already exists',
+      );
+      if (normalized?.code === 'VF_LOCAL_AGENT_INSTALLATION_EXISTS') normalized.status = 409;
+      throw normalized;
+    }
+    return this.get(record.organizationId, record.installationId);
+  }
+
+  get(organizationId, installationId) {
+    return localAgentPublicRow(this.select.get(organizationId, installationId));
+  }
+
+  list() {
+    return this.listAll.all().map(localAgentPublicRow);
+  }
+
+  authByTokenSha256(tokenSha256) {
+    const row = this.selectByToken.get(tokenSha256);
+    if (!row) return null;
+    return Object.freeze({
+      organizationId: row.organization_id,
+      installationId: row.installation_id,
+      sourceSystem: row.source_system,
+      credentialVersion: Number(row.credential_version),
+    });
+  }
+
+  rotateCredential({ organizationId, installationId, tokenSha256, now }) {
+    if (this.rotate.run(tokenSha256, now, organizationId, installationId).changes !== 1) {
+      throw Object.assign(new Error('Local Agent installation not found'), { code: 'VF_LOCAL_AGENT_INSTALLATION_NOT_FOUND', status: 404 });
+    }
+    return this.get(organizationId, installationId);
+  }
+
+  revoke({ organizationId, installationId, now }) {
+    if (this.revokeStmt.run(now, now, organizationId, installationId).changes !== 1) {
+      throw Object.assign(new Error('Local Agent installation not found'), { code: 'VF_LOCAL_AGENT_INSTALLATION_NOT_FOUND', status: 404 });
+    }
+    return this.get(organizationId, installationId);
+  }
+
+  setControl({ organizationId, installationId, desiredVersion, updatePolicy, label, now }) {
+    if (this.control.run(desiredVersion, updatePolicy, label, now, organizationId, installationId).changes !== 1) {
+      throw Object.assign(new Error('Local Agent installation not found'), { code: 'VF_LOCAL_AGENT_INSTALLATION_NOT_FOUND', status: 404 });
+    }
+    return this.get(organizationId, installationId);
+  }
+
+  heartbeat({ organizationId, installationId, agentVersion, platform, arch, sourceKind, reportedStatus, queue, now }) {
+    const changed = this.heartbeatStmt.run(
+      now,
+      agentVersion,
+      platform,
+      arch,
+      sourceKind,
+      reportedStatus,
+      JSON.stringify(queue),
+      now,
+      organizationId,
+      installationId,
+    ).changes;
+    if (changed !== 1) {
+      throw Object.assign(new Error('Local Agent installation is unavailable'), { code: 'VF_LOCAL_AGENT_INSTALLATION_UNAVAILABLE', status: 401 });
+    }
+    return this.get(organizationId, installationId);
+  }
+}
+
 export function createSqlitePersistence({ path }) {
   const database = new PuenteSqliteDatabase(path);
   return {
@@ -303,6 +488,7 @@ export function createSqlitePersistence({ path }) {
     fiscalStore: new SqliteFiscalRecordStore(database),
     integrationStore: new SqliteIntegrationStore(database),
     importStore: new SqliteImportSessionStore(database),
+    localAgentRegistry: new SqliteLocalAgentRegistryStore(database),
     aeatOutbox: new SqliteAeatOutboxStore(database),
     close: () => database.close(),
   };

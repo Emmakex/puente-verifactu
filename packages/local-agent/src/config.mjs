@@ -90,6 +90,11 @@ function normalizeRuntime(raw = {}) {
       min: 1_000,
       max: 300_000,
     }),
+    heartbeatIntervalMs: integer(raw.heartbeatIntervalMs, 60_000, {
+      name: 'runtime.heartbeatIntervalMs',
+      min: 15_000,
+      max: 15 * 60_000,
+    }),
     workerBatchSize: integer(raw.workerBatchSize, 50, {
       name: 'runtime.workerBatchSize',
       min: 1,

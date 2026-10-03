@@ -19,6 +19,7 @@ import {
 } from './database-drivers.mjs';
 import { createSftpConnectionConfig, syncSftpSource } from './sftp-source.mjs';
 import { resolveLocalAgentSecrets } from './config.mjs';
+import { LOCAL_AGENT_VERSION } from './version.mjs';
 
 function fail(code, message, details = {}) {
   return Object.assign(new Error(message), { code, details, retryable: false });
@@ -249,6 +250,13 @@ export class LocalAgentRuntime {
     this.log = log;
     this.databaseResource = null;
     this.closed = false;
+    this.lastHeartbeatAt = null;
+    this.control = Object.freeze({
+      desiredVersion: null,
+      updatePolicy: 'manual',
+      updateAvailable: false,
+      autoUpdate: false,
+    });
 
     this.store = new LocalAgentStore(join(config.dataDir, 'agent.sqlite'));
     this.client = createLocalAgentApiClient({
@@ -362,6 +370,43 @@ export class LocalAgentRuntime {
     });
   }
 
+  async sendHeartbeat({ queue, status = 'ok', force = false } = {}) {
+    const now = this.now();
+    if (
+      !force
+      && this.lastHeartbeatAt != null
+      && now - this.lastHeartbeatAt < this.config.runtime.heartbeatIntervalMs
+    ) {
+      return Object.freeze({ ok: true, skipped: true, control: this.control });
+    }
+    this.lastHeartbeatAt = now;
+    try {
+      const response = await this.client.localAgentHeartbeat({
+        agentVersion: LOCAL_AGENT_VERSION,
+        platform: process.platform,
+        arch: process.arch,
+        sourceKind: this.config.source.kind,
+        status,
+        queue,
+      });
+      this.control = Object.freeze({
+        desiredVersion: response?.control?.desiredVersion ?? null,
+        updatePolicy: response?.control?.updatePolicy ?? 'manual',
+        updateAvailable: Boolean(response?.control?.updateAvailable),
+        autoUpdate: false,
+      });
+      this.emit('heartbeat.accepted', {
+        desiredVersion: this.control.desiredVersion,
+        updatePolicy: this.control.updatePolicy,
+        updateAvailable: this.control.updateAvailable,
+      });
+      return Object.freeze({ ok: true, control: this.control });
+    } catch (error) {
+      this.emit('heartbeat.failed', { error: errorSummary(error) });
+      return Object.freeze({ ok: false, error: errorSummary(error), control: this.control });
+    }
+  }
+
   async runOnce() {
     if (this.closed) throw fail('VF_LOCAL_AGENT_RUNTIME_CLOSED', 'Local Agent runtime is closed');
     const now = this.now();
@@ -384,6 +429,11 @@ export class LocalAgentRuntime {
     });
     const stats = this.store.stats(this.now());
 
+    const heartbeat = await this.sendHeartbeat({
+      queue: stats,
+      status: stats.blocked > 0 ? 'degraded' : 'ok',
+    });
+
     const summary = Object.freeze({
       recoveredLeases,
       recoveredFiles: recoveredFiles.length,
@@ -398,6 +448,7 @@ export class LocalAgentRuntime {
       settled: settled?.settled?.length ?? 0,
       redacted: redaction.redacted,
       queue: stats,
+      heartbeat,
     });
     this.emit('cycle.completed', summary);
     return summary;
@@ -411,6 +462,7 @@ export class LocalAgentRuntime {
       sourceKind: this.config.source.kind,
       issueEnabled: this.config.source.issueEnabled,
       queue: this.store.stats(this.now()),
+      control: this.control,
       checkpoint: this.config.source.kind === 'database'
         ? this.store.getCheckpoint(this.config.source.sourceId)
         : null,
