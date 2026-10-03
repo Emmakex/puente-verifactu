@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { applyMapping } from '../../../packages/core/src/mapping.mjs';
 import { stableStringify } from '../../../packages/core/src/idempotency.mjs';
 import { validateInvoiceIntent } from '../../../packages/core/src/validation.mjs';
+import { buildVerifactuInvoicePresentation } from '../../../packages/core/src/verifactu-presentation.mjs';
 
 function apiError(code, message, status = 400, details = []) {
   return Object.assign(new Error(message), { code, status, details });
@@ -88,11 +89,40 @@ function recordIdFor(record) {
 }
 
 export class UniversalBridgeService {
-  constructor({ fiscalService, store = new MemoryIntegrationStore(), enqueueDelivery = null } = {}) {
+  constructor({
+    fiscalService,
+    store = new MemoryIntegrationStore(),
+    enqueueDelivery = null,
+    presentationEnvironment = 'test',
+  } = {}) {
     if (!fiscalService) throw new TypeError('fiscalService is required');
+    if (!['test', 'production'].includes(presentationEnvironment)) {
+      throw new TypeError('presentationEnvironment must be test or production');
+    }
     this.fiscalService = fiscalService;
     this.store = store;
     this.enqueueDelivery = enqueueDelivery;
+    this.presentationEnvironment = presentationEnvironment;
+  }
+
+  presentationForRecord(record) {
+    if (!record || record.recordType !== 'alta') return null;
+    return buildVerifactuInvoicePresentation({
+      environment: this.presentationEnvironment,
+      issuerTaxId: record.invoice.issuerTaxId,
+      invoiceNumber: record.invoice.fiscalNumber,
+      issueDate: record.invoice.issueDate,
+      totalAmount: record.totalAmount,
+    });
+  }
+
+  withPresentation(resource) {
+    if (!resource || !resource.fiscalRecord) return resource;
+    if (resource.presentation) return resource;
+    return {
+      ...resource,
+      presentation: this.presentationForRecord(resource.fiscalRecord),
+    };
   }
 
   preflight(input, context) {
@@ -123,7 +153,7 @@ export class UniversalBridgeService {
 
     if (reservation.duplicate) {
       if (!reservation.existing.recordId) throw apiError('VF_API_IDEMPOTENCY_IN_PROGRESS', 'The same request is already being processed', 409);
-      return { ...this.store.get(reservation.existing.recordId), duplicate: true };
+      return { ...this.withPresentation(this.store.get(reservation.existing.recordId)), duplicate: true };
     }
 
     try {
@@ -144,6 +174,7 @@ export class UniversalBridgeService {
         sourceInvoiceId: intent.sourceInvoiceId,
         status,
         fiscalRecord: fiscalized.record,
+        presentation: this.presentationForRecord(fiscalized.record),
         delivery,
       });
       this.store.complete(requestKey, intent, recordId);
@@ -165,7 +196,7 @@ export class UniversalBridgeService {
     if (!record || record.organizationId !== context.organizationId) {
       throw apiError('VF_API_RECORD_NOT_FOUND', 'Fiscal record not found', 404);
     }
-    return record;
+    return this.withPresentation(record);
   }
 }
 
