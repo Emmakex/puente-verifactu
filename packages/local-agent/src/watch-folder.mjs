@@ -1,11 +1,14 @@
 import { createHash } from 'node:crypto';
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { readdir, stat } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 
 const DEFAULT_EXTENSIONS = Object.freeze(['.csv', '.xlsx']);
 
 async function fileSha256(path) {
-  return createHash('sha256').update(await readFile(path)).digest('hex');
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  return hash.digest('hex');
 }
 
 export async function scanWatchFolder(directory, { extensions = DEFAULT_EXTENSIONS } = {}) {
