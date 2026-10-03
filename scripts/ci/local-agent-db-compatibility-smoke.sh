@@ -3,7 +3,12 @@ set -euo pipefail
 
 dialect="${DB_DIALECT:?DB_DIALECT is required}"
 name="pv-local-agent-db-${dialect}"
-trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+sqlserver_log=""
+cleanup() {
+  docker rm -f "$name" >/dev/null 2>&1 || true
+  if [ -n "$sqlserver_log" ]; then rm -f "$sqlserver_log"; fi
+}
+trap cleanup EXIT
 
 case "$dialect" in
   postgresql)
@@ -43,11 +48,22 @@ case "$dialect" in
       -e ACCEPT_EULA=Y \
       -e MSSQL_SA_PASSWORD='Puente!Test2026' \
       -p "${port}:1433" "$image" >/dev/null
+
+    sqlserver_log="$(mktemp)"
+    sqlserver_ready=0
     for _ in $(seq 1 120); do
-      if docker logs "$name" 2>&1 | grep -q "SQL Server is now ready for client connections"; then break; fi
+      docker logs "$name" >"$sqlserver_log" 2>&1 || true
+      if grep -q "SQL Server is now ready for client connections" "$sqlserver_log"; then
+        sqlserver_ready=1
+        break
+      fi
       sleep 1
     done
-    docker logs "$name" 2>&1 | grep -q "SQL Server is now ready for client connections"
+    if [ "$sqlserver_ready" -ne 1 ]; then
+      cat "$sqlserver_log" >&2
+      echo "SQL Server did not become ready within the smoke-test window" >&2
+      exit 1
+    fi
     ;;
   *)
     echo "Unsupported DB_DIALECT: $dialect" >&2
