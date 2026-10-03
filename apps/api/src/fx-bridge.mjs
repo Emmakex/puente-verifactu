@@ -48,6 +48,7 @@ export class FxAwareBridgeService extends UniversalBridgeService {
     if (sourceIntent.currency === 'EUR') {
       const validation = validateInvoiceIntent(sourceIntent);
       if (!validation.ok) throw apiError('VF_API_VALIDATION_FAILED', 'InvoiceIntent validation failed', 422, validation.errors);
+      this.assertPresentationIntent(sourceIntent);
       return { sourceIntent, fiscalIntent: sourceIntent, conversion: null };
     }
 
@@ -75,6 +76,7 @@ export class FxAwareBridgeService extends UniversalBridgeService {
 
     try {
       const converted = convertInvoiceIntentToEuro(sourceIntent, conversion);
+      this.assertPresentationIntent(converted.fiscalIntent);
       return { sourceIntent, ...converted };
     } catch (error) {
       throw asApiFxError(error);
