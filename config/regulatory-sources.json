@@ -6,7 +6,8 @@
     "web_service_document_version": "1.0.3",
     "validations_document_version": "1.2.2",
     "schema_generation": "tikeV1.0",
-    "record_version": "1.0"
+    "record_version": "1.0",
+    "qr_specification_version": "0.5.0"
   },
   "sources": [
     {
@@ -33,6 +34,14 @@
       "authority": "BOE",
       "reference": "BOE-A-2025-24446, Real Decreto-ley 15/2025",
       "purpose": "Modificacion de la disposicion final cuarta del Real Decreto 1007/2023"
+    },
+    {
+      "id": "aeat_qr_specification",
+      "authority": "AEAT",
+      "reference": "Sede AEAT > VERI*FACTU > Informacion tecnica > Caracteristicas del QR y especificaciones del servicio de cotejo",
+      "purpose": "Especificacion tecnica QR/URL VERI*FACTU v0.5.0 de 2025-12-10: URL ValidarQR, parametros obligatorios, URL encoding, texto QR tributario, tamanos y nivel M",
+      "observed_version": "0.5.0",
+      "observed_updated_at": "2025-12-10"
     }
   ]
 }
