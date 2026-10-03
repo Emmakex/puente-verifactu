@@ -449,7 +449,7 @@ export async function settleWatchFolder({ store, root } = {}) {
     }
 
     const blocked = jobs.filter((job) => job.state === 'blocked');
-    settled.push(await archivePair(
+    const archived = await archivePair(
       layout,
       manifestPath,
       {
@@ -457,9 +457,21 @@ export async function settleWatchFolder({ store, root } = {}) {
         completed_rows: jobs.filter((job) => job.state === 'completed').length,
         blocked_rows: blocked.length,
         blocked_codes: [...new Set(blocked.map((job) => job.error?.code).filter(Boolean))].slice(0, 20),
+        row_results: manifest.rows.map((row) => {
+          const job = jobs.find((candidate) => candidate.id === row.job_id);
+          return {
+            row: row.row,
+            job_id: row.job_id,
+            state: job?.state ?? 'missing',
+            record_id: job?.recordId ?? null,
+            error_code: job?.error?.code ?? null,
+          };
+        }),
       },
       blocked.length > 0 ? 'blocked' : 'completed',
-    ));
+    );
+    for (const job of jobs) store.redactTerminal(job.id);
+    settled.push(archived);
   }
 
   return Object.freeze({
