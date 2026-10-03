@@ -1,10 +1,10 @@
-# Puente VeriFactu — PrestaShop connector 0.4.0
+# Puente VeriFactu — PrestaShop connector 0.5.0
 
 Conector nativo y deliberadamente fino para **PrestaShop 1.7.8.x y 8.x**. Extrae hechos comerciales de facturas y abonos nativos, construye payloads neutrales y habla con la API universal de Puente VeriFactu. **No contiene reglas AEAT, XML, SOAP, certificados ni decisiones fiscales sensibles.**
 
 ## Estado
 
-Versión `0.4.0` con flujo manual seguro, automatización **opt-in** por tienda y aceptación transversal Connector Contract Suite v2 cerrada:
+Versión `0.5.0` con flujo manual seguro, automatización **opt-in** por tienda, presentación VERI*FACTU y arquitectura de compatibilidad **capability-first**:
 
 - configuración por tienda para endpoint HTTPS y `MappingProfile` server-side;
 - Bearer token cifrado localmente con AES-256-GCM usando una clave derivada de `_COOKIE_KEY_`;
@@ -30,6 +30,17 @@ Versión `0.4.0` con flujo manual seguro, automatización **opt-in** por tienda 
 
 La automatización no sustituye el modo manual: simplemente reutiliza los mismos invariantes de preflight, idempotencia y estado local cuando el comercio decide activarla.
 
+
+## Neutralidad de versión
+
+El módulo evita ramas de runtime basadas en números concretos de PrestaShop. Detecta capacidades disponibles mediante `PVFPrestaShopCompatibility` y registra solo los hooks que existen en el runtime.
+
+La matriz CI sigue indicando las versiones realmente probadas; no equivale a limitar la arquitectura a esas versiones. El rango de instalación es deliberadamente amplio a partir de PrestaShop 1.7.8, pero una versión no probada solo podrá emitir si conserva las capacidades mínimas requeridas.
+
+Para la presentación PDF VERI*FACTU se exigen en runtime el hook `displayPDFInvoice` y un renderer QR TCPDF compatible. Si faltan, el módulo puede instalarse y ejecutar diagnóstico/preflight, pero la emisión se bloquea de forma segura antes de crear el registro fiscal.
+
+La v0.5.0 persiste únicamente el contrato neutral de presentación devuelto por Puente (`presentation_json`) y lo utiliza para incorporar QR/textos al PDF nativo. La lógica regulatoria sigue en el servidor.
+
 ## Compatibilidad validada
 
 La matriz de CI instala el **ZIP reproducible de distribución** dentro de tiendas efímeras PrestaShop Flashlight. Combinaciones validadas:
@@ -38,7 +49,7 @@ La matriz de CI instala el **ZIP reproducible de distribución** dentro de tiend
 - PrestaShop **8.1.7** / PHP **8.1**;
 - PrestaShop **8.2.7** / PHP **8.1**.
 
-Cada job comprueba arranque real, instalación y activación del módulo `0.4.0`, tablas de sincronización, hooks nativos, factura, payload principal, semáforo operativo y creación de un `OrderSlip` real. También demuestra que los hooks automáticos registrados **no crean estado ni intentan procesar operaciones mientras sus switches permanecen desactivados** y ejecuta los seis escenarios transversales de reconciliación/idempotencia de Connector Contract Suite v2. Esta matriz no implica soporte para PrestaShop 9.
+Cada job comprueba arranque real, instalación y activación del módulo `0.5.0`, tablas de sincronización, hooks nativos, factura, payload principal, semáforo operativo y creación de un `OrderSlip` real. También demuestra que los hooks automáticos registrados **no crean estado ni intentan procesar operaciones mientras sus switches permanecen desactivados** y ejecuta los seis escenarios transversales de reconciliación/idempotencia de Connector Contract Suite v2. Esta matriz no implica soporte para PrestaShop 9.
 
 Los datasets Flashlight usados por la prueba runtime tienen una línea al 0 %. Para que esa limitación no deje sin probar IVA positivo, CI ejecuta además `npm run prestashop:rectification-fixtures`, que usa la misma validación del runtime con 21 %, 10 %, 4 %, redondeos admisibles y desajustes que deben bloquearse.
 
@@ -87,7 +98,7 @@ La clave de idempotencia es estable por tienda + `OrderSlip` + número rectifica
 
 ## Automatización opt-in
 
-La versión `0.4.0` registra dos eventos nativos, pero **registrar el hook no equivale a activar la automatización**:
+La versión `0.5.0` registra dos eventos nativos, pero **registrar el hook no equivale a activar la automatización**:
 
 - `actionOrderStatusPostUpdate` para facturas;
 - `actionOrderSlipAdd` para abonos.
@@ -206,7 +217,7 @@ El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, 
 - `npm run prestashop:contract`: arquitectura, seguridad, opt-in e invariantes del conector.
 - `npm run prestashop:fixtures`: desglose/reconciliación de factura principal.
 - `npm run prestashop:rectification-fixtures`: IVA positivo 21/10/4, tolerancia de redondeo y rechazo de incoherencias rectificativas.
-- `npm run prestashop:package:check`: ZIP reproducible 0.4.0.
+- `npm run prestashop:package:check`: ZIP reproducible 0.5.0.
 - `npm run native:contract:v2`: contrato transversal compartido con WooCommerce.
 - `scripts/ci/prestashop-compatibility-smoke.sh`: instalación real, hooks, defaults OFF, factura, `OrderSlip` real y escenarios v2 en las tres versiones.
 - `scripts/ci/prestashop-upgrade-smoke.sh`: migración 0.3.0 → 0.4.0 preservando estado y manteniendo la automatización desactivada.
@@ -223,4 +234,4 @@ El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, 
 
 PrestaShop `0.4.0` queda técnicamente cerrado junto con WooCommerce: reconciliación/fallback, rectificativas, packaging, upgrade, automatización opt-in y Connector Contract Suite v2 están cubiertos en matrices reales. La aceptación transversal de Fase 5 está cerrada.
 
-El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real o release. El siguiente bloque del roadmap es Fase 6 — Production Readiness.
+El gate externo AEAT #6 está cerrado. La v0.5.0 del conector entra en el cierre de Fase 6 para validar presentación QR/textos y piloto progresivo antes de publicación.
