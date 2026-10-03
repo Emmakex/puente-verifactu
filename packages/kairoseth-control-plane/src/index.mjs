@@ -13,3 +13,10 @@ export {
   mongoOnboardingProfileIndexes,
   normalizeMongoOnboardingCollectionName,
 } from './mongodb-onboarding-profiles.mjs';
+
+export {
+  MongoKairosethIntegrationProfileStore,
+  createMongoKairosethIntegrationProfileStore,
+  mongoIntegrationProfileIndexes,
+  normalizeMongoIntegrationCollectionName,
+} from './mongodb-integration-profiles.mjs';
