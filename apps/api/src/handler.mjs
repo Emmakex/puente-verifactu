@@ -94,6 +94,26 @@ function requireDataPlaneContext(context) {
   }
 }
 
+function requireIntegrationProfileScope(context, profileId) {
+  if (context?.credentialKind !== 'kairoseth-data-plane') return;
+  const expected = String(context?.profileId ?? '');
+  const requested = String(profileId ?? '');
+  if (!expected || !requested || requested !== expected) {
+    throw Object.assign(new Error('Kairoseth data-plane credential is scoped to a specific IntegrationProfile'), {
+      code: 'VF_API_INTEGRATION_PROFILE_SCOPE_REQUIRED',
+      status: 403,
+    });
+  }
+}
+
+function forbidIntegrationCredential(context, purpose) {
+  if (context?.credentialKind !== 'kairoseth-data-plane') return;
+  throw Object.assign(new Error(`Kairoseth integration credentials cannot access ${purpose}`), {
+    code: 'VF_API_INTEGRATION_CREDENTIAL_ROUTE_FORBIDDEN',
+    status: 403,
+  });
+}
+
 function decodedHeader(headers, name, fallback = '') {
   const value = header(headers, name);
   if (value == null) return fallback;
@@ -489,6 +509,7 @@ export function createApiHandler({
       requireDataPlaneContext(context);
 
       if (method === 'POST' && path === '/v1/imports/inspect') {
+        forbidIntegrationCredential(context, 'file import routes');
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
         const headerRowRaw = header(request.headers, 'x-header-row');
         const result = imports.inspect({
@@ -505,17 +526,20 @@ export function createApiHandler({
       const importMatch = path.match(/^\/v1\/imports\/(imp_[a-f0-9]{32})$/);
       const importPreflightMatch = path.match(/^\/v1\/imports\/(imp_[a-f0-9]{32})\/preflight$/);
       if (method === 'POST' && importPreflightMatch) {
+        forbidIntegrationCredential(context, 'file import routes');
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
         const result = imports.preflight(importPreflightMatch[1], context, parseJsonBody(request));
         return json(200, result, correlationId);
       }
       if (method === 'DELETE' && importMatch) {
+        forbidIntegrationCredential(context, 'file import routes');
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
         return json(200, imports.remove(importMatch[1], context), correlationId);
       }
 
       if (method === 'POST' && path === '/v1/preflight') {
         const body = parseJsonBody(request);
+        requireIntegrationProfileScope(context, body.profileId);
         if (body.profileId) {
           const profile = await mappedProfile(resolveMappingProfile, context, body.profileId);
           return json(200, bridge.preflightMapped(body.source ?? {}, profile, context), correlationId);
@@ -525,6 +549,7 @@ export function createApiHandler({
 
       if (method === 'POST' && path === '/v1/fiscal-records') {
         const body = parseJsonBody(request);
+        requireIntegrationProfileScope(context, body.profileId);
         const idempotencyKey = header(request.headers, 'idempotency-key');
         let resource;
         if (body.profileId) {
@@ -545,6 +570,7 @@ export function createApiHandler({
           throw Object.assign(new Error('Webhook configuration is unavailable'), { code: 'VF_WEBHOOK_CONFIGURATION_UNAVAILABLE', status: 500 });
         }
         const profileId = webhookMatch[1];
+        requireIntegrationProfileScope(context, profileId);
         const [profile, secret] = await Promise.all([
           mappedProfile(resolveMappingProfile, context, profileId),
           resolveWebhookSecret({ context, profileId }),
