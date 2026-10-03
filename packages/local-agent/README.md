@@ -10,7 +10,7 @@ It is intentionally **not** a fiscal engine. The agent moves source data toward 
 
 ## Foundation included
 
-- SQLite local store using Node 22 `node:sqlite`;
+- SQLite local store using Node 22 `node:sqlite`, with database file hardened to `0600` on POSIX;
 - durable queue;
 - stable idempotency key derived from `sourceId + sourceKey`;
 - worker leases;
@@ -18,7 +18,7 @@ It is intentionally **not** a fiscal engine. The agent moves source data toward 
 - retry with bounded exponential backoff;
 - blocked state for non-retryable failures;
 - durable source checkpoints;
-- deterministic CSV/XLSX watch-folder discovery;
+- deterministic CSV/XLSX watch-folder discovery with streamed SHA-256 hashing;
 - outbound HTTPS policy;
 - adapter manifest bound to `kairoseth/extensions/puente-verifactu`.
 
@@ -26,7 +26,7 @@ It is intentionally **not** a fiscal engine. The agent moves source data toward 
 
 ### No inbound network listener
 
-The foundation opens no inbound HTTP port. The intended architecture is outbound-only toward Kairoseth/Puente.
+The foundation opens no inbound HTTP port. The intended architecture is outbound-only toward Kairoseth/Puente. `createLocalAgentApiClient()` rejects non-HTTPS remote URLs; insecure HTTP is accepted only for explicit localhost development.
 
 ### Fiscal secrets stay server-side
 
