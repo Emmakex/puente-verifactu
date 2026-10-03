@@ -103,19 +103,18 @@ test('Local Agent worker completes, retries and blocks without changing idempote
   });
 
   const ok = store.enqueue({ sourceId: 'pos', sourceKey: '1', payload: { mode: 'ok' }, now, availableAt: now });
-  const retry = store.enqueue({ sourceId: 'pos', sourceKey: '2', payload: { mode: 'retry' }, now, availableAt: now });
-  const blocked = store.enqueue({ sourceId: 'pos', sourceKey: '3', payload: { mode: 'block' }, now, availableAt: now });
-
   const first = await worker.runOne();
   assert.equal(first.state, 'completed');
   assert.equal(first.recordId, 'record-1');
   assert.equal(calls[0].context.idempotencyKey, ok.idempotencyKey);
 
+  const retry = store.enqueue({ sourceId: 'pos', sourceKey: '2', payload: { mode: 'retry' }, now, availableAt: now });
   const second = await worker.runOne();
   assert.equal(second.state, 'pending');
   assert.equal(second.availableAt, now + retryDelayMs(1));
   assert.equal(calls[1].context.idempotencyKey, retry.idempotencyKey);
 
+  const blocked = store.enqueue({ sourceId: 'pos', sourceKey: '3', payload: { mode: 'block' }, now, availableAt: now });
   const third = await worker.runOne();
   assert.equal(third.state, 'blocked');
   assert.equal(third.error.code, 'BAD_INPUT');
