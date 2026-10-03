@@ -33,8 +33,14 @@ assert.ok(names.includes('kairoseth-local-agent/connectors/file-import/src/file-
 assert.ok(names.includes('kairoseth-local-agent/config/local-agent.example.json'));
 assert.ok(names.includes('kairoseth-local-agent/config/local-agent.env.example'));
 assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/linux/install.sh'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/linux/upgrade.sh'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/linux/rollback.sh'));
 assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/macos/install.sh'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/macos/upgrade.sh'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/macos/rollback.sh'));
 assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/windows/install.ps1'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/windows/upgrade.ps1'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/windows/rollback.ps1'));
 assert.ok(names.includes('kairoseth-local-agent/bundle-manifest.json'));
 
 for (const name of names) {
