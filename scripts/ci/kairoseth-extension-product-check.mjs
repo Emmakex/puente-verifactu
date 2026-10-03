@@ -24,6 +24,15 @@ expect(product.core?.shared === true && product.core?.fiscal_engine === 'single'
 expect(product.principles?.one_product_many_adapters === true, 'KAIROSETH_ONE_PRODUCT_INVARIANT_MISSING');
 expect(product.principles?.adapters_are_not_products === true, 'KAIROSETH_ADAPTER_BOUNDARY_MISSING');
 expect(product.principles?.server_side_fiscal_authority === true, 'KAIROSETH_SERVER_AUTHORITY_MISSING');
+expect(product.technical_identity?.name === 'Puente VeriFactu', 'KAIROSETH_TECHNICAL_NAME_INVALID');
+expect(product.technical_identity?.slug === 'puente-verifactu', 'KAIROSETH_TECHNICAL_SLUG_INVALID');
+expect(product.commercial_facade?.enabled === true, 'KAIROSETH_COMMERCIAL_FACADE_DISABLED');
+expect(product.commercial_facade?.pattern_reference === 'Puente DeCA -> Kairoseth Cargo', 'KAIROSETH_COMMERCIAL_PATTERN_INVALID');
+expect(product.commercial_facade?.canonical_route_template === '/products/{commercial_slug}', 'KAIROSETH_COMMERCIAL_ROUTE_PATTERN_INVALID');
+expect(product.commercial_facade?.technical_route === '/products/puente-verifactu', 'KAIROSETH_TECHNICAL_ROUTE_INVALID');
+expect(Array.isArray(product.commercial_facade?.commercial_families)
+  && ['web', 'connect', 'api'].every((id) => product.commercial_facade.commercial_families.includes(id)),
+  'KAIROSETH_COMMERCIAL_FAMILIES_INVALID');
 expect(Array.isArray(product.channels) && product.channels.includes('native_plugin'), 'KAIROSETH_NATIVE_CHANNEL_MISSING');
 expect(Array.isArray(product.channels) && product.channels.includes('rest_api'), 'KAIROSETH_API_CHANNEL_MISSING');
 expect(Array.isArray(product.channels) && product.channels.includes('file_upload'), 'KAIROSETH_FILE_CHANNEL_MISSING');
@@ -54,4 +63,6 @@ console.log(JSON.stringify({
   product_id: product.product_id,
   version: product.version,
   model: 'one-product-many-adapters',
+  commercial_facade: product.commercial_facade.status,
+  commercial_pattern: product.commercial_facade.pattern_reference,
 }, null, 2));
