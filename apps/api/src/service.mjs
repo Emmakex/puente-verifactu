@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import { applyMapping } from '../../../packages/core/src/mapping.mjs';
 import { stableStringify } from '../../../packages/core/src/idempotency.mjs';
+import { composeFiscalNumber } from '../../../packages/core/src/fiscal-records.mjs';
 import { validateInvoiceIntent } from '../../../packages/core/src/validation.mjs';
+import { buildVerifactuInvoicePresentation } from '../../../packages/core/src/verifactu-presentation.mjs';
 
 function apiError(code, message, status = 400, details = []) {
   return Object.assign(new Error(message), { code, status, details });
@@ -88,16 +90,88 @@ function recordIdFor(record) {
 }
 
 export class UniversalBridgeService {
-  constructor({ fiscalService, store = new MemoryIntegrationStore(), enqueueDelivery = null } = {}) {
+  constructor({
+    fiscalService,
+    store = new MemoryIntegrationStore(),
+    enqueueDelivery = null,
+    presentationEnvironment = 'test',
+  } = {}) {
     if (!fiscalService) throw new TypeError('fiscalService is required');
+    if (!['test', 'production'].includes(presentationEnvironment)) {
+      throw new TypeError('presentationEnvironment must be test or production');
+    }
     this.fiscalService = fiscalService;
     this.store = store;
     this.enqueueDelivery = enqueueDelivery;
+    this.presentationEnvironment = presentationEnvironment;
+  }
+
+  presentationForRecord(record) {
+    if (!record || record.recordType !== 'alta') return null;
+    return buildVerifactuInvoicePresentation({
+      environment: this.presentationEnvironment,
+      issuerTaxId: record.invoice.issuerTaxId,
+      invoiceNumber: record.invoice.fiscalNumber,
+      issueDate: record.invoice.issueDate,
+      totalAmount: record.totalAmount,
+    });
+  }
+
+  withPresentation(resource) {
+    if (!resource || !resource.fiscalRecord) return resource;
+    if (resource.presentation) return resource;
+    return {
+      ...resource,
+      presentation: this.presentationForRecord(resource.fiscalRecord),
+    };
+  }
+
+  assertPresentationIntent(intent) {
+    try {
+      buildVerifactuInvoicePresentation({
+        environment: this.presentationEnvironment,
+        issuerTaxId: intent?.issuer?.taxId,
+        invoiceNumber: composeFiscalNumber(intent ?? {}),
+        issueDate: intent?.issueDate,
+        totalAmount: intent?.totals?.totalAmount,
+      });
+    } catch {
+      throw apiError(
+        'VF_API_PRESENTATION_INVALID',
+        'Invoice data is not valid for VERI*FACTU invoice presentation',
+        422,
+        [{
+          code: 'VF_VALIDATION_PRESENTATION',
+          path: 'presentation',
+          severity: 'error',
+          message: {
+            es: 'Los datos de la factura no permiten generar la presentación QR VERI*FACTU.',
+            en: 'Invoice data cannot generate the VERI*FACTU QR presentation.',
+          },
+        }],
+      );
+    }
   }
 
   preflight(input, context) {
     const intent = stampServerIdentity(input, context);
     const validation = validateInvoiceIntent(intent);
+    if (validation.ok) {
+      try {
+        this.assertPresentationIntent(intent);
+      } catch (error) {
+        if (error?.status === 422 && Array.isArray(error.details)) {
+          return {
+            mode: 'dry-run',
+            ok: false,
+            errors: [...validation.errors, ...error.details],
+            warnings: validation.warnings,
+            preview: intent,
+          };
+        }
+        throw error;
+      }
+    }
     return {
       mode: 'dry-run',
       ok: validation.ok,
@@ -118,12 +192,13 @@ export class UniversalBridgeService {
     }
     const intent = stampServerIdentity(input, context);
     assertValid(intent);
+    this.assertPresentationIntent(intent);
     const requestKey = `${context.organizationId}\u001f${context.installationId}\u001f${idempotencyKey}`;
     const reservation = this.store.reserve(requestKey, intent);
 
     if (reservation.duplicate) {
       if (!reservation.existing.recordId) throw apiError('VF_API_IDEMPOTENCY_IN_PROGRESS', 'The same request is already being processed', 409);
-      return { ...this.store.get(reservation.existing.recordId), duplicate: true };
+      return { ...this.withPresentation(this.store.get(reservation.existing.recordId)), duplicate: true };
     }
 
     try {
@@ -144,6 +219,7 @@ export class UniversalBridgeService {
         sourceInvoiceId: intent.sourceInvoiceId,
         status,
         fiscalRecord: fiscalized.record,
+        presentation: this.presentationForRecord(fiscalized.record),
         delivery,
       });
       this.store.complete(requestKey, intent, recordId);
@@ -165,7 +241,7 @@ export class UniversalBridgeService {
     if (!record || record.organizationId !== context.organizationId) {
       throw apiError('VF_API_RECORD_NOT_FOUND', 'Fiscal record not found', 404);
     }
-    return record;
+    return this.withPresentation(record);
   }
 }
 

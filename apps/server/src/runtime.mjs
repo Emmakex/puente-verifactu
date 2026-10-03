@@ -29,6 +29,7 @@ export function createPuenteRuntime({
   observabilityClock = () => Date.now(),
   backupManifestPath = null,
   responsibleDeclarationPath = null,
+  presentationEnvironment = 'test',
   observabilityThresholds = {},
 } = {}) {
   const normalizedSif = {
@@ -55,6 +56,7 @@ export function createPuenteRuntime({
     fiscalService,
     store: persistence.integrationStore,
     resolveEuroConversion: resolvers.resolveEuroConversion,
+    presentationEnvironment,
   });
   const imports = new ImportSessionService({ store: persistence.importStore });
   const authenticateHttp = createHttpAuthenticator(authConfig);

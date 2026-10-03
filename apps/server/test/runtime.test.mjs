@@ -46,7 +46,7 @@ function validIntent() {
     issueDate: '2026-09-15',
     invoiceType: 'F2',
     description: 'Servicio HTTP',
-    issuer: { name: 'Empresa Demo', taxId: 'TESTISSUER' },
+    issuer: { name: 'Empresa Demo', taxId: '89890001K' },
     currency: 'EUR',
     taxBreakdown: [{
       taxCode: '01',
@@ -154,6 +154,37 @@ test('concrete runtime serves protected onboarding, API auth and rate limits', a
   }
 });
 
+
+test('runtime issues presentation metadata using the configured AEAT environment', async () => {
+  const runtime = createPuenteRuntime({
+    databasePath: ':memory:',
+    authConfig: authConfig(),
+    presentationEnvironment: 'test',
+    sif: { systemId: 'PV', installationNumber: '001', timeZone: 'Europe/Madrid' },
+    clock: () => new Date('2026-09-15T09:00:00Z'),
+  });
+
+  try {
+    const baseUrl = await listen(runtime);
+    const response = await fetch(`${baseUrl}/v1/fiscal-records`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${apiToken}`,
+        'content-type': 'application/json',
+        'idempotency-key': 'runtime-qr-1',
+      },
+      body: JSON.stringify({ intent: validIntent() }),
+    });
+
+    assert.equal(response.status, 202);
+    const body = await response.json();
+    assert.match(body.presentation.qr.url, /^https:\/\/prewww2\.aeat\.es\/wlpl\/TIKE-CONT\/ValidarQR\?/);
+    assert.equal(body.presentation.qr.prefixText, 'QR tributario:');
+    assert.equal(body.presentation.verificationText, 'Factura verificable en la sede electrónica de la AEAT');
+  } finally {
+    await runtime.close();
+  }
+});
 
 test('runtime exposes configured responsible declaration only after authentication', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'puente-verifactu-declaration-'));

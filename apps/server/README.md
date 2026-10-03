@@ -39,12 +39,13 @@ PV_AUTH_CONFIG_PATH=/etc/puente-verifactu/auth.json
 PV_INTEGRATION_CONFIG_PATH=/etc/puente-verifactu/integrations.json
 PV_BACKUP_MANIFEST_PATH=/var/backups/puente-verifactu/latest.sqlite.manifest.json
 PV_RESPONSIBLE_DECLARATION_PATH=/etc/puente-verifactu/declaracion-responsable-v0.1.0.md
+PV_AEAT_ENVIRONMENT=test
 PV_SIF_SYSTEM_ID=<identificador-real>
 PV_SIF_INSTALLATION_NUMBER=<numero-instalacion>
 PV_TIME_ZONE=Europe/Madrid
 ```
 
-`PV_AUTH_CONFIG_PATH`, `PV_SIF_SYSTEM_ID` y `PV_SIF_INSTALLATION_NUMBER` son obligatorios. `PV_INTEGRATION_CONFIG_PATH` es opcional si solo se usa contrato canónico/onboarding. `PV_BACKUP_MANIFEST_PATH` es opcional, pero si no se configura el snapshot operacional emite `VF_OBS_BACKUP_MONITORING_UNCONFIGURED`. Para una versión que vaya a ponerse a disposición de usuarios/clientes, `PV_RESPONSIBLE_DECLARATION_PATH` debe apuntar al documento definitivo de esa versión, almacenado fuera de Git con permisos restrictivos.
+`PV_AUTH_CONFIG_PATH`, `PV_SIF_SYSTEM_ID` y `PV_SIF_INSTALLATION_NUMBER` son obligatorios. `PV_INTEGRATION_CONFIG_PATH` es opcional si solo se usa contrato canónico/onboarding. `PV_BACKUP_MANIFEST_PATH` es opcional, pero si no se configura el snapshot operacional emite `VF_OBS_BACKUP_MONITORING_UNCONFIGURED`. Para una versión que vaya a ponerse a disposición de usuarios/clientes, `PV_RESPONSIBLE_DECLARATION_PATH` debe apuntar al documento definitivo de esa versión, almacenado fuera de Git con permisos restrictivos. `PV_AEAT_ENVIRONMENT` controla únicamente la URL de presentación/cotejo QR expuesta a conectores: `test` usa el endpoint de pruebas y `production` el endpoint oficial de producción. El valor por defecto seguro es `test`.
 
 ## Autenticación
 
@@ -161,6 +162,8 @@ Endpoints públicos mínimos:
 Endpoint autenticado de información legal:
 
 - `GET /declaracion-responsable` — declaración responsable individualizada de la versión configurada. Se sirve en modo `inline`, con `Cache-Control: no-store`, y requiere la misma autenticación Basic que el wizard. Si el deployment no configura el documento, falla cerrado con `503 VF_RESPONSIBLE_DECLARATION_NOT_CONFIGURED`.
+
+Las respuestas de `POST /v1/fiscal-records` y `GET /v1/fiscal-records/:id` incluyen `presentation`, con URL QR AEAT, textos VERI*FACTU, versión de especificación y parámetros de renderizado. Los conectores deben consumir estos metadatos; no reconstruirlos localmente.
 
 Endpoint operacional protegido:
 

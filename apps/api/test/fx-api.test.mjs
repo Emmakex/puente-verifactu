@@ -16,7 +16,7 @@ function invoice(overrides = {}) {
     issueDate: '2026-09-15',
     invoiceType: 'F1',
     description: 'Foreign currency order',
-    issuer: { name: 'Demo issuer', taxId: 'TESTISSUER' },
+    issuer: { name: 'Demo issuer', taxId: '89890001K' },
     recipients: [{ name: 'Demo customer', taxId: 'TESTCUSTOMER' }],
     currency: 'USD',
     taxBreakdown: [{ taxCode: '01', regimeKey: '01', operationClass: 'S1', rate: '21', baseAmount: '100.00', taxAmount: '21.00' }],
@@ -78,6 +78,9 @@ test('issue persists EUR fiscal amounts and conversion audit', async () => {
   assert.equal(first.body.fiscalCurrency, 'EUR');
   assert.equal(first.body.fiscalRecord.totalAmount, '102.85');
   assert.equal(first.body.currencyConversion.eurPerUnit, '0.85');
+  assert.match(first.body.presentation.qr.url, /importe=102\.85/);
+  assert.match(first.body.presentation.qr.url, /numserie=INV-900/);
+  assert.equal(first.body.presentation.specificationVersion, '0.5.0');
 
   const retry = await handler(request);
   assert.equal(retry.status, 200);
@@ -87,6 +90,7 @@ test('issue persists EUR fiscal amounts and conversion audit', async () => {
   const stored = await handler({ method: 'GET', path: `/v1/fiscal-records/${first.body.recordId}`, headers: {} });
   assert.equal(stored.status, 200);
   assert.equal(stored.body.currencyConversion.rateDate, '2026-09-15');
+  assert.equal(stored.body.presentation.mode, 'VERI*FACTU');
 });
 
 test('same idempotency key conflicts if audited conversion changes', async () => {

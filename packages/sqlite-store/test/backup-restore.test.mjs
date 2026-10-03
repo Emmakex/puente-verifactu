@@ -39,7 +39,7 @@ function intent(sourceInvoiceId, number) {
     issueDate: '2026-09-15',
     invoiceType: 'F2',
     description: 'Backup restore test',
-    issuer: { name: 'Backup Test', taxId: 'BACKUPTEST' },
+    issuer: { name: 'Backup Test', taxId: '89890001K' },
     currency: 'EUR',
     taxBreakdown: [{
       taxCode: '01',
