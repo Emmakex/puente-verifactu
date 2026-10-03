@@ -334,6 +334,14 @@ final class PV_Woo_Connector {
 
         $order->delete_meta_data( self::META_LAST_ERROR );
         $order->save();
+
+        /**
+         * Neutral integration point for any invoice renderer.
+         *
+         * Consumers receive only the normalized presentation contract and
+         * the WooCommerce order object; no provider-specific dependency.
+         */
+        do_action( 'pv_woo_invoice_presentation_updated', $order, $presentation );
     }
 
     private function idempotency_key( WC_Order $order ) {
