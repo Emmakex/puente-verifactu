@@ -36,7 +36,10 @@ wp option update woocommerce_custom_orders_table_enabled yes --path="$WP_PATH" -
 wp plugin install "$PLUGIN_ZIP" --activate --path="$WP_PATH" --quiet
 
 wp eval --path="$WP_PATH" '
-if ( ! class_exists( "PV_Woo_Connector" ) || ! class_exists( "PV_Woo_Admin_Status" ) ) {
+if ( ! class_exists( "PV_Woo_Connector" )
+    || ! class_exists( "PV_Woo_Admin_Status" )
+    || ! class_exists( "PV_Woo_Invoice_Presentation" )
+    || ! function_exists( "pv_woo_get_invoice_presentation" ) ) {
     throw new RuntimeException( "Puente VeriFactu classes did not load" );
 }
 if ( ! class_exists( "\\Automattic\\WooCommerce\\Utilities\\OrderUtil" ) ) {
@@ -68,6 +71,34 @@ $order->save();
 $reloaded = wc_get_order( $order->get_id() );
 if ( "accepted" !== $reloaded->get_meta( PV_Woo_Connector::META_STATUS, true ) ) {
     throw new RuntimeException( "HPOS CRUD metadata roundtrip failed" );
+}
+
+$presentation_result = array(
+    "presentation" => array(
+        "mode" => "VERI*FACTU",
+        "qr" => array(
+            "url" => "https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR?nif=89890001K&numserie=VF-1&fecha=03-10-2026&importe=1.00",
+            "prefixText" => "QR tributario:",
+            "errorCorrection" => "M",
+            "minSizeMm" => 30,
+            "maxSizeMm" => 40,
+        ),
+        "verificationText" => "Factura verificable en la sede electrónica de la AEAT",
+        "specificationVersion" => "0.5.0",
+    ),
+);
+$stored_presentation = PV_Woo_Invoice_Presentation::store( $reloaded, $presentation_result );
+if ( is_wp_error( $stored_presentation ) ) {
+    throw new RuntimeException( "Neutral presentation contract could not be stored" );
+}
+$reloaded->save();
+$presentation_order = wc_get_order( $order->get_id() );
+$presentation = pv_woo_get_invoice_presentation( $presentation_order );
+if ( ! is_array( $presentation )
+    || "VERI*FACTU" !== $presentation["mode"]
+    || "M" !== $presentation["error_correction"]
+    || "0.5.0" !== $presentation["specification_version"] ) {
+    throw new RuntimeException( "Neutral presentation contract CRUD roundtrip failed" );
 }
 echo "PV_WOO_COMPAT_OK\n";
 '
