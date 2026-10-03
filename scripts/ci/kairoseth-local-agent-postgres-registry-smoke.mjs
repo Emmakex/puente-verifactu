@@ -43,7 +43,8 @@ try {
   assert.equal(before.rows[0].relation, null, 'adapter must not auto-create Kairoseth tables');
   await pool.query(postgresLocalAgentRegistryMigrationSql({ tableName }));
   const afterMigration = await pool.query('SELECT to_regclass($1) AS relation', [tableName]);
-  assert.equal(afterMigration.rows[0].relation, tableName);
+  assert.ok(afterMigration.rows[0].relation, 'explicit Kairoseth migration must create the registry table');
+  assert.equal(String(afterMigration.rows[0].relation).split('.').at(-1), table);
 
   const nowRef = { value: Date.UTC(2026, 9, 3, 20, 0, 0) };
   const first = await runtimeWithRegistry(nowRef);
