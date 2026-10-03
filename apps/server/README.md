@@ -248,6 +248,39 @@ CI valida este binding con MongoDB real y comprueba persistencia tras reiniciar 
 
 PostgreSQL, MySQL/MariaDB y SQL Server siguen soportados exclusivamente como **fuentes read-only de sistemas de clientes** mediante Local Agent. No forman parte de la persistencia productiva de Kairoseth.
 
+### Onboarding profiles tenant-bound
+
+U6.3 añade un segundo store MongoDB inyectado para perfiles de onboarding:
+
+```js
+import {
+  createMongoKairosethLocalAgentRegistryStore,
+  createMongoKairosethOnboardingProfileStore,
+} from '../../packages/kairoseth-control-plane/src/index.mjs';
+
+const localAgentRegistryStore = createMongoKairosethLocalAgentRegistryStore({
+  database: kairosethMongoDatabase,
+});
+
+const onboardingProfileStore = createMongoKairosethOnboardingProfileStore({
+  database: kairosethMongoDatabase,
+});
+
+const runtime = createPuenteRuntime({
+  // ...
+  localAgentRegistryStore,
+  onboardingProfileStore,
+});
+```
+
+Ambos stores reutilizan la misma base MongoDB administrada por Kairoseth en Hostinger. Ninguno crea su propio cliente o credenciales de conexión.
+
+Los perfiles se consultan siempre con `organizationId` derivado del contexto autenticado. La API no permite seleccionar otro tenant ni un `installationId` arbitrario para Local Agent.
+
+`onboarding:manage` es el permiso específico para estas rutas. `agents:manage` sigue aceptado para control plane administrativo compatible.
+
+El SQLite standalone no actúa como fallback de perfiles productivos: si no se inyecta `onboardingProfileStore`, las rutas persistentes responden `503` mientras el resolver capability-first continúa disponible.
+
 ## Rate limiting
 
 Se aplica por `credentialId`; cada credencial define `rateLimitPerMinute`, incluida la credencial operacional. En este perfil single-node el contador vive en memoria. Un deployment multi-réplica deberá sustituirlo por rate limiting compartido en Fase 6.
