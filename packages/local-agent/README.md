@@ -194,11 +194,45 @@ A deployment installs `ssh2-sftp-client@12.1.1` only when SFTP is needed. CI run
 
 The first SFTP unit is intentionally inbound/read-only. Remote acknowledgements, deletes or moves are not performed because they would mutate the customer's source system.
 
+## Unified runtime
+
+U4.1 adds one operational runtime on top of the existing sources. The same process can run a watch-folder, database or SFTP installation without opening an inbound HTTP listener.
+
+The runtime cycle is:
+
+```text
+recover leases / processing files
+  -> poll configured source
+  -> durable queue
+  -> preflight
+  -> issue
+  -> settle/quarantine
+  -> redact terminal payloads
+```
+
+Configuration is JSON schema version 1. The file must be private (`0600`) on POSIX. Secrets are not accepted inline: the bridge API key, database password and SFTP password/passphrase are referenced by environment-variable name. The AEAT certificate/private key remain server-side and are never valid Local Agent configuration fields.
+
+Commands:
+
+```bash
+npm run local-agent:cli -- doctor --config /etc/puente-verifactu/agent.json
+npm run local-agent:cli -- status --config /etc/puente-verifactu/agent.json
+npm run local-agent:cli -- once --config /etc/puente-verifactu/agent.json
+npm run local-agent:cli -- start --config /etc/puente-verifactu/agent.json
+```
+
+`doctor` is non-destructive: it probes `/readyz`, the local store and the configured source read-only capability. It never calls preflight or issue. `status` reads only local operational metadata and does not require runtime secrets.
+
+`once` and `start` use a single-instance lock under the data directory. `start` handles `SIGINT`/`SIGTERM`, finishes resource cleanup and does not host any local network listener.
+
+See `config/local-agent.example.json` for the fail-closed starting configuration (`issueEnabled=false`).
+
 ## Gate
 
 ```bash
 npm run local-agent:smoke
 npm run local-agent:contract
+npm run local-agent:runtime:smoke
 npm run local-agent:sftp:smoke # Docker + ssh2-sftp-client@12.1.1
 ```
 

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "installationId": "customer-001",
+  "dataDir": "../var/local-agent",
+  "bridge": {
+    "baseUrl": "https://kairoseth.example/puente-verifactu",
+    "apiKeyEnv": "PV_LOCAL_AGENT_API_KEY"
+  },
+  "runtime": {
+    "pollIntervalMs": 5000,
+    "workerBatchSize": 50,
+    "leaseMs": 60000,
+    "maxAttempts": 12,
+    "terminalRedactionDelayMs": 0
+  },
+  "source": {
+    "kind": "watch-folder",
+    "sourceId": "erp-export",
+    "profileId": "erp-export-v1",
+    "root": "../var/local-agent/files",
+    "issueEnabled": false,
+    "minAgeMs": 2000,
+    "maxFileBytes": 5242880,
+    "maxRows": 10000
+  }
+}

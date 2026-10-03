@@ -58,6 +58,8 @@
     "kairoseth:extension:check": "node scripts/ci/kairoseth-extension-product-check.mjs",
     "local-agent:contract": "node scripts/ci/local-agent-contract.mjs",
     "local-agent:smoke": "node --test packages/local-agent/test/*.test.mjs",
-    "local-agent:sftp:smoke": "bash scripts/ci/local-agent-sftp-compatibility-smoke.sh"
+    "local-agent:sftp:smoke": "bash scripts/ci/local-agent-sftp-compatibility-smoke.sh",
+    "local-agent:cli": "node packages/local-agent/src/cli.mjs",
+    "local-agent:runtime:smoke": "node --test packages/local-agent/test/config.test.mjs packages/local-agent/test/runtime.test.mjs"
   }
 }
