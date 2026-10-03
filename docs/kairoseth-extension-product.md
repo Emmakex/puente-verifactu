@@ -1,5 +1,8 @@
 # Puente VeriFactu como producto de Kairoseth Extensions
 
+> Patrón de referencia: **Puente DeCA → Kairoseth Cargo**. En VeriFactu mantenemos igualmente separado el nombre técnico del motor y la faceta comercial de Kairoseth.
+
+
 ## Posición dentro de Kairoseth
 
 Puente VeriFactu no es una colección de productos separados por ERP ni un servicio aislado fuera del ecosistema.
@@ -24,9 +27,12 @@ Kairoseth
         └── Manual fallback
 ```
 
-Para cliente, catálogo, activación y futura comercialización existe **un solo producto**:
+Para cliente, catálogo, activación y futura comercialización existe **un solo producto/extensión**, pero con dos identidades coordinadas:
 
-> **Kairoseth Extension — Puente VeriFactu**
+- **técnica:** `Puente VeriFactu` / `puente-verifactu`;
+- **comercial:** faceta Kairoseth con nombre propio, siguiendo el patrón de `Kairoseth Cargo`.
+
+El nombre comercial definitivo queda pendiente de naming; no debe bloquear el desarrollo técnico. Cuando se fije, la URL comercial será `/products/<slug-comercial>` y la ruta técnica `/products/puente-verifactu` podrá redirigir de forma permanente.
 
 Los adapters son capacidades/modos de conexión de esa extensión. No son productos independientes.
 
@@ -82,7 +88,7 @@ La entrada conceptual del usuario será:
 ```text
 Kairoseth
   -> Extensions
-  -> Puente VeriFactu
+  -> <faceta comercial de Puente VeriFactu>
   -> Activar / Configurar
   -> ¿Qué puede hacer tu sistema?
   -> seleccionar canal
@@ -100,7 +106,10 @@ El producto queda identificado internamente por:
 - ecosystem: `kairoseth`;
 - catalog: `extensions`;
 - product_id: `puente-verifactu`;
-- name: `Puente VeriFactu`;
+- technical name: `Puente VeriFactu`;
+- technical slug: `puente-verifactu`;
+- commercial facade: habilitada, naming pendiente;
+- patrón comercial: `Puente DeCA → Kairoseth Cargo`;
 - versión del producto: `0.1.0`;
 - manifest: `config/kairoseth-extension.json`.
 
