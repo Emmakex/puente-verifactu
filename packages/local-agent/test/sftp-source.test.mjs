@@ -58,7 +58,7 @@ test('SFTP ingress is fail-closed until issuance is explicitly enabled', async (
   store.close();
 });
 
-test('SFTP ingress downloads stable CSV once and feeds the existing watch-folder pipeline', async () => {
+test('SFTP ingress stages identical CSV once and feeds the existing watch-folder pipeline', async () => {
   const root = await mkdtemp(join(tmpdir(), 'pv-sftp-'));
   const store = new LocalAgentStore(':memory:');
   const csv = Buffer.from('invoice,total\nF-1,10.50\nF-2,20.75\n');
@@ -111,7 +111,7 @@ test('SFTP ingress downloads stable CSV once and feeds the existing watch-folder
     });
     assert.equal(second.downloaded.length, 0);
     assert.equal(second.skipped.some((item) => item.reason === 'already_received'), true);
-    assert.equal(gets, 1);
+    assert.equal(gets, 2);
 
     const ingested = await ingestWatchFolder({
       store,
@@ -189,5 +189,65 @@ test('durable source receipts reject the same source identity with a different f
     );
   } finally {
     store.close();
+  }
+});
+
+
+test('SFTP ingress treats changed content as a new revision even when remote metadata is unchanged', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pv-sftp-revision-'));
+  const store = new LocalAgentStore(':memory:');
+  const firstCsv = Buffer.from('invoice,total\nF-1,10.50\n');
+  const secondCsv = Buffer.from('invoice,total\nF-1,99.99\n');
+  assert.equal(firstCsv.length, secondCsv.length);
+  let current = firstCsv;
+
+  const client = {
+    async list() {
+      return [{
+        name: 'invoices.csv',
+        type: '-',
+        size: firstCsv.length,
+        modifyTime: 1,
+      }];
+    },
+    async get() {
+      return current;
+    },
+  };
+
+  try {
+    const first = await syncSftpDropFolder({
+      store,
+      client,
+      root,
+      remoteDirectory: '/drop',
+      sourceId: 'sftp-revision',
+      issueEnabled: true,
+      minAgeMs: 0,
+      now: 10_000,
+    });
+    assert.equal(first.downloaded.length, 1);
+
+    current = secondCsv;
+    const second = await syncSftpDropFolder({
+      store,
+      client,
+      root,
+      remoteDirectory: '/drop',
+      sourceId: 'sftp-revision',
+      issueEnabled: true,
+      minAgeMs: 0,
+      now: 11_000,
+    });
+
+    assert.equal(second.downloaded.length, 1);
+    assert.notEqual(second.downloaded[0].sourceKey, first.downloaded[0].sourceKey);
+    assert.notEqual(second.downloaded[0].sha256, first.downloaded[0].sha256);
+
+    const inboxFiles = await readdir(join(root, 'inbox'));
+    assert.equal(inboxFiles.length, 2);
+  } finally {
+    store.close();
+    await rm(root, { recursive: true, force: true });
   }
 });
