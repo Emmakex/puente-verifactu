@@ -3,3 +3,4 @@ export { LocalAgentWorker, createPuenteApiTransport, retryDelayMs } from './work
 export { WATCH_FOLDER_EXTENSIONS, enqueueWatchFolder, scanWatchFolder } from './watch-folder.mjs';
 export { assertOutboundBaseUrl } from './network.mjs';
 export { createLocalAgentApiClient } from './client.mjs';
+export { ensureWatchFolderLayout, ingestWatchFolder, recoverProcessingWatchFiles, settleWatchFolder } from './watch-ingest.mjs';
