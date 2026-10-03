@@ -107,6 +107,15 @@ export class LocalAgentStore {
         cursor_json TEXT NOT NULL,
         updated_at_ms INTEGER NOT NULL
       ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS local_agent_source_receipts (
+        source_id TEXT NOT NULL,
+        source_key TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        metadata_json TEXT NOT NULL,
+        created_at_ms INTEGER NOT NULL,
+        PRIMARY KEY(source_id, source_key)
+      ) STRICT;
     `);
   }
 
@@ -212,6 +221,16 @@ export class LocalAgentStore {
         updated_at_ms = excluded.updated_at_ms
     `);
     this.selectCheckpoint = this.db.prepare('SELECT cursor_json, updated_at_ms FROM local_agent_checkpoints WHERE source_id = ?');
+    this.insertSourceReceipt = this.db.prepare(`
+      INSERT OR IGNORE INTO local_agent_source_receipts (
+        source_id, source_key, fingerprint, metadata_json, created_at_ms
+      ) VALUES (?, ?, ?, ?, ?)
+    `);
+    this.selectSourceReceipt = this.db.prepare(`
+      SELECT source_id, source_key, fingerprint, metadata_json, created_at_ms
+      FROM local_agent_source_receipts
+      WHERE source_id = ? AND source_key = ?
+    `);
   }
 
   close() {
@@ -410,6 +429,49 @@ export class LocalAgentStore {
       sourceId: id,
       cursor: clone(parseJson(row.cursor_json)),
       updatedAt: Number(row.updated_at_ms),
+    });
+  }
+
+  recordSourceReceipt({ sourceId, sourceKey, fingerprint: valueFingerprint, metadata = {}, now = Date.now() } = {}) {
+    const id = validateText(sourceId, 'sourceId');
+    const key = validateText(sourceKey, 'sourceKey');
+    const digest = validateText(valueFingerprint, 'fingerprint');
+    if (metadata == null || typeof metadata !== 'object' || Array.isArray(metadata)) {
+      throw Object.assign(new Error('receipt metadata must be an object'), { code: 'VF_LOCAL_AGENT_INPUT_INVALID' });
+    }
+
+    const inserted = this.insertSourceReceipt.run(
+      id,
+      key,
+      digest,
+      JSON.stringify(metadata),
+      Number(now),
+    ).changes === 1;
+    const receipt = this.getSourceReceipt(id, key);
+    if (!receipt) {
+      throw Object.assign(new Error('Local Agent source receipt was not persisted'), {
+        code: 'VF_LOCAL_AGENT_STORE_ERROR',
+      });
+    }
+    if (!inserted && receipt.fingerprint !== digest) {
+      throw Object.assign(new Error('Source receipt already exists with a different fingerprint'), {
+        code: 'VF_LOCAL_AGENT_SOURCE_RECEIPT_CONFLICT',
+      });
+    }
+    return receipt;
+  }
+
+  getSourceReceipt(sourceId, sourceKey) {
+    const id = validateText(sourceId, 'sourceId');
+    const key = validateText(sourceKey, 'sourceKey');
+    const row = this.selectSourceReceipt.get(id, key);
+    if (!row) return null;
+    return Object.freeze({
+      sourceId: row.source_id,
+      sourceKey: row.source_key,
+      fingerprint: row.fingerprint,
+      metadata: clone(parseJson(row.metadata_json)),
+      createdAt: Number(row.created_at_ms),
     });
   }
 }
