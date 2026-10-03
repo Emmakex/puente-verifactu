@@ -90,7 +90,18 @@ export class KairosethIntegrationProfileControlPlane {
     }
 
     const existing = await this.store.findByOnboarding(organizationId, profile.profileId);
-    if (existing) return existing;
+    if (existing) {
+      if (this.onboardingStore) {
+        await this.onboardingStore.bindIntegration({
+          organizationId,
+          profileId: profile.profileId,
+          mappingProfileId: existing.mappingProfileId,
+          integrationProfileId: existing.profileId,
+          now: this.clock(),
+        });
+      }
+      return existing;
+    }
 
     const requiresLocalAgent = Boolean(profile.strategy?.requiresLocalAgent);
     if (
@@ -113,20 +124,27 @@ export class KairosethIntegrationProfileControlPlane {
     }
 
     const mappingRequired = Boolean(profile.integrationDraft?.mappingRequired);
-    const created = await this.store.create({
-      profileId: integrationProfileId,
-      organizationId,
-      installationId,
-      onboardingProfileId: profile.profileId,
-      channel: profile.strategy.channel,
-      adapter: profile.strategy.adapter,
-      sourceType: profile.integrationDraft?.sourceType ?? profile.strategy.sourceKind ?? profile.strategy.channel,
-      deploymentMode: profile.strategy.deploymentMode,
-      status: mappingRequired ? 'mapping-required' : 'active',
-      mappingProfile: null,
-      webhookSecretRef: null,
-      now: this.clock(),
-    });
+    let created;
+    try {
+      created = await this.store.create({
+        profileId: integrationProfileId,
+        organizationId,
+        installationId,
+        onboardingProfileId: profile.profileId,
+        channel: profile.strategy.channel,
+        adapter: profile.strategy.adapter,
+        sourceType: profile.integrationDraft?.sourceType ?? profile.strategy.sourceKind ?? profile.strategy.channel,
+        deploymentMode: profile.strategy.deploymentMode,
+        status: mappingRequired ? 'mapping-required' : 'active',
+        mappingProfile: null,
+        webhookSecretRef: null,
+        now: this.clock(),
+      });
+    } catch (error) {
+      if (error?.code !== 'VF_INTEGRATION_PROFILE_EXISTS') throw error;
+      created = await this.store.findByOnboarding(organizationId, profile.profileId);
+      if (!created) throw error;
+    }
 
     if (this.onboardingStore) {
       await this.onboardingStore.bindIntegration({
