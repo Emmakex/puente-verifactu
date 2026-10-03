@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { hashBearerToken } from '../src/auth.mjs';
 import { createPuenteRuntime } from '../src/runtime.mjs';
+import { KairosethIntegrationProfileControlPlane } from '../src/integration-control-plane.mjs';
 import {
   MongoKairosethIntegrationProfileStore,
 } from '../../../packages/kairoseth-control-plane/src/mongodb-integration-profiles.mjs';
@@ -368,4 +369,60 @@ test('Mongo dynamic mapping rejects nested tenant authority and secrets before p
     (error) => error.code === 'VF_INTEGRATION_MAPPING_AUTHORITY_FORBIDDEN',
   );
   assert.equal(updateCalled, false);
+});
+
+test('webhook secret references stay opaque and resolve only through Kairoseth', async () => {
+  const store = new MemoryIntegrationProfileStore();
+  await store.create({
+    profileId: dynamicProfileId,
+    organizationId: 'org-dynamic',
+    installationId: 'install-dynamic',
+    onboardingProfileId: null,
+    channel: 'webhook',
+    adapter: 'universal-webhook',
+    sourceType: 'webhook',
+    deploymentMode: 'server-to-server',
+    status: 'active',
+    mappingProfile: mapping(dynamicProfileId),
+    webhookSecretRef: 'secret:webhook:001',
+    now: 1,
+  });
+
+  const control = new KairosethIntegrationProfileControlPlane({
+    store,
+    resolveSecretReference: async ({ ref, organizationId, installationId, profileId }) => {
+      assert.equal(ref, 'secret:webhook:001');
+      assert.equal(organizationId, 'org-dynamic');
+      assert.equal(installationId, 'install-dynamic');
+      assert.equal(profileId, dynamicProfileId);
+      return 'w'.repeat(40);
+    },
+  });
+
+  const resolved = await control.resolveWebhookSecret({
+    context: {
+      organizationId: 'org-dynamic',
+      installationId: 'install-dynamic',
+    },
+    profileId: dynamicProfileId,
+  });
+  assert.equal(resolved.exists, true);
+  assert.equal(resolved.secret, 'w'.repeat(40));
+
+  const publicProfile = await control.get(
+    { organizationId: 'org-dynamic' },
+    dynamicProfileId,
+  );
+  assert.equal(publicProfile.webhookSecretConfigured, true);
+  assert.equal('webhookSecretRef' in publicProfile, false);
+  assert.equal('webhookSecret' in publicProfile, false);
+
+  await assert.rejects(
+    () => control.setWebhookSecretReference(
+      { organizationId: 'org-dynamic' },
+      dynamicProfileId,
+      { webhookSecret: 'plain-secret-that-must-never-be-stored' },
+    ),
+    (error) => error.code === 'VF_INTEGRATION_SECRET_INPUT_INVALID',
+  );
 });
