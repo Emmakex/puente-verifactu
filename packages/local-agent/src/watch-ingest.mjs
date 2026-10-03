@@ -1,5 +1,5 @@
 import { chmod, mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
-import { basename, dirname, extname, join, resolve } from 'node:path';
+import { basename, extname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { parseImportFile } from '../../../connectors/file-import/src/file-reader.mjs';
 
