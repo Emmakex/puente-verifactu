@@ -33,7 +33,7 @@ for (const path of wooFiles) {
 }
 
 const prestaCompat = readFileSync('connectors/prestashop/classes/PVFPrestaShopCompatibility.php', 'utf8');
-for (const marker of ['Hook::getIdByName', 'registerAvailableHooks', 'invoicePresentationCapabilities', 'assertInvoicePresentationReady']) {
+for (const marker of ['Hook::getIdByName', 'registerAvailableHooks', 'presentationCapabilities', 'assertInvoicePresentationReady', 'assertCorrectivePresentationReady']) {
   if (!prestaCompat.includes(marker)) failures.push({ code: 'PRESTA_CAPABILITY_LAYER_INCOMPLETE', marker });
 }
 
