@@ -218,7 +218,7 @@ export class KairosethOnboardingControlPlane {
     }
 
     const installationId = current.localAgent.installationId ?? deterministicInstallationId(current);
-    await this.store.reserveLocalAgent({
+    const reservedProfile = await this.store.reserveLocalAgent({
       organizationId,
       profileId: id,
       installationId,
@@ -226,7 +226,11 @@ export class KairosethOnboardingControlPlane {
     });
 
     let provisioned;
+    let integration = null;
     try {
+      if (this.integrationProfiles) {
+        integration = await this.integrationProfiles.ensureFromOnboarding(context, reservedProfile);
+      }
       const existing = await this.localAgents.get(organizationId, installationId);
       provisioned = existing
         ? await this.localAgents.rotateCredential({ organizationId, installationId })
@@ -257,6 +261,7 @@ export class KairosethOnboardingControlPlane {
 
     return Object.freeze({
       profile,
+      integration,
       installation: provisioned.installation,
       credential: provisioned.credential,
       credentialShownOnce: true,
