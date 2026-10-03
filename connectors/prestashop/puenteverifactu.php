@@ -9,11 +9,12 @@ require_once __DIR__ . '/classes/PVFPrestaShopClient.php';
 require_once __DIR__ . '/classes/PVFPrestaShopOrderPayload.php';
 require_once __DIR__ . '/classes/PVFPrestaShopAdminStatus.php';
 require_once __DIR__ . '/classes/PVFPrestaShopRectifications.php';
+require_once __DIR__ . '/classes/PVFPrestaShopInvoicePresentation.php';
 require_once __DIR__ . '/classes/PVFPrestaShopAutomation.php';
 
 class PuenteVerifactu extends Module
 {
-    const VERSION = '0.4.0';
+    const VERSION = '0.5.0';
     const CONFIG_ENDPOINT = 'PVF_ENDPOINT';
     const CONFIG_PROFILE_ID = 'PVF_PROFILE_ID';
     const CONFIG_TIMEOUT = 'PVF_TIMEOUT';
@@ -44,6 +45,8 @@ class PuenteVerifactu extends Module
             && Configuration::updateValue(self::CONFIG_TIMEOUT, 15, false, null, $shopId)
             && PVFPrestaShopAutomation::installDefaults($shopId)
             && $this->registerHook('displayAdminOrderMainBottom')
+            && $this->registerHook('displayPDFInvoice')
+            && $this->registerHook('displayPDFOrderSlip')
             && $this->registerHook('actionOrderStatusPostUpdate')
             && $this->registerHook('actionOrderSlipAdd');
     }
@@ -93,6 +96,22 @@ class PuenteVerifactu extends Module
     public function hookActionOrderSlipAdd($params)
     {
         PVFPrestaShopAutomation::handleOrderSlip($this, is_array($params) ? $params : array());
+    }
+
+    public function hookDisplayPDFInvoice($params)
+    {
+        return PVFPrestaShopInvoicePresentation::renderForInvoice(
+            $this,
+            is_array($params) ? $params : array()
+        );
+    }
+
+    public function hookDisplayPDFOrderSlip($params)
+    {
+        return PVFPrestaShopInvoicePresentation::renderForOrderSlip(
+            $this,
+            is_array($params) ? $params : array()
+        );
     }
 
     public function hookDisplayAdminOrderMainBottom($params)
@@ -346,7 +365,15 @@ class PuenteVerifactu extends Module
                 }
                 $result = $client->status((string) $row['record_id']);
                 $status = isset($result['status']) ? (string) $result['status'] : 'unknown';
-                $this->saveSync($order, (string) $row['record_id'], (string) $row['idempotency_key'], $status, '');
+                $presentationJson = PVFPrestaShopInvoicePresentation::encodeApiResult($result);
+                $this->saveSync(
+                    $order,
+                    (string) $row['record_id'],
+                    (string) $row['idempotency_key'],
+                    $status,
+                    '',
+                    $presentationJson
+                );
                 return $this->displayConfirmation($this->l('Puente VeriFactu status refreshed: ') . Tools::safeOutput($status));
             }
 
@@ -372,7 +399,26 @@ class PuenteVerifactu extends Module
                 throw new RuntimeException('Puente VeriFactu did not return a record ID.');
             }
             $status = isset($result['status']) ? (string) $result['status'] : 'created';
-            $this->saveSync($order, (string) $result['recordId'], $idempotencyKey, $status, '');
+            try {
+                $presentationJson = PVFPrestaShopInvoicePresentation::encodeApiResult($result);
+            } catch (Exception $presentationException) {
+                $this->saveSync(
+                    $order,
+                    (string) $result['recordId'],
+                    $idempotencyKey,
+                    'blocked',
+                    $this->safeMessage($presentationException)
+                );
+                throw $presentationException;
+            }
+            $this->saveSync(
+                $order,
+                (string) $result['recordId'],
+                $idempotencyKey,
+                $status,
+                '',
+                $presentationJson
+            );
 
             return $this->displayConfirmation($this->l('Puente VeriFactu created fiscal record: ') . Tools::safeOutput((string) $result['recordId']));
         } catch (Exception $exception) {
@@ -409,6 +455,7 @@ class PuenteVerifactu extends Module
             . '`record_id` VARCHAR(96) NOT NULL DEFAULT \'\','
             . '`idempotency_key` VARCHAR(255) NOT NULL DEFAULT \'\','
             . '`status` VARCHAR(64) NOT NULL DEFAULT \'new\','
+            . '`presentation_json` TEXT NULL,'
             . '`last_error` TEXT NULL,'
             . '`date_upd` DATETIME NOT NULL,'
             . 'PRIMARY KEY (`id_pvf_order_sync`),'
@@ -431,7 +478,7 @@ class PuenteVerifactu extends Module
         return is_array($row) ? $row : null;
     }
 
-    private function saveSync(Order $order, $recordId, $idempotencyKey, $status, $lastError)
+    private function saveSync(Order $order, $recordId, $idempotencyKey, $status, $lastError, $presentationJson = '')
     {
         $existing = $this->getSyncRow((int) $order->id);
         if (is_array($existing)) {
@@ -441,17 +488,22 @@ class PuenteVerifactu extends Module
             if ($idempotencyKey === '') {
                 $idempotencyKey = (string) $existing['idempotency_key'];
             }
+            if ($presentationJson === '' && isset($existing['presentation_json'])) {
+                $presentationJson = (string) $existing['presentation_json'];
+            }
         }
 
         return Db::getInstance()->execute(
             'INSERT INTO `' . _DB_PREFIX_ . 'pvf_order_sync` '
-            . '(`id_shop`,`id_order`,`record_id`,`idempotency_key`,`status`,`last_error`,`date_upd`) VALUES ('
+            . '(`id_shop`,`id_order`,`record_id`,`idempotency_key`,`status`,`presentation_json`,`last_error`,`date_upd`) VALUES ('
             . (int) $order->id_shop . ','
             . (int) $order->id . ',\'' . pSQL((string) $recordId) . '\',\'' . pSQL((string) $idempotencyKey) . '\',\''
-            . pSQL((string) $status) . '\',\'' . pSQL((string) $lastError, true) . '\',NOW()) '
+            . pSQL((string) $status) . '\',\'' . pSQL((string) $presentationJson, true) . '\',\''
+            . pSQL((string) $lastError, true) . '\',NOW()) '
             . 'ON DUPLICATE KEY UPDATE '
             . '`record_id`=VALUES(`record_id`),`idempotency_key`=VALUES(`idempotency_key`),'
-            . '`status`=VALUES(`status`),`last_error`=VALUES(`last_error`),`date_upd`=NOW()'
+            . '`status`=VALUES(`status`),`presentation_json`=VALUES(`presentation_json`),'
+            . '`last_error`=VALUES(`last_error`),`date_upd`=NOW()'
         );
     }
 

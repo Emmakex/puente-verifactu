@@ -11,12 +11,14 @@ const paths = {
   automation: 'connectors/prestashop/classes/PVFPrestaShopAutomation.php',
   breakdown: 'connectors/prestashop/classes/PVFPrestaShopTaxBreakdown.php',
   adminStatus: 'connectors/prestashop/classes/PVFPrestaShopAdminStatus.php',
+  presentation: 'connectors/prestashop/classes/PVFPrestaShopInvoicePresentation.php',
   mapping: 'connectors/prestashop/examples/mapping-profile.json',
   refundMapping: 'connectors/prestashop/examples/refund-mapping-profile.json',
   fixtures: 'connectors/prestashop/fixtures/tax-breakdown-v1.json',
   upgradeStatus: 'connectors/prestashop/upgrade/install-0.2.0.php',
   upgradeRectifications: 'connectors/prestashop/upgrade/install-0.3.0.php',
   upgradeAutomation: 'connectors/prestashop/upgrade/install-0.4.0.php',
+  upgradePresentation: 'connectors/prestashop/upgrade/install-0.5.0.php',
   taxFixtureScript: 'scripts/ci/prestashop-tax-fixtures.php'
 };
 
@@ -39,14 +41,16 @@ const rectificationsFile = read(paths.rectifications);
 const automationFile = read(paths.automation);
 const breakdownFile = read(paths.breakdown);
 const statusFile = read(paths.adminStatus);
+const presentationFile = read(paths.presentation);
 const upgradeStatusFile = read(paths.upgradeStatus);
 const upgradeRectificationsFile = read(paths.upgradeRectifications);
 const upgradeAutomationFile = read(paths.upgradeAutomation);
+const upgradePresentationFile = read(paths.upgradePresentation);
 const readme = read(paths.readme);
 
 const expectations = [
   [moduleFile.includes('class PuenteVerifactu extends Module'), 'PRESTA_MODULE_CLASS_MISSING'],
-  [moduleFile.includes("const VERSION = '0.4.0'"), 'PRESTA_MODULE_VERSION_INVALID'],
+  [moduleFile.includes("const VERSION = '0.5.0'"), 'PRESTA_MODULE_VERSION_INVALID'],
   [moduleFile.includes("'min' => '1.7.8.0'") && moduleFile.includes("'max' => '8.99.99'"), 'PRESTA_VERSION_RANGE_MISSING'],
   [moduleFile.includes("runManualAction('preflight')") && moduleFile.includes("runManualAction('send')") && moduleFile.includes("runManualAction('reconcile')"), 'PRESTA_MANUAL_SAFE_FLOW_MISSING'],
   [moduleFile.includes('idempotencyKey') && moduleFile.includes("':invoice:'"), 'PRESTA_IDEMPOTENCY_MISSING'],
@@ -57,6 +61,9 @@ const expectations = [
   [moduleFile.includes('PVFPrestaShopRectifications::installSchema()') && moduleFile.includes('PVFPrestaShopRectifications::handleSubmissions($this)') && moduleFile.includes('PVFPrestaShopRectifications::renderOrderStatus($this, $orderId)'), 'PRESTA_RECTIFICATION_WIRING_MISSING'],
   [moduleFile.includes("registerHook('actionOrderStatusPostUpdate')") && moduleFile.includes('hookActionOrderStatusPostUpdate'), 'PRESTA_AUTO_INVOICE_HOOK_MISSING'],
   [moduleFile.includes("registerHook('actionOrderSlipAdd')") && moduleFile.includes('hookActionOrderSlipAdd'), 'PRESTA_AUTO_RECTIFICATION_HOOK_MISSING'],
+  [moduleFile.includes("registerHook('displayPDFInvoice')") && moduleFile.includes('hookDisplayPDFInvoice'), 'PRESTA_PDF_INVOICE_HOOK_MISSING'],
+  [moduleFile.includes("registerHook('displayPDFOrderSlip')") && moduleFile.includes('hookDisplayPDFOrderSlip'), 'PRESTA_PDF_ORDER_SLIP_HOOK_MISSING'],
+  [moduleFile.includes('presentation_json') && moduleFile.includes('PVFPrestaShopInvoicePresentation::encodeApiResult'), 'PRESTA_PRESENTATION_PERSISTENCE_MISSING'],
   [moduleFile.includes('PVFPrestaShopAutomation::CONFIG_AUTO_INVOICES') && moduleFile.includes('PVFPrestaShopAutomation::CONFIG_AUTO_RECTIFICATIONS'), 'PRESTA_AUTO_SWITCHES_MISSING'],
   [clientFile.includes("strpos($this->endpoint, 'https://') === 0"), 'PRESTA_HTTPS_GUARD_MISSING'],
   [clientFile.includes('CURLOPT_SSL_VERIFYPEER => true') && clientFile.includes('CURLOPT_SSL_VERIFYHOST => 2'), 'PRESTA_TLS_VERIFY_MISSING'],
@@ -77,6 +84,7 @@ const expectations = [
   [slipPayloadFile.includes("'baseAmount' => self::negativeMoney") && slipPayloadFile.includes("'taxAmount' => self::negativeMoney"), 'PRESTA_RECTIFICATION_NEGATIVE_LINES_MISSING'],
   [rectificationsFile.includes("const CONFIG_PROFILE_ID = 'PVF_RECTIFICATION_PROFILE_ID'"), 'PRESTA_RECTIFICATION_PROFILE_MISSING'],
   [rectificationsFile.includes('pvf_order_slip_sync') && rectificationsFile.includes('UNIQUE KEY `pvf_shop_slip`'), 'PRESTA_RECTIFICATION_LOCAL_STATE_MISSING'],
+  [rectificationsFile.includes('presentation_json') && rectificationsFile.includes('PVFPrestaShopInvoicePresentation::encodeApiResult'), 'PRESTA_RECTIFICATION_PRESENTATION_PERSISTENCE_MISSING'],
   [rectificationsFile.includes('The original invoice must have a Puente VeriFactu record') && rectificationsFile.includes("':order-slip:'") && rectificationsFile.includes("':number:'"), 'PRESTA_RECTIFICATION_IDEMPOTENCY_GUARD_MISSING'],
   [rectificationsFile.includes("runManualAction($module, 'preflight')") && rectificationsFile.includes("runManualAction($module, 'send')") && rectificationsFile.includes("runManualAction($module, 'reconcile')"), 'PRESTA_RECTIFICATION_MANUAL_FLOW_MISSING'],
   [automationFile.includes("const CONFIG_AUTO_INVOICES = 'PVF_AUTO_INVOICES'") && automationFile.includes("const CONFIG_AUTO_RECTIFICATIONS = 'PVF_AUTO_RECTIFICATIONS'"), 'PRESTA_AUTO_CONFIG_MISSING'],
@@ -92,10 +100,17 @@ const expectations = [
   [statusFile.includes('final class PVFPrestaShopAdminStatus') && statusFile.includes('public static function summarize'), 'PRESTA_ADMIN_STATUS_CLASS_INVALID'],
   [statusFile.includes("$status === 'accepted'") && statusFile.includes("array('blocked', 'rejected', 'aeat_rejected', 'failed')"), 'PRESTA_ADMIN_STATUS_MAPPING_MISSING'],
   [statusFile.includes("return 'gray'") && statusFile.includes("return 'green'") && statusFile.includes("return 'red'") && statusFile.includes("return 'amber'"), 'PRESTA_ADMIN_STATUS_LEVELS_MISSING'],
+  [presentationFile.includes('final class PVFPrestaShopInvoicePresentation') && presentationFile.includes("const SPEC_VERSION = '0.5.0'"), 'PRESTA_PRESENTATION_CLASS_INVALID'],
+  [presentationFile.includes('renderForInvoice') && presentationFile.includes('renderForOrderSlip'), 'PRESTA_PRESENTATION_RENDERERS_MISSING'],
+  [presentationFile.includes("'QRCODE,M'") && presentationFile.includes('getBarcodePngData'), 'PRESTA_QR_RENDERER_MISSING'],
+  [presentationFile.includes("'QR tributario:'") && presentationFile.includes('Factura verificable en la sede electrónica de la AEAT'), 'PRESTA_VERIFACTU_TEXTS_MISSING'],
+  [presentationFile.includes("'prewww2.aeat.es'") && presentationFile.includes("'www2.agenciatributaria.gob.es'") && presentationFile.includes("'/wlpl/TIKE-CONT/ValidarQR'"), 'PRESTA_QR_URL_ALLOWLIST_MISSING'],
   [upgradeStatusFile.includes('upgrade_module_0_2_0') && upgradeStatusFile.includes("registerHook('displayAdminOrderMainBottom')"), 'PRESTA_STATUS_UPGRADE_HOOK_MISSING'],
   [upgradeRectificationsFile.includes('upgrade_module_0_3_0') && upgradeRectificationsFile.includes('pvf_order_slip_sync') && upgradeRectificationsFile.includes('UNIQUE KEY `pvf_shop_slip`'), 'PRESTA_RECTIFICATION_UPGRADE_MISSING'],
   [upgradeAutomationFile.includes('upgrade_module_0_4_0') && upgradeAutomationFile.includes("registerHook('actionOrderStatusPostUpdate')") && upgradeAutomationFile.includes("registerHook('actionOrderSlipAdd')"), 'PRESTA_AUTOMATION_UPGRADE_HOOKS_MISSING'],
   [upgradeAutomationFile.includes('PVFPrestaShopAutomation::installDefaults'), 'PRESTA_AUTOMATION_UPGRADE_DEFAULTS_MISSING'],
+  [upgradePresentationFile.includes('upgrade_module_0_5_0') && upgradePresentationFile.includes('presentation_json'), 'PRESTA_PRESENTATION_UPGRADE_MISSING'],
+  [upgradePresentationFile.includes("'displayPDFInvoice'") && upgradePresentationFile.includes("'displayPDFOrderSlip'"), 'PRESTA_PRESENTATION_UPGRADE_HOOK_MISSING'],
   [readme.includes('No contiene reglas AEAT'), 'PRESTA_THIN_CONNECTOR_DOC_MISSING']
 ];
 
@@ -113,7 +128,8 @@ for (const [path, content] of [
   [paths.adminStatus, statusFile],
   [paths.upgradeStatus, upgradeStatusFile],
   [paths.upgradeRectifications, upgradeRectificationsFile],
-  [paths.upgradeAutomation, upgradeAutomationFile]
+  [paths.upgradeAutomation, upgradeAutomationFile],
+  [paths.upgradePresentation, upgradePresentationFile]
 ]) {
   if (/certificado|certificate|SOAP|RegistroAlta|RegistroAnulacion/i.test(content)) {
     failures.push({ code: 'PRESTA_FISCAL_LOGIC_LEAK', path });

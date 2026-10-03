@@ -42,16 +42,20 @@ if ((string) _PS_VERSION_ !== $expectedPs || $actualPhp !== $expectedPhp) {
 }
 
 $module = Module::getInstanceByName('puenteverifactu');
-if (!$module || empty($module->active) || (string) $module->version !== '0.4.0') {
-    pvfRectFail('PRESTA_RECT_MODULE_INVALID', 'Puente VeriFactu 0.4.0 must be active.');
+if (!$module || empty($module->active) || (string) $module->version !== '0.5.0') {
+    pvfRectFail('PRESTA_RECT_MODULE_INVALID', 'Puente VeriFactu 0.5.0 must be active.');
 }
 if (!$module->isRegisteredInHook('actionOrderSlipAdd')) {
     pvfRectFail('PRESTA_RECT_AUTO_HOOK_MISSING', 'actionOrderSlipAdd must be registered.');
 }
+if (!$module->isRegisteredInHook('displayPDFOrderSlip')) {
+    pvfRectFail('PRESTA_RECT_PDF_HOOK_MISSING', 'displayPDFOrderSlip must be registered.');
+}
 if (!class_exists('PVFPrestaShopOrderSlipPayload')
     || !class_exists('PVFPrestaShopRectifications')
     || !class_exists('PVFPrestaShopAutomation')
-    || !class_exists('PVFPrestaShopApiException')) {
+    || !class_exists('PVFPrestaShopApiException')
+    || !class_exists('PVFPrestaShopInvoicePresentation')) {
     pvfRectFail('PRESTA_RECT_RUNTIME_CLASSES_MISSING', 'Corrective/native reconciliation runtime classes were not loaded.');
 }
 
@@ -61,6 +65,14 @@ $tableExists = (int) Db::getInstance()->getValue(
 );
 if ($tableExists !== 1) {
     pvfRectFail('PRESTA_RECT_SYNC_TABLE_MISSING', 'Corrective synchronization table was not created.');
+}
+
+$presentationColumn = (int) Db::getInstance()->getValue(
+    "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE()"
+    . " AND table_name = '" . pSQL($table) . "' AND column_name = 'presentation_json'"
+);
+if ($presentationColumn !== 1) {
+    pvfRectFail('PRESTA_RECT_PRESENTATION_COLUMN_MISSING', 'Corrective presentation_json column was not created.');
 }
 
 $orderId = (int) Db::getInstance()->getValue(
@@ -180,6 +192,23 @@ if (!$matchedRate) {
     pvfRectFail('PRESTA_RECT_NATIVE_RATE_NOT_PRESERVED', 'Corrective payload did not preserve the original OrderDetail tax rate.');
 }
 
+$correctivePresentation = PVFPrestaShopInvoicePresentation::normalize(array(
+    'mode' => 'VERI*FACTU',
+    'qr' => array(
+        'url' => 'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR?nif=89890001K&numserie='
+            . rawurlencode((string) $payload['refund_invoice_number'])
+            . '&fecha=01-01-2026&importe=1.00',
+        'prefixText' => 'QR tributario:',
+        'errorCorrection' => 'M',
+        'minSizeMm' => 30,
+        'maxSizeMm' => 40,
+        'minQuietZoneMm' => 2,
+        'recommendedQuietZoneMm' => 6,
+    ),
+    'verificationText' => 'Factura verificable en la sede electrónica de la AEAT',
+    'specificationVersion' => '0.5.0',
+));
+
 Db::getInstance()->delete(
     'pvf_order_slip_sync',
     '`id_shop` = ' . (int) $order->id_shop . ' AND `id_order_slip` = ' . $slipId
@@ -191,6 +220,7 @@ if (!Db::getInstance()->insert('pvf_order_slip_sync', array(
     'record_id' => 'corrective-smoke-record',
     'idempotency_key' => 'prestashop:' . (int) $order->id_shop . ':order-slip:' . $slipId . ':number:' . rawurlencode((string) $payload['refund_invoice_number']),
     'status' => 'accepted',
+    'presentation_json' => json_encode($correctivePresentation, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
     'last_error' => '',
     'date_upd' => date('Y-m-d H:i:s'),
 ))) {
@@ -200,6 +230,13 @@ if (!Db::getInstance()->insert('pvf_order_slip_sync', array(
 $statusHtml = $module->hookDisplayAdminOrderMainBottom(array('id_order' => (int) $order->id));
 if (strpos($statusHtml, 'corrective-smoke-record') === false || strpos($statusHtml, 'badge-success') === false) {
     pvfRectFail('PRESTA_RECT_STATUS_RENDER_FAILED', 'Corrective accepted state did not render in the native order page.');
+}
+
+$correctivePdfHtml = $module->hookDisplayPDFOrderSlip(array('object' => $slip));
+if (strpos($correctivePdfHtml, 'QR tributario:') === false
+    || strpos($correctivePdfHtml, 'Factura verificable en la sede electrónica de la AEAT') === false
+    || strpos($correctivePdfHtml, 'data:image/png;base64,') === false) {
+    pvfRectFail('PRESTA_RECT_PDF_VERIFACTU_RENDER_FAILED', 'Corrective PDF hook did not render QR/text presentation.');
 }
 
 // Connector Contract Suite v2 — native reconciliation/fallback scenarios.
@@ -350,6 +387,7 @@ fwrite(STDOUT, json_encode(array(
     'native_tax_rate' => $expectedRate,
     'tax_lines' => count($payload['tax_lines']),
     'corrective_status_card' => true,
+    'corrective_pdf_qr_rendered' => true,
     'automation_default_off' => true,
     'native_reconciliation_v2' => $nativePassed,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);

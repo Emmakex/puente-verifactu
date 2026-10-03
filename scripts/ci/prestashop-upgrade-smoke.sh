@@ -39,15 +39,17 @@ mkdir -p "$BASELINE_MODULES" "$BASELINE_TREE" "$TARGET_TREE"
 node "$ROOT/scripts/release/package-prestashop.mjs" --output "$TARGET_ZIP" >/dev/null
 unzip -q "$TARGET_ZIP" -d "$TARGET_TREE"
 cp -R "$TARGET_TREE/puenteverifactu" "$BASELINE_TREE/puenteverifactu"
-sed -i "s/const VERSION = '0.4.0';/const VERSION = '0.3.0';/" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
-sed -i "/PVFPrestaShopAutomation::installDefaults(\$shopId)/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
-sed -i "/registerHook('actionOrderStatusPostUpdate')/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
-sed -i "/registerHook('actionOrderSlipAdd')/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
-sed -i "/registerHook('displayAdminOrderMainBottom')/ s/$/;/" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
-rm -f "$BASELINE_TREE/puenteverifactu/upgrade/install-0.4.0.php"
+sed -i "s/const VERSION = '0.5.0';/const VERSION = '0.4.0';/" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
+sed -i "/PVFPrestaShopInvoicePresentation.php/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
+sed -i "/registerHook('displayPDFInvoice')/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
+sed -i "/registerHook('displayPDFOrderSlip')/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
+sed -i "/presentation_json.*TEXT NULL/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
+sed -i "/presentation_json.*TEXT NULL/d" "$BASELINE_TREE/puenteverifactu/classes/PVFPrestaShopRectifications.php"
+rm -f "$BASELINE_TREE/puenteverifactu/classes/PVFPrestaShopInvoicePresentation.php"
+rm -f "$BASELINE_TREE/puenteverifactu/upgrade/install-0.5.0.php"
 
 if ! php -l "$BASELINE_TREE/puenteverifactu/puenteverifactu.php" >/dev/null; then
-  fail "PRESTA_UPGRADE_BASELINE_SYNTAX_INVALID" "Synthetic 0.3.0 baseline is not valid PHP after removing 0.4.0 wiring."
+  fail "PRESTA_UPGRADE_BASELINE_SYNTAX_INVALID" "Synthetic 0.4.0 baseline is not valid PHP after removing 0.5.0 wiring."
 fi
 
 (
@@ -68,20 +70,20 @@ function failUpgrade($code, $message)
 
 $module = Module::getInstanceByName('puenteverifactu');
 if (!$module || empty($module->active)) {
-    failUpgrade('PRESTA_UPGRADE_BASELINE_NOT_ACTIVE', 'Synthetic 0.3.0 baseline is not active.');
+    failUpgrade('PRESTA_UPGRADE_BASELINE_NOT_ACTIVE', 'Synthetic 0.4.0 baseline is not active.');
 }
-if ((string) $module->version !== '0.3.0') {
-    failUpgrade('PRESTA_UPGRADE_BASELINE_VERSION', 'Expected baseline 0.3.0, received ' . (string) $module->version);
+if ((string) $module->version !== '0.4.0') {
+    failUpgrade('PRESTA_UPGRADE_BASELINE_VERSION', 'Expected baseline 0.4.0, received ' . (string) $module->version);
 }
 if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
-    failUpgrade('PRESTA_UPGRADE_BASELINE_STATUS_HOOK_MISSING', '0.3.0 baseline must contain the native order status hook.');
+    failUpgrade('PRESTA_UPGRADE_BASELINE_STATUS_HOOK_MISSING', '0.4.0 baseline must contain the native order status hook.');
 }
-if ($module->isRegisteredInHook('actionOrderStatusPostUpdate') || $module->isRegisteredInHook('actionOrderSlipAdd')) {
-    failUpgrade('PRESTA_UPGRADE_BASELINE_AUTO_HOOK_PRESENT', '0.3.0 baseline must not contain automatic event hooks.');
+if (!$module->isRegisteredInHook('actionOrderStatusPostUpdate') || !$module->isRegisteredInHook('actionOrderSlipAdd')) {
+    failUpgrade('PRESTA_UPGRADE_BASELINE_AUTO_HOOK_MISSING', '0.4.0 baseline must contain automatic event hooks.');
 }
-
-Configuration::deleteByName('PVF_AUTO_INVOICES');
-Configuration::deleteByName('PVF_AUTO_RECTIFICATIONS');
+if ($module->isRegisteredInHook('displayPDFInvoice') || $module->isRegisteredInHook('displayPDFOrderSlip')) {
+    failUpgrade('PRESTA_UPGRADE_BASELINE_PDF_HOOK_PRESENT', '0.4.0 baseline must not contain 0.5.0 PDF hooks.');
+}
 
 Db::getInstance()->delete('pvf_order_sync', '`id_shop` = 1 AND `id_order` = 424242');
 $ok = Db::getInstance()->insert('pvf_order_sync', array(
@@ -115,7 +117,8 @@ echo json_encode(array(
     'status' => 'ok',
     'baseline' => (string) $module->version,
     'status_hook_registered' => true,
-    'automation_hooks_registered' => false,
+    'automation_hooks_registered' => true,
+    'pdf_invoice_hook_registered' => false,
     'invoice_state_seeded' => true,
     'corrective_state_seeded' => true,
 )) . PHP_EOL;
@@ -142,14 +145,17 @@ $module = Module::getInstanceByName('puenteverifactu');
 if (!$module || empty($module->active)) {
     failUpgrade('PRESTA_UPGRADE_TARGET_NOT_ACTIVE', 'Target module is not active after upgrade.');
 }
-if ((string) $module->version !== '0.4.0') {
-    failUpgrade('PRESTA_UPGRADE_TARGET_VERSION', 'Expected target 0.4.0, received ' . (string) $module->version);
+if ((string) $module->version !== '0.5.0') {
+    failUpgrade('PRESTA_UPGRADE_TARGET_VERSION', 'Expected target 0.5.0, received ' . (string) $module->version);
 }
 if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
     failUpgrade('PRESTA_UPGRADE_STATUS_HOOK_MISSING', 'Upgrade lost displayAdminOrderMainBottom registration.');
 }
 if (!$module->isRegisteredInHook('actionOrderStatusPostUpdate') || !$module->isRegisteredInHook('actionOrderSlipAdd')) {
-    failUpgrade('PRESTA_UPGRADE_AUTOMATION_HOOK_MISSING', '0.4.0 upgrade did not register both automation hooks.');
+    failUpgrade('PRESTA_UPGRADE_AUTOMATION_HOOK_MISSING', '0.5.0 upgrade lost automation hooks.');
+}
+if (!$module->isRegisteredInHook('displayPDFInvoice') || !$module->isRegisteredInHook('displayPDFOrderSlip')) {
+    failUpgrade('PRESTA_UPGRADE_PDF_HOOK_MISSING', '0.5.0 upgrade did not register both PDF presentation hooks.');
 }
 
 $row = Db::getInstance()->getRow(
@@ -160,6 +166,22 @@ if (!is_array($row)
     || (string) $row['idempotency_key'] !== 'upgrade-sentinel-key'
     || (string) $row['status'] !== 'accepted') {
     failUpgrade('PRESTA_UPGRADE_STATE_LOST', 'Original-invoice synchronization state was not preserved through upgrade.');
+}
+
+$presentationColumn = (int) Db::getInstance()->getValue(
+    "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE()"
+    . " AND table_name = '" . pSQL(_DB_PREFIX_ . "pvf_order_sync") . "' AND column_name = 'presentation_json'"
+);
+if ($presentationColumn !== 1) {
+    failUpgrade('PRESTA_UPGRADE_PRESENTATION_COLUMN_MISSING', '0.5.0 upgrade did not add presentation_json.');
+}
+
+$correctivePresentationColumn = (int) Db::getInstance()->getValue(
+    "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE()"
+    . " AND table_name = '" . pSQL(_DB_PREFIX_ . "pvf_order_slip_sync") . "' AND column_name = 'presentation_json'"
+);
+if ($correctivePresentationColumn !== 1) {
+    failUpgrade('PRESTA_UPGRADE_CORRECTIVE_PRESENTATION_COLUMN_MISSING', '0.5.0 upgrade did not add corrective presentation_json.');
 }
 
 $corrective = Db::getInstance()->getRow(
@@ -174,14 +196,14 @@ if (!is_array($corrective)
 
 if ((int) Configuration::get('PVF_AUTO_INVOICES', null, null, 1) !== 0
     || (int) Configuration::get('PVF_AUTO_RECTIFICATIONS', null, null, 1) !== 0) {
-    failUpgrade('PRESTA_UPGRADE_AUTOMATION_NOT_OFF', '0.4.0 must leave both automatic modes disabled after upgrade.');
+    failUpgrade('PRESTA_UPGRADE_AUTOMATION_NOT_OFF', '0.5.0 must leave both automatic modes disabled after upgrade.');
 }
 
 $moduleDbVersion = (string) Db::getInstance()->getValue(
     "SELECT version FROM `" . _DB_PREFIX_ . "module` WHERE name = 'puenteverifactu'"
 );
-if ($moduleDbVersion !== '0.4.0') {
-    failUpgrade('PRESTA_UPGRADE_DB_VERSION', 'Module database version was not advanced to 0.4.0.');
+if ($moduleDbVersion !== '0.5.0') {
+    failUpgrade('PRESTA_UPGRADE_DB_VERSION', 'Module database version was not advanced to 0.5.0.');
 }
 
 fwrite(STDOUT, json_encode(array(
@@ -190,12 +212,16 @@ fwrite(STDOUT, json_encode(array(
     'check' => 'prestashop-upgrade-smoke',
     'prestashop' => (string) _PS_VERSION_,
     'php' => $actualPhp,
-    'from' => '0.3.0',
+    'from' => '0.4.0',
     'to' => (string) $module->version,
     'invoice_state_preserved' => true,
     'corrective_state_preserved' => true,
     'status_hook_registered' => true,
     'automation_hooks_registered' => true,
+    'pdf_invoice_hook_registered' => true,
+    'pdf_order_slip_hook_registered' => true,
+    'presentation_column_added' => true,
+    'corrective_presentation_column_added' => true,
     'automation_default_off' => true,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 PHP
