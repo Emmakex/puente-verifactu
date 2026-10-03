@@ -21,5 +21,10 @@
     "secrets_server_side": true,
     "aeat_certificate_server_side": true,
     "tenant_server_authoritative": true
+  },
+  "product": {
+    "ecosystem": "kairoseth",
+    "catalog": "extensions",
+    "product_id": "puente-verifactu"
   }
 }
