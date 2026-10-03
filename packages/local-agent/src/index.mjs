@@ -21,3 +21,13 @@ export {
   syncSftpDropFolder,
   syncSftpSource,
 } from './sftp-source.mjs';
+export {
+  loadLocalAgentConfig,
+  resolveLocalAgentSecrets,
+  validateLocalAgentConfig,
+} from './config.mjs';
+export {
+  LocalAgentRuntime,
+  acquireLocalAgentLock,
+  createLocalAgentRuntime,
+} from './runtime.mjs';
