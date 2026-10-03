@@ -20,7 +20,7 @@ SQLite durable store
 
 El proceso escucha en `127.0.0.1` por defecto. En un servidor real debe publicarse detrás de un reverse proxy HTTPS (Caddy, Nginx, Traefik o equivalente). No debe exponerse en HTTP abierto a Internet.
 
-Este runtime **no activa envío AEAT real**. El gate externo #6 sigue pendiente y bloquea cualquier piloto/release fiscal real.
+Este runtime **no activa por sí solo envío AEAT real**. El gate externo #6 ya está cerrado y el repositorio está en estado `release_candidate`; la publicación/piloto sigue condicionada a la declaración responsable definitiva y a los gates restantes de Fase 6.
 
 ## Requisitos
 
@@ -38,12 +38,13 @@ PV_DATABASE_PATH=/var/lib/puente-verifactu/puente.sqlite
 PV_AUTH_CONFIG_PATH=/etc/puente-verifactu/auth.json
 PV_INTEGRATION_CONFIG_PATH=/etc/puente-verifactu/integrations.json
 PV_BACKUP_MANIFEST_PATH=/var/backups/puente-verifactu/latest.sqlite.manifest.json
+PV_RESPONSIBLE_DECLARATION_PATH=/etc/puente-verifactu/declaracion-responsable-v0.1.0.md
 PV_SIF_SYSTEM_ID=<identificador-real>
 PV_SIF_INSTALLATION_NUMBER=<numero-instalacion>
 PV_TIME_ZONE=Europe/Madrid
 ```
 
-`PV_AUTH_CONFIG_PATH`, `PV_SIF_SYSTEM_ID` y `PV_SIF_INSTALLATION_NUMBER` son obligatorios. `PV_INTEGRATION_CONFIG_PATH` es opcional si solo se usa contrato canónico/onboarding. `PV_BACKUP_MANIFEST_PATH` es opcional, pero si no se configura el snapshot operacional emite `VF_OBS_BACKUP_MONITORING_UNCONFIGURED`.
+`PV_AUTH_CONFIG_PATH`, `PV_SIF_SYSTEM_ID` y `PV_SIF_INSTALLATION_NUMBER` son obligatorios. `PV_INTEGRATION_CONFIG_PATH` es opcional si solo se usa contrato canónico/onboarding. `PV_BACKUP_MANIFEST_PATH` es opcional, pero si no se configura el snapshot operacional emite `VF_OBS_BACKUP_MONITORING_UNCONFIGURED`. Para una versión que vaya a ponerse a disposición de usuarios/clientes, `PV_RESPONSIBLE_DECLARATION_PATH` debe apuntar al documento definitivo de esa versión, almacenado fuera de Git con permisos restrictivos.
 
 ## Autenticación
 
@@ -157,6 +158,10 @@ Endpoints públicos mínimos:
 - `GET /healthz` — proceso vivo;
 - `GET /readyz` — SQLite accesible.
 
+Endpoint autenticado de información legal:
+
+- `GET /declaracion-responsable` — declaración responsable individualizada de la versión configurada. Se sirve en modo `inline`, con `Cache-Control: no-store`, y requiere la misma autenticación Basic que el wizard. Si el deployment no configura el documento, falla cerrado con `503 VF_RESPONSIBLE_DECLARATION_NOT_CONFIGURED`.
+
 Endpoint operacional protegido:
 
 - `GET /v1/ops/status` — snapshot agregado; requiere autenticación y `ops:read`.
@@ -185,7 +190,7 @@ Se aplica por `credentialId`; cada credencial define `rateLimitPerMinute`, inclu
 
 El runtime comparte un único store durable entre cadena fiscal, API/idempotencia, sesiones temporales de importación y outbox AEAT. Ver `packages/sqlite-store/README.md`.
 
-El perfil single-node ya dispone de backup/restore verificable, outbox durable y observabilidad operacional v1. Sigue sin presentarse como solución HA/multi-réplica. El gate externo AEAT #6 y los restantes gates de Fase 6 continúan bloqueando release/piloto fiscal real.
+El perfil single-node ya dispone de backup/restore verificable, outbox durable, observabilidad operacional v1 y acceso autenticado a la declaración responsable de la versión. Sigue sin presentarse como solución HA/multi-réplica. La publicación/piloto fiscal real continúa condicionada a completar el cierre regulatorio de la versión y el piloto progresivo.
 
 Gate de observabilidad:
 
