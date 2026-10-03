@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { chmod, mkdir, readFile, stat } from 'node:fs/promises';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { loadLocalAgentConfig } from './config.mjs';
 import { acquireLocalAgentLock } from './runtime.mjs';
 import { LOCAL_AGENT_STATE_SCHEMA } from './state-schema.mjs';
@@ -77,6 +77,44 @@ function normalizeCompatibility(manifest) {
   });
 }
 
+async function verifyBundleContent(manifestPath, manifest) {
+  if (!Array.isArray(manifest.files) || !/^[0-9a-f]{64}$/.test(String(manifest.contentFingerprint ?? ''))) {
+    throw fail('VF_LOCAL_AGENT_UPGRADE_MANIFEST_INVALID', 'Bundle file manifest is required');
+  }
+
+  const root = dirname(resolve(manifestPath));
+  const lines = [];
+  for (const file of manifest.files) {
+    const itemPath = String(file?.path ?? '');
+    const expectedBytes = Number(file?.bytes);
+    const expectedSha = String(file?.sha256 ?? '').toLowerCase();
+    if (!itemPath || !Number.isInteger(expectedBytes) || expectedBytes < 0 || !/^[0-9a-f]{64}$/.test(expectedSha)) {
+      throw fail('VF_LOCAL_AGENT_UPGRADE_MANIFEST_INVALID', 'Bundle file entry is invalid');
+    }
+
+    const absolute = resolve(root, itemPath);
+    const rel = relative(root, absolute);
+    if (!rel || rel.startsWith('..') || rel.startsWith('/') || rel.startsWith('\\')) {
+      throw fail('VF_LOCAL_AGENT_UPGRADE_BUNDLE_UNSAFE', 'Bundle file path escapes bundle root');
+    }
+
+    const data = await readFile(absolute);
+    const actualSha = createHash('sha256').update(data).digest('hex');
+    if (data.length !== expectedBytes || actualSha !== expectedSha) {
+      throw fail('VF_LOCAL_AGENT_UPGRADE_BUNDLE_TAMPERED', 'Bundle content does not match manifest', {
+        path: itemPath,
+      });
+    }
+    lines.push(`${actualSha}  ${itemPath}\n`);
+  }
+
+  const fingerprint = createHash('sha256').update(lines.join('')).digest('hex');
+  if (fingerprint !== manifest.contentFingerprint) {
+    throw fail('VF_LOCAL_AGENT_UPGRADE_BUNDLE_TAMPERED', 'Bundle content fingerprint does not match manifest');
+  }
+  return true;
+}
+
 export async function readLocalAgentBundleManifest(path) {
   let manifest;
   try {
@@ -99,6 +137,8 @@ export async function readLocalAgentBundleManifest(path) {
   if (!upgradeRequiredNode) {
     throw fail('VF_LOCAL_AGENT_UPGRADE_MANIFEST_INVALID', 'Bundle upgradeRequiredNode is required');
   }
+
+  await verifyBundleContent(path, manifest);
 
   return Object.freeze({
     ...manifest,
