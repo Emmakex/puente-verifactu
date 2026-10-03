@@ -76,6 +76,20 @@ export class KairosethLocalAgentControlPlane {
     agentRateLimitPerMinute = 240,
   } = {}) {
     if (!store) throw new TypeError('store is required');
+    for (const method of [
+      'authByTokenSha256',
+      'create',
+      'get',
+      'list',
+      'rotateCredential',
+      'revoke',
+      'setControl',
+      'heartbeat',
+    ]) {
+      if (typeof store[method] !== 'function') {
+        throw new TypeError(`store.${method} must be a function`);
+      }
+    }
     if (typeof clock !== 'function') throw new TypeError('clock is required');
     if (!Number.isInteger(offlineAfterMs) || offlineAfterMs < 30_000) throw new TypeError('offlineAfterMs is invalid');
     this.store = store;
