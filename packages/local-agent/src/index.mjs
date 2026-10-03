@@ -15,3 +15,9 @@ export {
   createPostgresReadOnlyDriver,
   createSqlServerReadOnlyDriver,
 } from './database-drivers.mjs';
+export {
+  createPinnedSftpHostVerifier,
+  createSftpConnectionConfig,
+  syncSftpDropFolder,
+  syncSftpSource,
+} from './sftp-source.mjs';
