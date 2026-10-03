@@ -11,12 +11,17 @@ import {
   createMongoKairosethOnboardingProfileStore,
   mongoOnboardingProfileIndexes,
 } from '../../packages/kairoseth-control-plane/src/mongodb-onboarding-profiles.mjs';
+import {
+  createMongoKairosethIntegrationProfileStore,
+  mongoIntegrationProfileIndexes,
+} from '../../packages/kairoseth-control-plane/src/mongodb-integration-profiles.mjs';
 
 const uri = process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27018';
 const client = new MongoClient(uri);
 const databaseName = 'kairoseth_control_plane_smoke';
 const collectionName = 'kairoseth_local_agent_installations_smoke';
 const onboardingCollectionName = 'kairoseth_onboarding_profiles_smoke';
+const integrationCollectionName = 'kairoseth_integration_profiles_smoke';
 const manageToken = 'kairoseth-mongodb-registry-manager';
 const onboardingToken = 'kairoseth-mongodb-onboarding-org';
 const otherTenantToken = 'kairoseth-mongodb-onboarding-other';
@@ -92,11 +97,16 @@ await database.dropDatabase();
 const before = await database.listCollections({}, { nameOnly: true }).toArray();
 assert.equal(before.some((item) => item.name === collectionName), false);
 assert.equal(before.some((item) => item.name === onboardingCollectionName), false);
+assert.equal(before.some((item) => item.name === integrationCollectionName), false);
 
 const registry = createMongoKairosethLocalAgentRegistryStore({ database, collectionName });
 const onboardingProfileStore = createMongoKairosethOnboardingProfileStore({
   database,
   collectionName: onboardingCollectionName,
+});
+const integrationProfileStore = createMongoKairosethIntegrationProfileStore({
+  database,
+  collectionName: integrationCollectionName,
 });
 
 const afterConstructor = await database.listCollections({}, { nameOnly: true }).toArray();
@@ -109,6 +119,11 @@ assert.equal(
   afterConstructor.some((item) => item.name === onboardingCollectionName),
   false,
   'Onboarding adapter constructor must not create MongoDB infrastructure',
+);
+assert.equal(
+  afterConstructor.some((item) => item.name === integrationCollectionName),
+  false,
+  'Integration adapter constructor must not create MongoDB infrastructure',
 );
 
 await database.createCollection(collectionName);
@@ -130,6 +145,17 @@ await database.collection(onboardingCollectionName).createIndexes(
       : {}),
   })),
 );
+await database.createCollection(integrationCollectionName);
+await database.collection(integrationCollectionName).createIndexes(
+  mongoIntegrationProfileIndexes().map((index) => ({
+    key: { ...index.key },
+    name: index.name,
+    ...(index.unique ? { unique: true } : {}),
+    ...(index.partialFilterExpression
+      ? { partialFilterExpression: structuredClone(index.partialFilterExpression) }
+      : {}),
+  })),
+);
 
 const nowRef = { value: Date.UTC(2026, 9, 3, 21, 0, 0) };
 const createRuntime = async () => {
@@ -140,6 +166,7 @@ const createRuntime = async () => {
     observabilityClock: () => nowRef.value,
     localAgentRegistryStore: registry,
     onboardingProfileStore,
+    integrationProfileStore,
   });
   return { runtime, baseUrl: await listen(runtime) };
 };
@@ -207,21 +234,6 @@ try {
   assert.equal(otherTenantList.response.status, 200);
   assert.deepEqual(otherTenantList.payload.profiles, []);
 
-  const bind = await request(
-    first.baseUrl,
-    '/v1/control-plane/onboarding/profiles/' + onboardingProfileId + '/integration',
-    {
-      method: 'PATCH',
-      token: onboardingToken,
-      body: {
-        mappingProfileId: 'mongo-map-v1',
-        integrationProfileId: 'mongo-int-v1',
-      },
-    },
-  );
-  assert.equal(bind.response.status, 200);
-  assert.equal(bind.payload.integrationDraft.status, 'bound');
-
   const onboardingProvision = await request(
     first.baseUrl,
     '/v1/control-plane/onboarding/profiles/' + onboardingProfileId + '/provision-local-agent',
@@ -234,8 +246,67 @@ try {
   assert.equal(onboardingProvision.response.status, 201);
   assert.equal(onboardingProvision.payload.profile.organizationId, 'org-mongo-001');
   assert.equal(onboardingProvision.payload.profile.localAgent.status, 'provisioned');
+  assert.ok(onboardingProvision.payload.integration);
+  assert.match(onboardingProvision.payload.integration.profileId, /^int_[a-f0-9]{32}$/);
+  assert.equal(onboardingProvision.payload.integration.status, 'mapping-required');
+  assert.equal(
+    onboardingProvision.payload.integration.installationId,
+    onboardingProvision.payload.profile.localAgent.installationId,
+  );
   assert.match(onboardingProvision.payload.credential.token, /^pvla_/);
   const onboardingAgentToken = onboardingProvision.payload.credential.token;
+  const integrationProfileId = onboardingProvision.payload.integration.profileId;
+
+  const mapping = {
+    profileVersion: 1,
+    id: integrationProfileId,
+    name: 'ERP Mongo dynamic mapping',
+    sourceType: 'database',
+    locale: 'es-ES',
+    fields: {
+      numero: 'number',
+      fecha: 'issueDate',
+      tipo: 'invoiceType',
+      descripcion: 'description',
+      base: 'taxBreakdown.0.baseAmount',
+      iva: 'taxBreakdown.0.rate',
+      cuota: 'taxBreakdown.0.taxAmount',
+      total: 'totals.totalAmount',
+    },
+    transforms: {},
+    constants: {
+      issuer: { name: 'Empresa Demo', taxId: '89890001K' },
+      currency: 'EUR',
+      taxBreakdown: [{
+        taxCode: '01',
+        regimeKey: '01',
+        operationClass: 'S1',
+      }],
+    },
+    defaults: {},
+  };
+
+  const mapped = await request(
+    first.baseUrl,
+    '/v1/control-plane/integration-profiles/' + integrationProfileId + '/mapping',
+    {
+      method: 'PUT',
+      token: onboardingToken,
+      body: { mappingProfile: mapping },
+    },
+  );
+  assert.equal(mapped.response.status, 200);
+  assert.equal(mapped.payload.status, 'active');
+  assert.equal(mapped.payload.mappingProfileId, integrationProfileId);
+  assert.equal('webhookSecretRef' in mapped.payload, false);
+
+  const crossTenantIntegration = await request(
+    first.baseUrl,
+    '/v1/control-plane/integration-profiles/' + integrationProfileId,
+    { token: otherTenantToken },
+  );
+  assert.equal(crossTenantIntegration.response.status, 404);
+
   await first.runtime.close();
 
   const second = await createRuntime();
@@ -255,7 +326,14 @@ try {
     assert.equal(onboardingAfterRestart.payload.profiles.length, 1);
     assert.equal(onboardingAfterRestart.payload.profiles[0].profileId, onboardingProfileId);
     assert.equal(onboardingAfterRestart.payload.profiles[0].localAgent.status, 'provisioned');
-    assert.equal(onboardingAfterRestart.payload.profiles[0].integrationDraft.mappingProfileId, 'mongo-map-v1');
+    assert.equal(
+      onboardingAfterRestart.payload.profiles[0].integrationDraft.integrationProfileId,
+      integrationProfileId,
+    );
+    assert.equal(
+      onboardingAfterRestart.payload.profiles[0].integrationDraft.mappingProfileId,
+      integrationProfileId,
+    );
 
     const onboardingAgentHeartbeat = await request(second.baseUrl, '/v1/local-agent/heartbeat', {
       method: 'POST',
@@ -270,6 +348,33 @@ try {
     });
     assert.equal(onboardingAgentHeartbeat.response.status, 200);
     assert.equal(onboardingAgentHeartbeat.payload.installation.organizationId, 'org-mongo-001');
+
+    const dynamicPreflight = await request(second.baseUrl, '/v1/preflight', {
+      method: 'POST',
+      token: onboardingAgentToken,
+      body: {
+        profileId: integrationProfileId,
+        source: {
+          numero: '9001',
+          fecha: '2026-09-15',
+          tipo: 'F2',
+          descripcion: 'Servicio desde ERP Mongo',
+          base: '100.00',
+          iva: '21',
+          cuota: '21.00',
+          total: '121.00',
+        },
+      },
+    });
+    assert.equal(dynamicPreflight.response.status, 200);
+    assert.equal(dynamicPreflight.payload.ok, true);
+    assert.equal(dynamicPreflight.payload.preview.number, '9001');
+    assert.equal(dynamicPreflight.payload.preview.organizationId, 'org-mongo-001');
+    assert.equal(
+      dynamicPreflight.payload.preview.installationId,
+      onboardingProvision.payload.profile.localAgent.installationId,
+    );
+    assert.equal(dynamicPreflight.payload.preview.sourceSystem, 'local-agent');
 
     const rotate = await request(second.baseUrl, '/v1/control-plane/local-agents/rotate-credential', {
       method: 'POST',
@@ -317,6 +422,10 @@ try {
   assert.ok(onboardingIndexes.some((index) => index.name === 'onboarding_tenant_profile_unique' && index.unique));
   assert.ok(onboardingIndexes.some((index) => index.name === 'onboarding_local_agent_installation_unique' && index.unique));
 
+  const integrationIndexes = await database.collection(integrationCollectionName).indexes();
+  assert.ok(integrationIndexes.some((index) => index.name === 'integration_tenant_profile_unique' && index.unique));
+  assert.ok(integrationIndexes.some((index) => index.name === 'integration_tenant_installation_profile_unique' && index.unique));
+
   const storedOnboarding = await database.collection(onboardingCollectionName).findOne({
     organizationId: 'org-mongo-001',
     profileId: onboardingProfileId,
@@ -324,6 +433,18 @@ try {
   const onboardingSerialized = JSON.stringify(storedOnboarding).toLowerCase();
   for (const secretName of ['apikey', 'password', 'privatekey', 'certificatepath', 'pfx', 'tokensha256']) {
     assert.equal(onboardingSerialized.includes(secretName), false);
+  }
+
+  const storedIntegration = await database.collection(integrationCollectionName).findOne({
+    organizationId: 'org-mongo-001',
+    profileId: integrationProfileId,
+  });
+  assert.ok(storedIntegration);
+  assert.equal(storedIntegration.status, 'active');
+  assert.equal(storedIntegration.webhookSecretRef, null);
+  const integrationSerialized = JSON.stringify(storedIntegration).toLowerCase();
+  for (const secretName of ['apikey', 'password', 'privatekey', 'certificatepath', 'pfx', 'tokensha256']) {
+    assert.equal(integrationSerialized.includes(secretName), false);
   }
 
   console.log(JSON.stringify({
@@ -339,6 +460,10 @@ try {
     onboarding_profiles_mongodb: true,
     onboarding_tenant_isolation: true,
     onboarding_local_agent_transition: true,
+    integration_profiles_mongodb: true,
+    integration_profile_dynamic_preflight: true,
+    integration_tenant_installation_isolation: true,
+    integration_json_role: 'reference-fallback',
   }, null, 2));
 } finally {
   await database.dropDatabase().catch(() => {});
