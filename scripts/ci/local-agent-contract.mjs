@@ -5,6 +5,11 @@ const manifest = validateUniversalAdapterManifest(
   JSON.parse(readFileSync('packages/local-agent/adapter-manifest.json', 'utf8')),
 );
 
+const runtimeSource = readFileSync('packages/local-agent/src/runtime.mjs', 'utf8');
+const configSource = readFileSync('packages/local-agent/src/config.mjs', 'utf8');
+const cliSource = readFileSync('packages/local-agent/src/cli.mjs', 'utf8');
+const exampleConfig = JSON.parse(readFileSync('config/local-agent.example.json', 'utf8'));
+
 const failures = [];
 function expect(value, code) {
   if (!value) failures.push({ code });
@@ -25,6 +30,17 @@ expect(manifest.security.secrets_server_side === true, 'LOCAL_AGENT_SERVER_SECRE
 expect(manifest.security.aeat_certificate_server_side === true, 'LOCAL_AGENT_AEAT_CERT_SERVER_REQUIRED');
 expect(manifest.security.tenant_server_authoritative === true, 'LOCAL_AGENT_TENANT_SERVER_AUTHORITY_REQUIRED');
 
+expect(!runtimeSource.includes("from 'node:http'"), 'LOCAL_AGENT_INBOUND_HTTP_FORBIDDEN');
+expect(!runtimeSource.includes('createServer('), 'LOCAL_AGENT_SERVER_LISTENER_FORBIDDEN');
+expect(!runtimeSource.includes('.listen('), 'LOCAL_AGENT_LISTEN_FORBIDDEN');
+expect(runtimeSource.includes('/readyz'), 'LOCAL_AGENT_DOCTOR_READY_PROBE_REQUIRED');
+expect(configSource.includes('VF_LOCAL_AGENT_CONFIG_INLINE_SECRET_FORBIDDEN'), 'LOCAL_AGENT_INLINE_SECRET_GUARD_REQUIRED');
+expect(cliSource.includes("'start', 'once', 'status', 'doctor'"), 'LOCAL_AGENT_CLI_COMMANDS_REQUIRED');
+expect(exampleConfig.schemaVersion === 1, 'LOCAL_AGENT_CONFIG_SCHEMA_INVALID');
+expect(exampleConfig.source?.issueEnabled === false, 'LOCAL_AGENT_EXAMPLE_MUST_FAIL_CLOSED');
+expect(typeof exampleConfig.bridge?.apiKeyEnv === 'string', 'LOCAL_AGENT_API_KEY_ENV_REQUIRED');
+expect(exampleConfig.bridge?.apiKey == null, 'LOCAL_AGENT_INLINE_API_KEY_FORBIDDEN');
+
 if (failures.length) {
   console.error(JSON.stringify({
     schema_version: 1,
@@ -43,4 +59,6 @@ console.log(JSON.stringify({
   offline_queue: true,
   source_read_only: true,
   outbound_only_design: true,
+  runtime_cli: true,
+  config_fail_closed: true,
 }, null, 2));
