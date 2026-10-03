@@ -1,0 +1,1 @@
+export const LOCAL_AGENT_STATE_SCHEMA = 1;
