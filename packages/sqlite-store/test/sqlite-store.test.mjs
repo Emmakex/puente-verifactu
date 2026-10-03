@@ -24,7 +24,7 @@ function intent(sourceInvoiceId = 'INV-1', number = '1') {
     issueDate: '2026-09-15',
     invoiceType: 'F2',
     description: 'Servicio de prueba',
-    issuer: { name: 'Empresa Demo', taxId: 'TESTISSUER' },
+    issuer: { name: 'Empresa Demo', taxId: '89890001K' },
     currency: 'EUR',
     taxBreakdown: [{
       taxCode: '01',
