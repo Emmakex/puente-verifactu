@@ -191,7 +191,9 @@ Conectores ERP/CRM adicionales, portal multiempresa, herramientas para asesoría
 - [ ] Productizar emisión por lotes CSV/XLSX.
 - [ ] Manifest/capabilities integrado en onboarding visual.
 - [ ] Starter kits HTTP/JSON para software propio.
-- [ ] Agente local v1: watch-folder + checkpoint + cola offline.
+- [x] Local Agent v1 foundation: SQLite privado + cola offline + leases/recovery + checkpoint + discovery watch-folder + HTTPS saliente.
+- [ ] Local Agent v1 ingest: watch-folder -> parser/mapping/preflight/issue + quarantine.
+- [ ] Local Agent v1: empaquetado/daemon por sistema operativo.
 - [ ] Adaptadores DB read-only: PostgreSQL/MySQL-MariaDB/SQL Server.
 - [ ] SFTP/drop-folder.
 - [ ] Formulario manual universal.
