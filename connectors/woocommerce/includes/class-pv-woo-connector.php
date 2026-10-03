@@ -8,6 +8,7 @@ final class PV_Woo_Connector {
     const META_LAST_ERROR  = '_pv_last_error';
     const META_SYNCED_AT   = '_pv_last_synced_at';
     const META_PAYLOAD_SHA = '_pv_payload_sha256';
+    const META_PRESENTATION = PV_Woo_Invoice_Presentation::META_KEY;
     const GROUP            = 'puente-verifactu';
     const MAX_ATTEMPTS     = 5;
 
@@ -159,7 +160,11 @@ final class PV_Woo_Connector {
             return;
         }
 
-        $this->store_success( $order, $payload, $result );
+        $stored = $this->store_success( $order, $payload, $result );
+        if ( is_wp_error( $stored ) ) {
+            $order->add_order_note( __( 'Puente VeriFactu created the fiscal record, but VERI*FACTU presentation metadata requires review.', 'puente-verifactu-woocommerce' ) );
+            return;
+        }
         $order->add_order_note( sprintf( __( 'Puente VeriFactu created record %s.', 'puente-verifactu-woocommerce' ), sanitize_text_field( $result['recordId'] ) ) );
     }
 
@@ -212,7 +217,11 @@ final class PV_Woo_Connector {
             return;
         }
 
-        $this->store_success( $refund, $payload, $result );
+        $stored = $this->store_success( $refund, $payload, $result );
+        if ( is_wp_error( $stored ) ) {
+            $order->add_order_note( sprintf( __( 'Puente VeriFactu created the corrective record for refund #%d, but VERI*FACTU presentation metadata requires review.', 'puente-verifactu-woocommerce' ), $refund->get_id() ) );
+            return;
+        }
         $order->add_order_note( sprintf( __( 'Puente VeriFactu created corrective record %1$s for refund #%2$d.', 'puente-verifactu-woocommerce' ), sanitize_text_field( $result['recordId'] ), $refund->get_id() ) );
     }
 
@@ -249,10 +258,33 @@ final class PV_Woo_Connector {
             return;
         }
         $status = sanitize_key( isset( $result['status'] ) ? $result['status'] : 'unknown' );
+        $presentation = PV_Woo_Invoice_Presentation::from_api_result( $result );
         $order->update_meta_data( self::META_STATUS, $status );
         $order->update_meta_data( self::META_SYNCED_AT, gmdate( 'c' ) );
+
+        if ( is_wp_error( $presentation ) ) {
+            $order->update_meta_data(
+                self::META_LAST_ERROR,
+                sanitize_text_field( $presentation->get_error_code() . ': ' . $presentation->get_error_message() )
+            );
+            $order->save();
+            return;
+        }
+
+        $encoded = PV_Woo_Invoice_Presentation::encode( $presentation );
+        if ( is_wp_error( $encoded ) ) {
+            $order->update_meta_data(
+                self::META_LAST_ERROR,
+                sanitize_text_field( $encoded->get_error_code() . ': ' . $encoded->get_error_message() )
+            );
+            $order->save();
+            return;
+        }
+
+        $order->update_meta_data( self::META_PRESENTATION, $encoded );
         $order->delete_meta_data( self::META_LAST_ERROR );
         $order->save();
+        do_action( 'pv_woo_verifactu_presentation_ready', $presentation, $order );
     }
 
     private function preflight_order( WC_Order $order ) {
@@ -307,12 +339,38 @@ final class PV_Woo_Connector {
     }
 
     private function store_success( WC_Abstract_Order $order, array $payload, array $result ) {
+        $presentation = PV_Woo_Invoice_Presentation::from_api_result( $result );
+
         $order->update_meta_data( self::META_RECORD_ID, sanitize_text_field( $result['recordId'] ) );
         $order->update_meta_data( self::META_STATUS, sanitize_key( isset( $result['status'] ) ? $result['status'] : 'fiscalized' ) );
         $order->update_meta_data( self::META_SYNCED_AT, gmdate( 'c' ) );
         $order->update_meta_data( self::META_PAYLOAD_SHA, hash( 'sha256', wp_json_encode( $payload ) ) );
+
+        if ( is_wp_error( $presentation ) ) {
+            $order->update_meta_data(
+                self::META_LAST_ERROR,
+                sanitize_text_field( $presentation->get_error_code() . ': ' . $presentation->get_error_message() )
+            );
+            $order->save();
+            return $presentation;
+        }
+
+        $encoded = PV_Woo_Invoice_Presentation::encode( $presentation );
+        if ( is_wp_error( $encoded ) ) {
+            $order->update_meta_data(
+                self::META_LAST_ERROR,
+                sanitize_text_field( $encoded->get_error_code() . ': ' . $encoded->get_error_message() )
+            );
+            $order->save();
+            return $encoded;
+        }
+
+        $order->update_meta_data( self::META_PRESENTATION, $encoded );
         $order->delete_meta_data( self::META_LAST_ERROR );
         $order->save();
+        do_action( 'pv_woo_verifactu_presentation_ready', $presentation, $order );
+
+        return true;
     }
 
     private function idempotency_key( WC_Order $order ) {
