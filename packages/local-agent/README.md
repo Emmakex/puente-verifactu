@@ -299,6 +299,49 @@ install
 
 Service activation is intentionally separate from installation in the smoke tests. Production installation can opt into enabling/starting the native startup mechanism after configuration has been reviewed.
 
+## Upgrade and rollback
+
+U4.5 treats Local Agent code and SQLite state as separate lifecycles.
+
+Before a code release can become `current`, the target bundle must:
+
+- match every bundled file against the manifest SHA-256 and byte count;
+- match the manifest-wide content fingerprint;
+- declare a readable Local Agent state-schema range;
+- run on a Node version that supports the required SQLite backup API;
+- acquire the Local Agent data-dir lock so an active agent cannot be upgraded underneath;
+- run SQLite `quick_check`;
+- reject a newer/incompatible state schema;
+- create a verified pre-upgrade SQLite backup when `agent.sqlite` exists;
+- preserve job/checkpoint/receipt counts between source and backup.
+
+The runtime state schema is stored in SQLite `PRAGMA user_version`. Existing Local Agent databases created before this field existed are recognized as legacy schema 1 and stamped as schema 1 when opened by the current runtime.
+
+Native upgrade tools live beside the installers:
+
+```text
+Linux:   service/linux/upgrade.sh   + rollback.sh
+macOS:   service/macos/upgrade.sh   + rollback.sh
+Windows: service/windows/upgrade.ps1 + rollback.ps1
+```
+
+Upgrade activates a new versioned code directory only after the guard and backup succeed. The upgrade receipt records previous code, target code and backup evidence outside the release tree.
+
+Rollback is deliberately **code-only**. It changes the `current` symlink/junction back to the previous release. Rollback scripts do not read the backup path, do not open `agent.sqlite`, and never restore SQLite automatically. The backup is evidence/recovery material for an explicit operator decision, not an automatic rollback mechanism.
+
+CI proves this distinction by:
+
+```text
+state before upgrade: 1 queued operation
+backup before activation: 1 queued operation
+state after upgrade: 2 queued operations
+rollback code to previous release
+state after rollback: still 2 queued operations
+backup remains: 1 queued operation
+```
+
+Thus a code rollback cannot silently erase work accepted after the upgrade.
+
 ## Gate
 
 ```bash
@@ -307,6 +350,7 @@ npm run local-agent:contract
 npm run local-agent:runtime:smoke
 npm run local-agent:package:check
 npm run local-agent:service:check
+npm run local-agent:upgrade:smoke
 npm run local-agent:sftp:smoke # Docker + ssh2-sftp-client@12.1.1
 ```
 
