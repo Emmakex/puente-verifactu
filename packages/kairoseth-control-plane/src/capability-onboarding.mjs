@@ -153,11 +153,23 @@ export function resolveKairosethIntegrationStrategy(input = {}, {
     }
   }
 
+  if (!Array.isArray(supportedNativeConnectors)) {
+    throw new TypeError('supportedNativeConnectors must be an array');
+  }
   const supported = new Set(
-    [...supportedNativeConnectors].map((value) => String(value).trim().toLowerCase()),
+    supportedNativeConnectors.map((value) => String(value).trim().toLowerCase()),
   );
   const locale = normalizeLocale(input.locale);
   const nativeConnector = normalizeNativeConnector(input.nativeConnector);
+  const capabilities = Object.freeze({
+    hasApi: boolean(input.hasApi, 'hasApi'),
+    canWebhook: boolean(input.canWebhook, 'canWebhook'),
+    canUploadFiles: boolean(input.canUploadFiles, 'canUploadFiles'),
+    canReadDatabase: boolean(input.canReadDatabase, 'canReadDatabase'),
+    canWatchFolder: boolean(input.canWatchFolder, 'canWatchFolder'),
+    canSftp: boolean(input.canSftp, 'canSftp'),
+    isLocalApplication: boolean(input.isLocalApplication, 'isLocalApplication'),
+  });
   const nativeSupported = nativeConnector != null && supported.has(nativeConnector);
   const warnings = nativeConnector && !nativeSupported
     ? ['native_connector_not_supported']
@@ -176,7 +188,7 @@ export function resolveKairosethIntegrationStrategy(input = {}, {
     });
   }
 
-  if (boolean(input.hasApi, 'hasApi')) {
+  if (capabilities.hasApi) {
     return strategy({
       id: 'universal-rest-api',
       channel: 'rest_api',
@@ -189,7 +201,7 @@ export function resolveKairosethIntegrationStrategy(input = {}, {
     });
   }
 
-  if (boolean(input.canWebhook, 'canWebhook')) {
+  if (capabilities.canWebhook) {
     return strategy({
       id: 'universal-webhook',
       channel: 'webhook',
@@ -202,7 +214,7 @@ export function resolveKairosethIntegrationStrategy(input = {}, {
     });
   }
 
-  if (boolean(input.canUploadFiles, 'canUploadFiles')) {
+  if (capabilities.canUploadFiles) {
     return strategy({
       id: 'file-upload',
       channel: 'file_upload',
@@ -215,7 +227,7 @@ export function resolveKairosethIntegrationStrategy(input = {}, {
     });
   }
 
-  if (boolean(input.canReadDatabase, 'canReadDatabase')) {
+  if (capabilities.canReadDatabase) {
     return strategy({
       id: 'local-agent-database',
       channel: 'database_read',
@@ -229,7 +241,7 @@ export function resolveKairosethIntegrationStrategy(input = {}, {
     });
   }
 
-  if (boolean(input.canSftp, 'canSftp')) {
+  if (capabilities.canSftp) {
     return strategy({
       id: 'local-agent-sftp',
       channel: 'sftp',
@@ -243,10 +255,7 @@ export function resolveKairosethIntegrationStrategy(input = {}, {
     });
   }
 
-  if (
-    boolean(input.canWatchFolder, 'canWatchFolder')
-    || boolean(input.isLocalApplication, 'isLocalApplication')
-  ) {
+  if (capabilities.canWatchFolder || capabilities.isLocalApplication) {
     return strategy({
       id: 'local-agent-watch-folder',
       channel: 'watch_folder',
