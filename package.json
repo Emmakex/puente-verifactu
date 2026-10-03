@@ -4,9 +4,11 @@
   "private": true,
   "description": "Chameleon integration bridge for VERI*FACTU / AEAT",
   "type": "module",
-  "engines": { "node": ">=22.13.0" },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
-    "check": "node scripts/ci/repo-check.mjs && node scripts/ci/runbooks-check.mjs && node scripts/ci/backup-lifecycle-contract.mjs && node scripts/ci/release-evidence-check.mjs && node scripts/ci/aeat-certificate-preflight-contract.mjs && node scripts/ci/aeat-evidence-bundle-contract.mjs && node scripts/ci/aeat-official-reconciliation-contract.mjs && node scripts/ci/aeat-live-reconciliation-cli-contract.mjs && node scripts/ci/aeat-controlled-reconciliation-seed-contract.mjs && node scripts/ci/aeat-controlled-rejection-profile-contract.mjs && node scripts/ci/aeat-final-gate-evidence-contract.mjs",
+    "check": "node scripts/ci/repo-check.mjs && node scripts/ci/runbooks-check.mjs && node scripts/ci/backup-lifecycle-contract.mjs && node scripts/ci/release-evidence-check.mjs && node scripts/ci/aeat-certificate-preflight-contract.mjs && node scripts/ci/aeat-evidence-bundle-contract.mjs && node scripts/ci/aeat-official-reconciliation-contract.mjs && node scripts/ci/aeat-live-reconciliation-cli-contract.mjs && node scripts/ci/aeat-controlled-reconciliation-seed-contract.mjs && node scripts/ci/aeat-controlled-rejection-profile-contract.mjs && node scripts/ci/aeat-final-gate-evidence-contract.mjs && node scripts/ci/responsible-declaration-contract.mjs",
     "test": "node --test",
     "preflight:demo": "node connectors/file-import/src/cli.mjs --csv examples/file-import/facturas.csv --profile examples/file-import/mapping.json",
     "mapping:demo": "node connectors/file-import/src/cli.mjs --file examples/file-import/facturas.csv --infer",
@@ -47,6 +49,7 @@
     "aeat:evidence:verify": "node scripts/aeat/verify-evidence-bundle.mjs",
     "aeat:final-evidence:verify": "node scripts/aeat/verify-final-gate-evidence.mjs",
     "aeat:reconcile": "node scripts/aeat/live-reconciliation.mjs",
-    "aeat:gate": "node scripts/aeat/live-gate.mjs"
+    "aeat:gate": "node scripts/aeat/live-gate.mjs",
+    "responsible-declaration:build": "node scripts/release/responsible-declaration.mjs"
   }
 }

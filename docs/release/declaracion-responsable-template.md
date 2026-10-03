@@ -1,34 +1,69 @@
-# Checklist previo a la declaración responsable de una versión
+# DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN
 
-Este archivo es una **plantilla interna de preparación**. No constituye una declaración responsable, no está firmado y no debe presentarse ni publicarse como certificación del producto.
+Plantilla interna para Puente VeriFactu v0.1.0, alineada con el orden mínimo exigido por el artículo 15 de la Orden HAC/1177/2024. **No constituye una declaración firmada ni debe publicarse con datos ficticios.**
 
-## Datos que deben quedar fijados para cada versión
+**a) Nombre del sistema informático a que se refiere la declaración responsable:**  
+Puente VeriFactu
 
-- Nombre del sistema: `Puente VeriFactu`
-- Versión del SIF: `<VERSION_SIF>`
-- Commit/build: `<COMMIT_SHA>`
-- Modalidad: `VERI*FACTU`
-- Componentes incluidos: `<COMPONENTES>`
-- Perfil de instalación: `<PERFIL_DESPLIEGUE>`
-- Funcionalidades fiscales incluidas: `<FUNCIONALIDADES>`
-- Nombre completo o razón social del productor: `<NOMBRE_O_RAZON_SOCIAL>`
-- NIF del productor: `<NIF>`
-- Dirección y contacto del productor: `<DIRECCION_Y_CONTACTO>`
-- Lugar y fecha: `<LUGAR_Y_FECHA>`
-- Persona firmante y, si aplica, cargo: `<FIRMANTE_Y_CARGO>`
+**b) Código identificador del sistema informático:**  
+PV
 
-## Evidencia técnica previa obligatoria
+**c) Identificador completo de la versión concreta del sistema informático:**  
+0.1.0
 
-Antes de preparar el documento final de la versión:
+**d) Componentes, hardware y software, breve descripción y principales funcionalidades:**  
+Puente VeriFactu es un sistema informático de facturación modular para integración con sistemas empresariales. Incluye núcleo fiscal canónico, registros de alta y anulación, encadenamiento y huella SHA-256, adaptador AEAT VERI*FACTU, outbox durable, reconciliación oficial, API/SDK, importación CSV/XLSX, webhooks y conectores WooCommerce/PrestaShop. El perfil objetivo de esta versión es software sobre servidor de propósito general, SQLite single-node, sin hardware propietario obligatorio.
 
-- generar la evidencia de release para el commit exacto;
-- verificar CI completo verde para ese mismo commit;
-- conservar hashes SHA-256 de los artefactos distribuibles;
-- confirmar que la revisión regulatoria sigue vigente;
-- cerrar el gate externo AEAT #6 con evidencia no sensible;
-- revisar QR, textos y comportamiento VERI*FACTU de la versión candidata;
-- comprobar que el paquete de evidencia no contiene secretos, certificados ni datos fiscales reales.
+**e) Indicación de si el sistema se ha producido para funcionar exclusivamente como «VERI*FACTU»:**  
+S - Sí.
+
+**f) Indicación de si el sistema permite ser usado por varios obligados tributarios o por un mismo usuario para varios obligados tributarios:**  
+S - Sí.
+
+**g) Tipos de firma utilizados cuando el sistema no sea utilizado como «VERI*FACTU»:**  
+No aplicable en esta versión, producida para funcionar exclusivamente en modalidad «VERI*FACTU».
+
+**h) Nombre y apellidos de la persona o razón social de la entidad productora:**  
+<NOMBRE_O_RAZON_SOCIAL>
+
+**i) Número de identificación fiscal (NIF) de la persona o entidad productora:**  
+<NIF>
+
+**j) Dirección postal completa de contacto de la persona o entidad productora:**  
+<DIRECCION_POSTAL_COMPLETA>
+
+**k) Manifestación de cumplimiento:**  
+La persona o entidad productora hace constar que Puente VeriFactu, versión 0.1.0, cumple con lo dispuesto en el artículo 29.2.j) de la Ley 58/2003, de 17 de diciembre, General Tributaria; en el Reglamento aprobado por el Real Decreto 1007/2023, de 5 de diciembre; en la Orden HAC/1177/2024, de 17 de octubre; y en las especificaciones de la Agencia Estatal de Administración Tributaria que completan dicha orden y resultan aplicables a esta versión.
+
+**l) Fecha y lugar de suscripción de la declaración responsable:**  
+<FECHA_COMPLETA> — <LOCALIDAD, PAIS>
+
+## Anexo recomendado
+
+- Contacto adicional: <CONTACTO_OPCIONAL>
+- Sitio web del productor/producto: <URL_OPCIONAL>
+- Perfil de despliegue: SQLite single-node.
+- Conector WooCommerce: 0.2.0.
+- Conector PrestaShop: 0.4.0.
+- Evidencia externa AEAT: `docs/release/aeat-gate-6-evidence-2026-10-03.md`.
+
+## Generación privada
+
+Los datos personales del productor no deben introducirse en commits de trabajo ni en incidencias. Para generar el borrador privado:
+
+```bash
+cp config/responsible-declaration.example.json "$HOME/.puente-verifactu/secrets/declaration-v0.1.0.json"
+chmod 600 "$HOME/.puente-verifactu/secrets/declaration-v0.1.0.json"
+
+# Editar localmente el JSON con nombre/NIF/dirección/lugar/fecha.
+
+npm run responsible-declaration:build -- \
+  --producer "$HOME/.puente-verifactu/secrets/declaration-v0.1.0.json" \
+  --output "$HOME/.puente-verifactu/evidence/declaracion-responsable-v0.1.0.md"
+```
+
+El generador crea el fichero con permisos `0600`, no lo sobrescribe y bloquea la salida dentro del repositorio hasta que exista una revisión explícita de publicación.
 
 ## Regla de publicación
 
-La declaración final de cada versión debe prepararse y aprobarse separadamente a partir de este checklist, quedar vinculada a una versión concreta y ponerse a disposición del usuario conforme a las reglas aplicables. El producto no debe presentarse como “certificado por AEAT”.
+La declaración final debe corresponder exactamente a una versión concreta, quedar visible dentro del sistema y estar disponible para cliente/comercializador. La publicación se realiza solo después de revisar el documento final y decidir conscientemente qué datos identificativos exigidos normativamente se van a hacer públicos con esa versión. El producto no debe presentarse como “certificado por AEAT”.

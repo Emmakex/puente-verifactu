@@ -1,0 +1,13 @@
+{
+  "producer": {
+    "name": "NOMBRE Y APELLIDOS O RAZÓN SOCIAL",
+    "taxId": "NIF",
+    "postalAddress": "DIRECCIÓN POSTAL COMPLETA",
+    "otherContact": "CORREO O TELÉFONO OPCIONAL",
+    "website": "URL OPCIONAL"
+  },
+  "signature": {
+    "place": "LOCALIDAD, ESPAÑA",
+    "date": "2026-10-03"
+  }
+}
