@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { LocalAgentStore } from './store.mjs';
@@ -25,9 +25,13 @@ function fail(code, message, details = {}) {
 }
 
 function errorSummary(error) {
+  const code = String(error?.code ?? 'VF_LOCAL_AGENT_RUNTIME_ERROR');
+  const safeMessage = code.startsWith('VF_LOCAL_AGENT_')
+    ? String(error?.message ?? 'Local Agent runtime error').slice(0, 300)
+    : 'Local Agent operation failed';
   return Object.freeze({
-    code: String(error?.code ?? 'VF_LOCAL_AGENT_RUNTIME_ERROR'),
-    message: String(error?.message ?? 'Local Agent runtime error').slice(0, 300),
+    code,
+    message: safeMessage,
     retryable: Boolean(error?.retryable),
   });
 }
@@ -192,9 +196,18 @@ async function buildDatabaseResource({ source, secrets, moduleLoader }) {
 }
 
 async function readSftpPrivateKey(source) {
-  return source.connection.privateKeyPath
-    ? readFile(source.connection.privateKeyPath)
-    : null;
+  if (!source.connection.privateKeyPath) return null;
+  const info = await stat(source.connection.privateKeyPath);
+  if (!info.isFile()) {
+    throw fail('VF_LOCAL_AGENT_SFTP_KEY_INVALID', 'SFTP privateKeyPath must point to a file');
+  }
+  if (process.platform !== 'win32' && (info.mode & 0o077) !== 0) {
+    throw fail(
+      'VF_LOCAL_AGENT_SFTP_KEY_PERMISSIONS_UNSAFE',
+      'SFTP private key must not be readable or writable by group/others (use chmod 600)',
+    );
+  }
+  return readFile(source.connection.privateKeyPath);
 }
 
 function watchOptions(source, store) {
