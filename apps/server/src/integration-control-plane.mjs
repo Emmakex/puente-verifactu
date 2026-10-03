@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 const PROFILE_RE = /^int_[a-f0-9]{32}$/;
 const ONBOARDING_RE = /^onb_[a-f0-9]{32}$/;
 const ID_RE = /^[A-Za-z0-9._:-]{1,128}$/;
+const AUTH_CHANNELS = new Set(['rest_api', 'webhook']);
 
 function fail(code, message, status = 400) {
   return Object.assign(new Error(message), { code, status });
@@ -53,6 +54,7 @@ export class KairosethIntegrationProfileControlPlane {
     store,
     onboardingStore = null,
     resolveSecretReference = null,
+    authBridge = null,
     clock = () => Date.now(),
   } = {}) {
     if (!store) throw new TypeError('store is required');
@@ -65,6 +67,7 @@ export class KairosethIntegrationProfileControlPlane {
       'list',
       'setMapping',
       'setWebhookSecretRef',
+      'setAuthBinding',
       'disable',
     ]) {
       if (typeof store[method] !== 'function') throw new TypeError(`store.${method} must be a function`);
@@ -75,10 +78,18 @@ export class KairosethIntegrationProfileControlPlane {
     if (resolveSecretReference != null && typeof resolveSecretReference !== 'function') {
       throw new TypeError('resolveSecretReference must be a function');
     }
+    if (authBridge != null) {
+      for (const method of ['provision', 'rotate', 'revoke']) {
+        if (typeof authBridge[method] !== 'function') {
+          throw new TypeError(`authBridge.${method} must be a function`);
+        }
+      }
+    }
     if (typeof clock !== 'function') throw new TypeError('clock is required');
     this.store = store;
     this.onboardingStore = onboardingStore;
     this.resolveSecretReference = resolveSecretReference;
+    this.authBridge = authBridge;
     this.clock = clock;
   }
 
@@ -229,6 +240,134 @@ export class KairosethIntegrationProfileControlPlane {
     });
   }
 
+  assertCredentialChannel(profile) {
+    if (!AUTH_CHANNELS.has(profile?.channel)) {
+      throw fail(
+        'VF_INTEGRATION_CREDENTIAL_NOT_APPLICABLE',
+        'This IntegrationProfile does not use Kairoseth data-plane bearer credentials',
+        409,
+      );
+    }
+  }
+
+  assertEmptyCredentialInput(input) {
+    if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).length > 0) {
+      throw fail(
+        'VF_INTEGRATION_CREDENTIAL_INPUT_FORBIDDEN',
+        'Credential identity is controlled by Kairoseth',
+        400,
+      );
+    }
+  }
+
+  async provisionCredential(context, value, input = {}) {
+    this.assertEmptyCredentialInput(input);
+    if (!this.authBridge) {
+      throw fail(
+        'VF_KAIROSETH_AUTH_BRIDGE_UNAVAILABLE',
+        'Kairoseth Auth bridge is unavailable',
+        503,
+      );
+    }
+    const organizationId = requireOrganization(context);
+    const profileId = requiredProfileId(value);
+    const profile = await this.store.getInternal(organizationId, profileId);
+    if (!profile) throw fail('VF_INTEGRATION_PROFILE_NOT_FOUND', 'Integration profile not found', 404);
+    this.assertCredentialChannel(profile);
+    if (profile.authBinding?.status === 'active') {
+      throw fail(
+        'VF_INTEGRATION_CREDENTIAL_ALREADY_ACTIVE',
+        'Integration credential is already active; rotate it instead',
+        409,
+      );
+    }
+
+    const credential = await this.authBridge.provision(profile);
+    const updated = await this.store.setAuthBinding({
+      organizationId,
+      profileId,
+      credentialId: credential.credentialId,
+      status: 'active',
+      now: this.clock(),
+    });
+    return Object.freeze({
+      profile: updated,
+      credential,
+      credentialShownOnce: credential.shownOnce,
+      tenantAuthority: 'kairoseth',
+      authAuthority: 'kairoseth',
+    });
+  }
+
+  async rotateCredential(context, value, input = {}) {
+    this.assertEmptyCredentialInput(input);
+    if (!this.authBridge) {
+      throw fail(
+        'VF_KAIROSETH_AUTH_BRIDGE_UNAVAILABLE',
+        'Kairoseth Auth bridge is unavailable',
+        503,
+      );
+    }
+    const organizationId = requireOrganization(context);
+    const profileId = requiredProfileId(value);
+    const profile = await this.store.getInternal(organizationId, profileId);
+    if (!profile) throw fail('VF_INTEGRATION_PROFILE_NOT_FOUND', 'Integration profile not found', 404);
+    this.assertCredentialChannel(profile);
+    if (profile.authBinding?.status !== 'active' || !profile.authBinding?.credentialId) {
+      throw fail('VF_INTEGRATION_CREDENTIAL_NOT_ACTIVE', 'Integration credential is not active', 409);
+    }
+
+    const credential = await this.authBridge.rotate(profile, profile.authBinding.credentialId);
+    const updated = await this.store.setAuthBinding({
+      organizationId,
+      profileId,
+      credentialId: credential.credentialId,
+      status: 'active',
+      now: this.clock(),
+    });
+    return Object.freeze({
+      profile: updated,
+      credential,
+      credentialShownOnce: credential.shownOnce,
+      tenantAuthority: 'kairoseth',
+      authAuthority: 'kairoseth',
+    });
+  }
+
+  async revokeCredential(context, value, input = {}) {
+    this.assertEmptyCredentialInput(input);
+    if (!this.authBridge) {
+      throw fail(
+        'VF_KAIROSETH_AUTH_BRIDGE_UNAVAILABLE',
+        'Kairoseth Auth bridge is unavailable',
+        503,
+      );
+    }
+    const organizationId = requireOrganization(context);
+    const profileId = requiredProfileId(value);
+    const profile = await this.store.getInternal(organizationId, profileId);
+    if (!profile) throw fail('VF_INTEGRATION_PROFILE_NOT_FOUND', 'Integration profile not found', 404);
+    this.assertCredentialChannel(profile);
+    if (profile.authBinding?.status !== 'active' || !profile.authBinding?.credentialId) {
+      throw fail('VF_INTEGRATION_CREDENTIAL_NOT_ACTIVE', 'Integration credential is not active', 409);
+    }
+
+    await this.authBridge.revoke(profile, profile.authBinding.credentialId);
+    const updated = await this.store.setAuthBinding({
+      organizationId,
+      profileId,
+      credentialId: profile.authBinding.credentialId,
+      status: 'revoked',
+      now: this.clock(),
+    });
+    return Object.freeze({
+      profile: updated,
+      revoked: true,
+      tenantAuthority: 'kairoseth',
+      authAuthority: 'kairoseth',
+    });
+  }
+
   async disable(context, value) {
     return this.store.disable({
       organizationId: requireOrganization(context),
@@ -248,8 +387,26 @@ export class KairosethIntegrationProfileControlPlane {
       installationId,
       profileId,
     });
+    if (!profile) return Object.freeze({ exists: false, profile: null });
+
+    if (AUTH_CHANNELS.has(profile.channel)) {
+      const binding = profile.authBinding;
+      const credentialId = String(context?.credentialId ?? '');
+      if (
+        binding?.provider !== 'kairoseth'
+        || binding?.status !== 'active'
+        || !binding?.credentialId
+        || binding.credentialId !== credentialId
+      ) {
+        return Object.freeze({
+          exists: true,
+          profile: Object.freeze({ ...profile, authDenied: true }),
+        });
+      }
+    }
+
     return Object.freeze({
-      exists: Boolean(profile),
+      exists: true,
       profile,
     });
   }
@@ -257,7 +414,11 @@ export class KairosethIntegrationProfileControlPlane {
   async resolveMappingProfile({ context, profileId }) {
     const resolved = await this.resolveDynamicForContext(context, profileId);
     if (!resolved.exists) return Object.freeze({ exists: false, mappingProfile: null });
-    if (resolved.profile.status !== 'active' || !resolved.profile.mappingProfile) {
+    if (
+      resolved.profile.authDenied
+      || resolved.profile.status !== 'active'
+      || !resolved.profile.mappingProfile
+    ) {
       return Object.freeze({ exists: true, mappingProfile: null });
     }
     return Object.freeze({
@@ -269,7 +430,7 @@ export class KairosethIntegrationProfileControlPlane {
   async resolveWebhookSecret({ context, profileId }) {
     const resolved = await this.resolveDynamicForContext(context, profileId);
     if (!resolved.exists) return Object.freeze({ exists: false, secret: null });
-    if (resolved.profile.status !== 'active') {
+    if (resolved.profile.authDenied || resolved.profile.status !== 'active') {
       return Object.freeze({ exists: true, secret: null });
     }
     const ref = resolved.profile.webhookSecretRef;
