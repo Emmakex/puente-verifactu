@@ -5,6 +5,7 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | Documento | Propósito |
 |---|---|
 | `product-scope.md` | Problema, usuarios, alcance MVP y exclusiones |
+| `kairoseth-extension-product.md` | Posición de Puente VeriFactu dentro de Kairoseth Extensions y regla un producto/múltiples adapters |
 | `architecture.md` | Arquitectura, componentes, límites y flujos |
 | `integration-strategy.md` | Principio Camaleón y cinco niveles de integración |
 | `onboarding-integration.md` | Onboarding universal orientado a autónomos y pymes |
