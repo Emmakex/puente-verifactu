@@ -85,4 +85,8 @@ export class PuenteVerifactuClient {
   getFiscalRecord(recordId) {
     return this.request(`/v1/fiscal-records/${encodeURIComponent(recordId)}`);
   }
+
+  localAgentHeartbeat(payload) {
+    return this.request('/v1/local-agent/heartbeat', { method: 'POST', body: payload });
+  }
 }
