@@ -50,12 +50,11 @@ function normalizeModifiedAt(value) {
   return number > 0 && number < 100_000_000_000 ? number * 1000 : number;
 }
 
-function sourceKeyFor({ remoteDirectory, name, size, modifiedAt }) {
+function sourceKeyFor({ remoteDirectory, name, fingerprint }) {
   return `sftp:${sha256Hex(stableStringify({
     remoteDirectory,
     name,
-    size,
-    modifiedAt,
+    fingerprint,
   }))}`;
 }
 
@@ -230,13 +229,6 @@ export async function syncSftpDropFolder({
       continue;
     }
 
-    const sourceKey = sourceKeyFor({ remoteDirectory: remoteDir, name, size, modifiedAt });
-    const existing = store.getSourceReceipt(normalizedSourceId, sourceKey);
-    if (existing) {
-      skipped.push({ name, reason: 'already_received', sourceKey });
-      continue;
-    }
-
     const remotePath = posix.join(remoteDir, name);
     const value = await client.get(remotePath);
     const buffer = Buffer.isBuffer(value) ? value : value instanceof Uint8Array ? Buffer.from(value) : null;
@@ -255,6 +247,23 @@ export async function syncSftpDropFolder({
     }
 
     const fingerprint = sha256Hex(buffer);
+    const sourceKey = sourceKeyFor({
+      remoteDirectory: remoteDir,
+      name,
+      fingerprint,
+    });
+    const existing = store.getSourceReceipt(normalizedSourceId, sourceKey);
+    if (existing) {
+      if (existing.fingerprint !== fingerprint) {
+        throw fail('VF_LOCAL_AGENT_SOURCE_RECEIPT_CONFLICT', 'SFTP source receipt fingerprint conflict', {
+          name,
+          sourceKey,
+        });
+      }
+      skipped.push({ name, reason: 'already_received', sourceKey, sha256: fingerprint });
+      continue;
+    }
+
     const destination = await localDestination(layout.inbox, name, sourceKey);
     const temp = join(layout.inbox, `.${basename(destination)}.partial-${process.pid}-${Date.now()}`);
 
