@@ -29,9 +29,11 @@ assert.equal(registry.aeat_artifacts.web_service_document_version, AEAT_ARTIFACT
 assert.equal(registry.aeat_artifacts.validations_document_version, AEAT_ARTIFACTS.validationsDocumentVersion);
 assert.equal(registry.aeat_artifacts.schema_generation, AEAT_ARTIFACTS.schemaGeneration);
 assert.equal(registry.aeat_artifacts.record_version, AEAT_ARTIFACTS.recordVersion);
+assert.equal(registry.aeat_artifacts.qr_specification_version, '0.5.0');
 
 const requiredSources = new Set([
   'aeat_technical_information',
+  'aeat_qr_specification',
   'aeat_responsible_declaration_faq',
   'aeat_deadlines_2027',
   'boe_rdl_15_2025',
