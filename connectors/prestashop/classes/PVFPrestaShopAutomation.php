@@ -204,7 +204,30 @@ final class PVFPrestaShopAutomation
                 throw new RuntimeException('Puente VeriFactu did not return a corrective record ID.');
             }
             $status = isset($result['status']) ? (string) $result['status'] : 'created';
-            self::saveSlipSync($shopId, (int) $order->id, (int) $slip->id, (string) $result['recordId'], $idempotencyKey, $status, '');
+            try {
+                $presentationJson = PVFPrestaShopInvoicePresentation::encodeApiResult($result);
+            } catch (Exception $presentationException) {
+                self::saveSlipSync(
+                    $shopId,
+                    (int) $order->id,
+                    (int) $slip->id,
+                    (string) $result['recordId'],
+                    $idempotencyKey,
+                    'blocked',
+                    self::safeMessage($presentationException)
+                );
+                return;
+            }
+            self::saveSlipSync(
+                $shopId,
+                (int) $order->id,
+                (int) $slip->id,
+                (string) $result['recordId'],
+                $idempotencyKey,
+                $status,
+                '',
+                $presentationJson
+            );
         } catch (PVFPrestaShopApiException $exception) {
             self::saveSlipSync(
                 $shopId,
@@ -228,6 +251,7 @@ final class PVFPrestaShopAutomation
         try {
             $result = $client->status((string) $existing['record_id']);
             $status = isset($result['status']) ? (string) $result['status'] : 'unknown';
+            $presentationJson = PVFPrestaShopInvoicePresentation::encodeApiResult($result);
             self::saveSlipSync(
                 (int) $order->id_shop,
                 (int) $order->id,
@@ -235,7 +259,8 @@ final class PVFPrestaShopAutomation
                 (string) $existing['record_id'],
                 (string) $existing['idempotency_key'],
                 $status,
-                ''
+                '',
+                $presentationJson
             );
         } catch (PVFPrestaShopApiException $exception) {
             self::saveSlipSync(
