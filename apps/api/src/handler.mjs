@@ -76,6 +76,15 @@ function requirePermission(context, permission) {
   }
 }
 
+function requireDataPlaneContext(context) {
+  if (Array.isArray(context?.permissions) && context.permissions.length > 0) {
+    throw Object.assign(new Error('Privileged control-plane credentials cannot use fiscal data-plane routes'), {
+      code: 'VF_API_DATA_PLANE_FORBIDDEN',
+      status: 403,
+    });
+  }
+}
+
 function decodedHeader(headers, name, fallback = '') {
   const value = header(headers, name);
   if (value == null) return fallback;
@@ -171,6 +180,8 @@ export function createApiHandler({
         }
         return json(200, localAgents.heartbeat(context, parseJsonBody(request)), correlationId);
       }
+
+      requireDataPlaneContext(context);
 
       if (method === 'POST' && path === '/v1/imports/inspect') {
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
