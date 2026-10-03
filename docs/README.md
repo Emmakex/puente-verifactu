@@ -15,6 +15,7 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `aeat-test-adapter-v1.md` | SOAP/XML, mTLS, respuestas, reintentos y gate externo de pruebas AEAT |
 | `aeat-live-gate.md` | Runbook y comando seguro para cerrar la prueba real de Fase 3 |
 | `universal-integration-kit-v1.md` | API/SDK, webhook low-code y patrón camaleónico de integración |
+| `universal-integration-matrix.md` | Matriz completa ERP/CRM/software propio/Excel/legacy, selector por capacidades y Universal Adapter Manifest v1 |
 | `woocommerce-compatibility.md` | Matriz WP/Woo/PHP, HPOS y ZIP reproducible del conector WooCommerce |
 | `compliance.md` | Marco normativo, obligaciones y checklist de release |
 | `release-evidence.md` | Manifest reproducible, blockers, revisión regulatoria y fingerprints de release |
