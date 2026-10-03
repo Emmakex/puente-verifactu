@@ -78,9 +78,11 @@ export function mongoOnboardingProfileIndexes() {
     }),
     Object.freeze({
       key: Object.freeze({ 'localAgent.installationId': 1 }),
-      name: 'onboarding_local_agent_installation_sparse',
+      name: 'onboarding_local_agent_installation_unique',
       unique: true,
-      sparse: true,
+      partialFilterExpression: Object.freeze({
+        'localAgent.installationId': Object.freeze({ $type: 'string' }),
+      }),
     }),
   ]);
 }
