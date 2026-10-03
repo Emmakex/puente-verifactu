@@ -10,6 +10,7 @@ const required = [
   `${root}/includes/class-pv-woo-order-payload.php`,
   `${root}/includes/class-pv-woo-refund-payload.php`,
   `${root}/includes/class-pv-woo-admin-status.php`,
+  `${root}/includes/class-pv-woo-invoice-presentation.php`,
   `${root}/includes/class-pv-woo-connector.php`,
   `${root}/examples/mapping-profile.json`,
   `${root}/examples/refund-mapping-profile.json`,
@@ -41,7 +42,7 @@ const bootstrap = text(`${root}/puente-verifactu-woocommerce.php`);
 if (!bootstrap.includes("declare_compatibility( 'custom_order_tables'")) failures.push({ code: 'WOO_HPOS_DECLARATION_MISSING' });
 if (!bootstrap.includes('WC tested up to: 11.1')) failures.push({ code: 'WOO_TESTED_VERSION_MISSING', expected: '11.1' });
 if (!bootstrap.includes('Requires PHP: 7.4')) failures.push({ code: 'WOO_PHP_CONTRACT_MISSING', expected: '7.4' });
-if (!bootstrap.includes('Version: 0.2.0')) failures.push({ code: 'WOO_VERSION_CONTRACT_MISSING', expected: '0.2.0' });
+if (!bootstrap.includes('Version: 0.3.0')) failures.push({ code: 'WOO_VERSION_CONTRACT_MISSING', expected: '0.3.0' });
 if (!bootstrap.includes('load_plugin_textdomain')) failures.push({ code: 'WOO_I18N_LOAD_MISSING' });
 
 const forbiddenStorage = [
@@ -100,6 +101,14 @@ for (const marker of ['WC_Order_Refund', "'refund_invoice_number'", "'original_i
   if (!refundPayload.includes(marker)) failures.push({ code: 'WOO_REFUND_PAYLOAD_CONTRACT_MISSING', marker });
 }
 if (/invoiceType|rectification.*type/.test(refundPayload)) failures.push({ code: 'WOO_REFUND_PAYLOAD_FISCAL_AUTHORITY_FORBIDDEN' });
+
+const presentation = text(`${root}/includes/class-pv-woo-invoice-presentation.php`);
+for (const marker of ['pv_woo_get_invoice_presentation', 'META_KEY', 'SPEC_VERSION', 'WC_Abstract_Order']) {
+  if (!presentation.includes(marker)) failures.push({ code: 'WOO_PRESENTATION_API_MISSING', marker });
+}
+for (const marker of ["add_filter( 'pv_woo_invoice_presentation'", "do_action( 'pv_woo_invoice_presentation_updated'", 'META_PRESENTATION']) {
+  if (!connector.includes(marker)) failures.push({ code: 'WOO_PRESENTATION_WIRING_MISSING', marker });
+}
 
 const adminStatus = text(`${root}/includes/class-pv-woo-admin-status.php`);
 for (const marker of ['manage_woocommerce_page_wc-orders_columns', 'manage_woocommerce_page_wc-orders_custom_column', 'manage_edit-shop_order_columns', 'manage_shop_order_posts_custom_column', "'green'", "'amber'", "'red'", 'META_LAST_ERROR', "self::weight( 'amber' )"]) {
