@@ -6,6 +6,8 @@ import { parseImportFile } from '../../../connectors/file-import/src/file-reader
 const MANIFEST_SUFFIX = '.pv-manifest.json';
 const ERROR_SUFFIX = '.pv-error.json';
 const ALLOWED_EXTENSIONS = new Set(['.csv', '.xlsx']);
+const DEFAULT_MAX_FILE_BYTES = 5 * 1024 * 1024;
+const DEFAULT_MAX_ROWS = 10_000;
 
 function fail(code, message, details = {}) {
   return Object.assign(new Error(message), { code, details });
@@ -149,6 +151,7 @@ async function stageProcessingFile({
   buffer,
   sheet,
   headerRow,
+  maxRows = DEFAULT_MAX_ROWS,
   now,
 }) {
   const storedName = basename(processingPath);
@@ -162,6 +165,7 @@ async function stageProcessingFile({
       filename: originalName,
       sheet,
       headerRow,
+      maxRows,
     });
   } catch (error) {
     const destination = await uniqueDestination(layout.error, originalName);
@@ -188,6 +192,38 @@ async function stageProcessingFile({
       storedName,
       sha256: fileSha256,
       format: null,
+      rows: 0,
+      state: 'blocked',
+      createdAt: report.created_at,
+      updatedAt: report.created_at,
+    });
+  }
+
+  if (Array.isArray(parsed.rows) && parsed.rows.length > Number(maxRows)) {
+    const destination = await uniqueDestination(layout.error, originalName);
+    const report = {
+      schema_version: 1,
+      kind: 'puente-verifactu-local-agent-watch-error',
+      stage: 'parse',
+      source_id: sourceId,
+      original_name: originalName,
+      stored_name: storedName,
+      sha256: fileSha256,
+      code: 'VF_LOCAL_AGENT_WATCH_ROW_LIMIT',
+      message: `The watch-folder file exceeds the safe row limit (${maxRows})`,
+      created_at: new Date(now).toISOString(),
+    };
+    await rename(processingPath, destination);
+    await writePrivateJson(`${destination}${ERROR_SUFFIX}`, report);
+    return Object.freeze({
+      schemaVersion: 1,
+      batchId: batchId(sourceId, fileSha256),
+      sourceId,
+      profileId,
+      originalName,
+      storedName,
+      sha256: fileSha256,
+      format: parsed.format ?? null,
       rows: 0,
       state: 'blocked',
       createdAt: report.created_at,
@@ -283,12 +319,21 @@ export async function ingestWatchFolder({
   profileId,
   issueEnabled = false,
   minAgeMs = 2_000,
+  maxFileBytes = DEFAULT_MAX_FILE_BYTES,
+  maxRows = DEFAULT_MAX_ROWS,
   sheet,
   headerRow,
+  maxRows = DEFAULT_MAX_ROWS,
   now = Date.now(),
 } = {}) {
   if (!store) throw new TypeError('store is required');
   if (!String(profileId ?? '').trim()) throw fail('VF_LOCAL_AGENT_PROFILE_REQUIRED', 'profileId is required');
+  if (!Number.isFinite(Number(maxFileBytes)) || Number(maxFileBytes) < 1) {
+    throw fail('VF_LOCAL_AGENT_WATCH_LIMIT_INVALID', 'maxFileBytes must be a positive number');
+  }
+  if (!Number.isInteger(Number(maxRows)) || Number(maxRows) < 1) {
+    throw fail('VF_LOCAL_AGENT_WATCH_LIMIT_INVALID', 'maxRows must be a positive integer');
+  }
   if (issueEnabled !== true) {
     throw fail(
       'VF_LOCAL_AGENT_WATCH_ISSUE_NOT_ENABLED',
@@ -311,6 +356,38 @@ export async function ingestWatchFolder({
     const name = safeName(entry.name);
     const inboxPath = join(layout.inbox, name);
     const info = await stat(inboxPath);
+    if (Number(info.size) > Number(maxFileBytes)) {
+      const destination = await uniqueDestination(layout.error, name);
+      await rename(inboxPath, destination);
+      if (process.platform !== 'win32') await chmod(destination, 0o600);
+      const createdAt = new Date(Number(now)).toISOString();
+      await writePrivateJson(`${destination}${ERROR_SUFFIX}`, {
+        schema_version: 1,
+        kind: 'puente-verifactu-local-agent-watch-error',
+        stage: 'limits',
+        source_id: String(sourceId),
+        original_name: name,
+        size: Number(info.size),
+        code: 'VF_LOCAL_AGENT_WATCH_FILE_TOO_LARGE',
+        message: `Watch-folder file exceeds ${maxFileBytes} bytes`,
+        created_at: createdAt,
+      });
+      staged.push(Object.freeze({
+        schemaVersion: 1,
+        batchId: null,
+        sourceId: String(sourceId),
+        profileId: String(profileId),
+        originalName: name,
+        storedName: basename(destination),
+        sha256: null,
+        format: extname(name).slice(1).toLowerCase(),
+        rows: 0,
+        state: 'blocked',
+        createdAt,
+        updatedAt: createdAt,
+      }));
+      continue;
+    }
     if (Number(minAgeMs) > 0 && Number(info.mtimeMs) > Number(now) - Number(minAgeMs)) {
       skipped.push({ name, reason: 'not_stable_yet' });
       continue;
@@ -335,6 +412,7 @@ export async function ingestWatchFolder({
       buffer,
       sheet,
       headerRow,
+      maxRows: Number(maxRows),
       now: Number(now),
     }));
   }
@@ -403,6 +481,9 @@ export async function recoverProcessingWatchFiles({
 } = {}) {
   if (!store) throw new TypeError('store is required');
   if (!String(profileId ?? '').trim()) throw fail('VF_LOCAL_AGENT_PROFILE_REQUIRED', 'profileId is required');
+  if (!Number.isInteger(Number(maxRows)) || Number(maxRows) < 1) {
+    throw fail('VF_LOCAL_AGENT_WATCH_LIMIT_INVALID', 'maxRows must be a positive integer');
+  }
   if (issueEnabled !== true) {
     throw fail('VF_LOCAL_AGENT_WATCH_ISSUE_NOT_ENABLED', 'Watch-folder issuance is disabled');
   }
@@ -434,6 +515,7 @@ export async function recoverProcessingWatchFiles({
       buffer,
       sheet,
       headerRow,
+      maxRows: Number(maxRows),
       now: Number(now),
     }));
   }
