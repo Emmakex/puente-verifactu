@@ -31,6 +31,7 @@ done
 
 [[ $EUID -eq 0 ]] || { echo "Run as root" >&2; exit 1; }
 [[ -d "$BUNDLE_DIR" && -f "$BUNDLE_DIR/bundle-manifest.json" ]] || { usage; exit 2; }
+BUNDLE_DIR="$(cd "$BUNDLE_DIR" && pwd -P)"
 [[ -f "$CONFIG_SOURCE" && -f "$ENV_SOURCE" ]] || { usage; exit 2; }
 command -v node >/dev/null
 command -v npm >/dev/null
