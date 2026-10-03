@@ -12,6 +12,8 @@ Kairoseth → Extensions → Puente VeriFactu → adapters/canales de conexión
 
 WooCommerce, PrestaShop, API, Webhook, Excel/CSV, futuros adapters de ERP/CRM, DB, SFTP y Local Agent pertenecen a **la misma extensión**. No se convierten en productos separados. El manifest de producto vive en `config/kairoseth-extension.json`.
 
+La identidad técnica permanece `Puente VeriFactu`. La cara comercial seguirá el mismo patrón que **Puente DeCA → Kairoseth Cargo**: nombre comercial propio dentro de Kairoseth, sin renombrar el motor, contratos ni repositorio. El naming comercial de VeriFactu queda pendiente de fijar.
+
 ## Principio Camaleón
 
 **El puente se adapta al sistema del cliente; el cliente no debe adaptar su negocio al puente.**
