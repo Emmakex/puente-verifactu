@@ -240,12 +240,18 @@ Todos los canales deben cumplir:
 
 ### U3 — Agente local v1
 
-- runtime local;
-- watch-folder;
-- DB read-only;
-- checkpoint;
-- cola offline;
-- HTTPS saliente.
+- [x] foundation runtime local Node 22.13+;
+- [x] SQLite privado y cola offline durable;
+- [x] idempotencia estable por sourceId/sourceKey;
+- [x] leases, recuperación tras crash y retry/backoff;
+- [x] checkpoint durable;
+- [x] discovery watch-folder CSV/XLSX con SHA-256;
+- [x] política de HTTPS saliente;
+- [x] manifest Local Agent + gate CI;
+- [ ] watch-folder -> parser/mapping/preflight -> issue;
+- [ ] processed/error quarantine;
+- [ ] DB read-only;
+- [ ] empaquetado/servicio por sistema operativo.
 
 ### U4 — Conectores de datos
 
