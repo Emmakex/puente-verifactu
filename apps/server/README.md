@@ -281,6 +281,53 @@ Los perfiles se consultan siempre con `organizationId` derivado del contexto aut
 
 El SQLite standalone no actúa como fallback de perfiles productivos: si no se inyecta `onboardingProfileStore`, las rutas persistentes responden `503` mientras el resolver capability-first continúa disponible.
 
+### IntegrationProfile dinámico en MongoDB
+
+U7 elimina la dependencia productiva de `integrations.json` dentro de Kairoseth. El fichero JSON permanece como fallback/reference para runtime standalone y pruebas; en producción Kairoseth el registro dinámico se inyecta desde MongoDB:
+
+```js
+import {
+  createMongoKairosethIntegrationProfileStore,
+} from '../../packages/kairoseth-control-plane/src/index.mjs';
+
+const integrationProfileStore = createMongoKairosethIntegrationProfileStore({
+  database: kairosethMongoDatabase,
+});
+
+const runtime = createPuenteRuntime({
+  // ...
+  integrationProfileStore,
+  resolveIntegrationSecretReference: async ({ ref, organizationId }) => {
+    return kairosethSecrets.resolve({ ref, organizationId });
+  },
+});
+```
+
+Reglas:
+
+- Kairoseth crea/gestiona la conexión MongoDB en Hostinger;
+- el adapter no crea `MongoClient`, colección ni índices;
+- el perfil queda ligado a `organizationId + installationId + profileId`;
+- un perfil dinámico existente tiene prioridad sobre el JSON estático;
+- si el dinámico está desactivado o sin mapping, **no** se cae al JSON para evitar el bloqueo;
+- MappingProfile se valida con el mismo core de Puente VeriFactu;
+- identidad tenant/installation/source se estampa desde autenticación después del mapping;
+- constantes de mapping no pueden introducir tenant, instalación, certificado, claves, entorno AEAT o reglas de autoridad;
+- MongoDB almacena únicamente `webhookSecretRef`, nunca el secreto webhook;
+- la API pública/control plane solo expone `webhookSecretConfigured: true|false`;
+- el secreto real se resuelve mediante `resolveIntegrationSecretReference`, inyectado por Kairoseth.
+
+Rutas de control:
+
+- `GET /v1/control-plane/integration-profiles`;
+- `GET /v1/control-plane/integration-profiles/{profileId}`;
+- `PUT /v1/control-plane/integration-profiles/{profileId}/mapping`;
+- `PUT /v1/control-plane/integration-profiles/{profileId}/webhook-secret-ref`;
+- `POST /v1/control-plane/integration-profiles/{profileId}/disable`;
+- `POST /v1/control-plane/onboarding/profiles/{profileId}/materialize-integration`.
+
+En canales Local Agent, el IntegrationProfile se materializa automáticamente durante el provisioning y utiliza el mismo `installationId` que la credencial del agente. Así el agente solo envía `profileId + source`; MappingProfile y autoridad fiscal permanecen server-side.
+
 ## Rate limiting
 
 Se aplica por `credentialId`; cada credencial define `rateLimitPerMinute`, incluida la credencial operacional. En este perfil single-node el contador vive en memoria. Un deployment multi-réplica deberá sustituirlo por rate limiting compartido en Fase 6.
