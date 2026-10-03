@@ -8,6 +8,7 @@ import { createSqlitePersistence } from '../../../packages/sqlite-store/src/inde
 import { createHttpAuthenticator } from './auth.mjs';
 import { createIntegrationResolvers } from './integration-config.mjs';
 import { KairosethIntegrationProfileControlPlane, createHybridIntegrationResolvers } from './integration-control-plane.mjs';
+import { createKairosethAuthBridge } from './kairoseth-auth-bridge.mjs';
 import { createPuenteHttpServer } from './http-server.mjs';
 import { createOperationalObserver } from './observability.mjs';
 import { KairosethLocalAgentControlPlane } from './local-agent-control-plane.mjs';
@@ -39,6 +40,7 @@ export function createPuenteRuntime({
   onboardingProfileStore = null,
   integrationProfileStore = null,
   resolveIntegrationSecretReference = null,
+  kairosethAuthProvider = null,
   supportedNativeConnectors = DEFAULT_NATIVE_CONNECTORS,
 } = {}) {
   const normalizedSif = {
@@ -61,11 +63,13 @@ export function createPuenteRuntime({
     clock,
   });
   const staticResolvers = createIntegrationResolvers(integrationConfig);
+  const authBridge = createKairosethAuthBridge(kairosethAuthProvider);
   const integrationProfiles = integrationProfileStore
     ? new KairosethIntegrationProfileControlPlane({
         store: integrationProfileStore,
         onboardingStore: onboardingProfileStore,
         resolveSecretReference: resolveIntegrationSecretReference,
+        authBridge,
         clock: observabilityClock,
       })
     : null;
@@ -99,7 +103,10 @@ export function createPuenteRuntime({
       })
     : null;
   const authenticateHttp = createHttpAuthenticator(authConfig, {
-    resolveBearerDigest: (digest) => localAgents.authenticateBearerDigest(digest),
+    resolveBearerDigest: async (digest) => (
+      await localAgents.authenticateBearerDigest(digest)
+      ?? (authBridge ? await authBridge.resolveBearerDigest(digest) : null)
+    ),
   });
   const apiHandler = createApiHandler({
     bridge,
@@ -142,6 +149,7 @@ export function createPuenteRuntime({
     localAgents,
     onboardingProfiles,
     integrationProfiles,
+    authBridge,
     persistence,
     operationalObserver,
     recoveredReservations: Number(recoveredReservations),
