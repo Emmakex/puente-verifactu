@@ -4,6 +4,8 @@
 
 Puente VeriFactu debe poder conectarse a casi cualquier sistema de origen sin convertir cada marca, ERP o ecommerce en un producto distinto.
 
+**Producto:** todos estos escenarios pertenecen a una única ficha/producto de **Kairoseth Extensions → Puente VeriFactu**. WooCommerce, PrestaShop, API, Excel, DB, SFTP o Local Agent son canales/adapters de esa extensión, no productos independientes.
+
 La arquitectura se decide por **capacidades**, no por marca ni versión:
 
 ```text
@@ -175,6 +177,11 @@ Ejemplo:
   "schema_version": 1,
   "kind": "puente-verifactu-adapter-manifest",
   "id": "mi-erp",
+  "product": {
+    "ecosystem": "kairoseth",
+    "catalog": "extensions",
+    "product_id": "puente-verifactu"
+  },
   "channel": "api",
   "transport": "https-json",
   "mode": "push",
