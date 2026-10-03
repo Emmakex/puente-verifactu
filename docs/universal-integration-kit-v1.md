@@ -1,5 +1,7 @@
 # Universal Integration Kit v1
 
+> Para la matriz completa de escenarios ERP/CRM/software propio/Excel/legacy y el nuevo manifest capability-first, ver `docs/universal-integration-matrix.md`.
+
 ## Objetivo
 
 Convertir Puente VeriFactu en una capa realmente **camaleónica**: el sistema del cliente aporta los datos que ya tiene y el puente se encarga de normalizar, validar, fiscalizar y, cuando corresponda, remitir a AEAT.
