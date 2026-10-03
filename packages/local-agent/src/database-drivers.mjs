@@ -86,9 +86,9 @@ export function createMysqlReadOnlyDriver({ pool, dialect = 'mysql' } = {}) {
 
 const SQLSERVER_READ_ONLY_PROBE = `
 WITH principals AS (
-  SELECT USER_ID() AS principal_id
+  SELECT CAST(USER_ID() AS int) AS principal_id
   UNION ALL
-  SELECT drm.role_principal_id
+  SELECT CAST(drm.role_principal_id AS int)
   FROM sys.database_role_members AS drm
   INNER JOIN principals AS p
     ON drm.member_principal_id = p.principal_id
