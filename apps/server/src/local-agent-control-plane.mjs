@@ -98,8 +98,8 @@ export class KairosethLocalAgentControlPlane {
     this.agentRateLimitPerMinute = agentRateLimitPerMinute;
   }
 
-  authenticateBearerDigest(digest) {
-    const record = this.store.authByTokenSha256(String(digest ?? ''));
+  async authenticateBearerDigest(digest) {
+    const record = await this.store.authByTokenSha256(String(digest ?? ''));
     if (!record) return null;
     return Object.freeze({
       credentialId: `local-agent:${record.organizationId}:${record.installationId}:v${record.credentialVersion}`,
@@ -113,7 +113,7 @@ export class KairosethLocalAgentControlPlane {
     });
   }
 
-  provision(input = {}) {
+  async provision(input = {}) {
     const organizationId = requiredId(input.organizationId, 'organizationId');
     const installationId = requiredId(input.installationId, 'installationId');
     const sourceSystem = requiredId(input.sourceSystem ?? 'local-agent', 'sourceSystem');
@@ -121,7 +121,7 @@ export class KairosethLocalAgentControlPlane {
     if (!UPDATE_POLICIES.has(updatePolicy)) throw apiError('VF_LOCAL_AGENT_CONTROL_INPUT_INVALID', 'updatePolicy is invalid');
 
     const token = newToken();
-    const record = this.store.create({
+    const record = await this.store.create({
       organizationId,
       installationId,
       sourceSystem,
@@ -142,11 +142,11 @@ export class KairosethLocalAgentControlPlane {
     });
   }
 
-  rotateCredential(input = {}) {
+  async rotateCredential(input = {}) {
     const organizationId = requiredId(input.organizationId, 'organizationId');
     const installationId = requiredId(input.installationId, 'installationId');
     const token = newToken();
-    const record = this.store.rotateCredential({
+    const record = await this.store.rotateCredential({
       organizationId,
       installationId,
       tokenSha256: tokenDigest(token),
@@ -158,8 +158,8 @@ export class KairosethLocalAgentControlPlane {
     });
   }
 
-  revoke(input = {}) {
-    const record = this.store.revoke({
+  async revoke(input = {}) {
+    const record = await this.store.revoke({
       organizationId: requiredId(input.organizationId, 'organizationId'),
       installationId: requiredId(input.installationId, 'installationId'),
       now: this.clock(),
@@ -167,14 +167,14 @@ export class KairosethLocalAgentControlPlane {
     return publicState(record, this.clock(), this.offlineAfterMs);
   }
 
-  setControl(input = {}) {
+  async setControl(input = {}) {
     const organizationId = requiredId(input.organizationId, 'organizationId');
     const installationId = requiredId(input.installationId, 'installationId');
     const updatePolicy = String(input.updatePolicy ?? 'manual');
     if (!UPDATE_POLICIES.has(updatePolicy)) throw apiError('VF_LOCAL_AGENT_CONTROL_INPUT_INVALID', 'updatePolicy is invalid');
-    const current = this.store.get(organizationId, installationId);
+    const current = await this.store.get(organizationId, installationId);
     if (!current) throw apiError('VF_LOCAL_AGENT_INSTALLATION_NOT_FOUND', 'Local Agent installation not found', 404);
-    const record = this.store.setControl({
+    const record = await this.store.setControl({
       organizationId,
       installationId,
       desiredVersion: optionalVersion(input.desiredVersion),
@@ -185,12 +185,13 @@ export class KairosethLocalAgentControlPlane {
     return publicState(record, this.clock(), this.offlineAfterMs);
   }
 
-  list() {
+  async list() {
     const now = this.clock();
-    return Object.freeze(this.store.list().map((record) => publicState(record, now, this.offlineAfterMs)));
+    const records = await this.store.list();
+    return Object.freeze(records.map((record) => publicState(record, now, this.offlineAfterMs)));
   }
 
-  heartbeat(context, input = {}) {
+  async heartbeat(context, input = {}) {
     if (context?.credentialKind !== 'local-agent') {
       throw apiError('VF_LOCAL_AGENT_HEARTBEAT_FORBIDDEN', 'Local Agent credential required', 403);
     }
@@ -208,7 +209,7 @@ export class KairosethLocalAgentControlPlane {
     if (!REPORTED_STATUS.has(reportedStatus)) throw apiError('VF_LOCAL_AGENT_HEARTBEAT_INVALID', 'status is invalid');
 
     const now = this.clock();
-    const record = this.store.heartbeat({
+    const record = await this.store.heartbeat({
       organizationId: context.organizationId,
       installationId: context.installationId,
       agentVersion,
