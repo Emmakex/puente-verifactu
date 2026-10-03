@@ -34,6 +34,7 @@ function rowToJob(row) {
     error: clone(parseJson(row.error_json)),
     createdAt: Number(row.created_at_ms),
     updatedAt: Number(row.updated_at_ms),
+    redacted: row.payload_json === 'null' && row.result_json == null,
   });
 }
 
@@ -176,6 +177,22 @@ export class LocalAgentStore {
         AND lease_until_ms <= ?
     `);
     this.listJobsStmt = this.db.prepare('SELECT * FROM local_agent_jobs ORDER BY created_at_ms ASC, id ASC');
+    this.redactTerminalJobStmt = this.db.prepare(`
+      UPDATE local_agent_jobs
+      SET payload_json = 'null',
+          result_json = NULL,
+          error_json = ?
+      WHERE id = ? AND state IN ('completed', 'blocked')
+    `);
+    this.selectRedactableTerminalJobs = this.db.prepare(`
+      SELECT id
+      FROM local_agent_jobs
+      WHERE state IN ('completed', 'blocked')
+        AND updated_at_ms <= ?
+        AND (payload_json <> 'null' OR result_json IS NOT NULL)
+      ORDER BY updated_at_ms ASC, id ASC
+      LIMIT ?
+    `);
     this.statsStmt = this.db.prepare(`
       SELECT
         COUNT(*) AS total,
@@ -323,6 +340,44 @@ export class LocalAgentStore {
       });
     }
     return this.get(id);
+  }
+
+  redactTerminal(id) {
+    const current = this.get(id);
+    if (!current) {
+      throw Object.assign(new Error('Local Agent job not found'), { code: 'VF_LOCAL_AGENT_JOB_NOT_FOUND' });
+    }
+    if (!['completed', 'blocked'].includes(current.state)) {
+      throw Object.assign(new Error('Only terminal Local Agent jobs can be redacted'), {
+        code: 'VF_LOCAL_AGENT_JOB_NOT_TERMINAL',
+      });
+    }
+
+    const sanitizedError = current.error
+      ? {
+          code: String(current.error.code ?? 'VF_LOCAL_AGENT_ERROR'),
+          status: Number.isFinite(Number(current.error.status)) ? Number(current.error.status) : null,
+          retryable: Boolean(current.error.retryable),
+        }
+      : null;
+
+    this.redactTerminalJobStmt.run(
+      sanitizedError == null ? null : JSON.stringify(sanitizedError),
+      id,
+    );
+    return this.get(id);
+  }
+
+  redactTerminalPayloads({ before = Date.now(), limit = 500 } = {}) {
+    const cutoff = Number(before);
+    const maximum = Number(limit);
+    if (!Number.isFinite(cutoff) || !Number.isInteger(maximum) || maximum < 1 || maximum > 10_000) {
+      throw Object.assign(new Error('Invalid terminal-redaction limits'), { code: 'VF_LOCAL_AGENT_INPUT_INVALID' });
+    }
+
+    const ids = this.selectRedactableTerminalJobs.all(cutoff, maximum).map((row) => row.id);
+    for (const id of ids) this.redactTerminal(id);
+    return Object.freeze({ redacted: ids.length, ids: Object.freeze(ids) });
   }
 
   stats(now = Date.now()) {

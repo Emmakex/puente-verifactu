@@ -176,6 +176,61 @@ test('watch-folder discovery is deterministic and fingerprints file revisions', 
   assert.notEqual(secondScan[0].sha256, originalHash);
 });
 
+test('terminal payload redaction preserves source idempotency without retaining raw data', () => {
+  const store = new LocalAgentStore(':memory:');
+  const payload = {
+    kind: 'mapped-source',
+    profileId: 'p-redact',
+    source: { numero: 'R-1', cliente: 'Dato sensible' },
+  };
+  const queued = store.enqueue({
+    sourceId: 'watch-redact',
+    sourceKey: 'filehash:row:2',
+    payload,
+    now: 100,
+    availableAt: 100,
+  });
+  const claimed = store.claimNext({ owner: 'redact-worker', now: 100, leaseMs: 1_000 });
+  store.complete(claimed.id, {
+    owner: 'redact-worker',
+    recordId: 'record-redact',
+    result: { recordId: 'record-redact', presentation: { url: 'sensitive-result' } },
+    now: 200,
+  });
+
+  const redacted = store.redactTerminal(queued.id);
+  assert.equal(redacted.redacted, true);
+  assert.equal(redacted.payload, null);
+  assert.equal(redacted.result, null);
+  assert.equal(redacted.recordId, 'record-redact');
+  assert.equal(redacted.idempotencyKey, queued.idempotencyKey);
+
+  const duplicate = store.enqueue({
+    sourceId: 'watch-redact',
+    sourceKey: 'filehash:row:2',
+    payload,
+    now: 300,
+    availableAt: 300,
+  });
+  assert.equal(duplicate.id, queued.id);
+  assert.equal(duplicate.state, 'completed');
+  assert.equal(duplicate.redacted, true);
+
+  assert.throws(
+    () => store.enqueue({
+      sourceId: 'watch-redact',
+      sourceKey: 'filehash:row:2',
+      payload: { ...payload, source: { numero: 'R-1', cliente: 'Otro dato' } },
+      now: 400,
+      availableAt: 400,
+    }),
+    (error) => error.code === 'VF_LOCAL_AGENT_SOURCE_KEY_CONFLICT',
+  );
+
+  assert.deepEqual(store.redactTerminalPayloads({ before: 500 }), { redacted: 0, ids: [] });
+  store.close();
+});
+
 test('Local Agent network policy requires outbound HTTPS except explicit localhost development', () => {
   assert.equal(assertOutboundBaseUrl('https://kairoseth.example/api/'), 'https://kairoseth.example/api');
   assert.throws(

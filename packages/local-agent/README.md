@@ -93,6 +93,19 @@ inbox/
 
 The processing manifest stores only batch/job identifiers and file metadata, not raw row contents. Raw source rows live in the local SQLite queue while they are needed for delivery.
 
+After a watch-folder batch reaches `processed/` or `error/`, its terminal queue rows are **redacted automatically**:
+
+- raw `payload_json` becomes `null`;
+- server response bodies are removed from `result_json`;
+- blocked errors keep only `code`, `status` and `retryable`;
+- `sourceId`, `sourceKey`, payload fingerprint, stable Idempotency-Key, terminal state and `recordId` remain.
+
+That retained metadata is enough to reject a conflicting replay and to recognize an identical source operation without keeping the original row data indefinitely.
+
+`store.redactTerminalPayloads()` is also available as a maintenance sweep for terminal jobs left behind by a crash between archive and redaction.
+
+The original CSV/XLSX archived under `processed/` or `error/` is **not deleted automatically**. Source-file retention is an operator policy and must not be confused with SQLite payload minimization.
+
 ## Checkpoints
 
 Database adapters will use:
