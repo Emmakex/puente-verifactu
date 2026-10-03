@@ -1,6 +1,6 @@
 # Puente VeriFactu — PrestaShop connector 0.5.0
 
-Conector nativo y deliberadamente fino para **PrestaShop 1.7.8.x y 8.x**. Extrae hechos comerciales de facturas y abonos nativos, construye payloads neutrales y habla con la API universal de Puente VeriFactu. **No contiene reglas AEAT, XML, SOAP, certificados ni decisiones fiscales sensibles.**
+Conector nativo y deliberadamente fino para **PrestaShop 1.7.8+** con compatibilidad capability-first. Extrae hechos comerciales de facturas y abonos nativos, construye payloads neutrales y habla con la API universal de Puente VeriFactu. **No contiene reglas AEAT, XML, SOAP, certificados ni decisiones fiscales sensibles.**
 
 ## Estado
 
@@ -31,6 +31,16 @@ Versión `0.5.0` con flujo manual seguro, automatización **opt-in** por tienda 
 
 La automatización no sustituye el modo manual: simplemente reutiliza los mismos invariantes de preflight, idempotencia y estado local cuando el comercio decide activarla.
 
+## Neutralidad de versión
+
+La lógica del conector no cambia por número de versión de PrestaShop. `PVFPrestaShopCompatibility` detecta capacidades reales del runtime y registra únicamente los hooks disponibles.
+
+La matriz CI sigue siendo la evidencia de las combinaciones ejecutadas end-to-end; no se usa para introducir ramas del tipo “si PrestaShop es X”. El módulo permite instalación futura-tolerante a partir de 1.7.8, pero una versión no probada solo podrá emitir si dispone de las capacidades mínimas necesarias.
+
+Para facturas ordinarias se exige un hook `displayPDFInvoice` utilizable y un renderer QR compatible. Para rectificativas se exige `displayPDFOrderSlip`. Si falta una de esas capacidades, preflight/diagnóstico pueden seguir disponibles pero la emisión correspondiente falla cerrado **antes** de crear el registro fiscal.
+
+Además de los hooks nativos, `PVFPrestaShopInvoicePresentation::getForOrder()` y `getForOrderSlip()` exponen un contrato neutral para adaptadores futuros sin duplicar reglas AEAT.
+
 ## Compatibilidad validada
 
 La matriz de CI instala el **ZIP reproducible de distribución** dentro de tiendas efímeras PrestaShop Flashlight. Combinaciones validadas:
@@ -39,7 +49,7 @@ La matriz de CI instala el **ZIP reproducible de distribución** dentro de tiend
 - PrestaShop **8.1.7** / PHP **8.1**;
 - PrestaShop **8.2.7** / PHP **8.1**.
 
-Cada job comprueba arranque real, instalación y activación del módulo `0.4.0`, tablas de sincronización, hooks nativos, factura, payload principal, semáforo operativo y creación de un `OrderSlip` real. También demuestra que los hooks automáticos registrados **no crean estado ni intentan procesar operaciones mientras sus switches permanecen desactivados** y ejecuta los seis escenarios transversales de reconciliación/idempotencia de Connector Contract Suite v2. Esta matriz no implica soporte para PrestaShop 9.
+Cada job comprueba arranque real, instalación y activación del módulo `0.5.0`, tablas de sincronización, hooks nativos, factura, payload principal, semáforo operativo y creación de un `OrderSlip` real. También demuestra que los hooks automáticos registrados **no crean estado ni intentan procesar operaciones mientras sus switches permanecen desactivados** y ejecuta los seis escenarios transversales de reconciliación/idempotencia de Connector Contract Suite v2. Esta matriz documenta únicamente las versiones realmente ejecutadas en CI; versiones posteriores se evalúan por capacidades en runtime.
 
 Los datasets Flashlight usados por la prueba runtime tienen una línea al 0 %. Para que esa limitación no deje sin probar IVA positivo, CI ejecuta además `npm run prestashop:rectification-fixtures`, que usa la misma validación del runtime con 21 %, 10 %, 4 %, redondeos admisibles y desajustes que deben bloquearse.
 
@@ -90,7 +100,7 @@ La clave de idempotencia es estable por tienda + `OrderSlip` + número rectifica
 
 ## Automatización opt-in
 
-La versión `0.4.0` registra dos eventos nativos, pero **registrar el hook no equivale a activar la automatización**:
+La versión `0.5.0` registra los eventos nativos disponibles, pero **registrar el hook no equivale a activar la automatización**:
 
 - `actionOrderStatusPostUpdate` para facturas;
 - `actionOrderSlipAdd` para abonos.
@@ -100,7 +110,7 @@ En **Configurar** existen dos switches independientes por tienda:
 - **Automatic invoices**;
 - **Automatic corrective credit slips**.
 
-Ambos se instalan y se migran con valor `OFF`. Una actualización desde 0.3.0 no comienza a procesar operaciones por sí sola.
+Ambos se instalan y se migran con valor `OFF`. Una actualización no comienza a procesar operaciones por sí sola.
 
 ### Facturas automáticas
 
