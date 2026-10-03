@@ -111,6 +111,7 @@ export function createApiHandler({
   resolveWebhookSecret,
   imports,
   localAgents = null,
+  resolveOnboardingStrategy = null,
 } = {}) {
   if (!bridge) throw new TypeError('bridge is required');
   if (typeof authenticate !== 'function') throw new TypeError('authenticate is required');
@@ -121,6 +122,21 @@ export function createApiHandler({
       const context = await authenticate(request);
       const method = String(request.method ?? 'GET').toUpperCase();
       const path = String(request.path ?? '/').split('?')[0];
+
+      if (method === 'POST' && path === '/v1/control-plane/onboarding/resolve') {
+        requirePermission(context, 'agents:manage');
+        if (typeof resolveOnboardingStrategy !== 'function') {
+          throw Object.assign(new Error('Kairoseth onboarding resolver is unavailable'), {
+            code: 'VF_ONBOARDING_RESOLVER_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        return json(
+          200,
+          await resolveOnboardingStrategy(parseJsonBody(request)),
+          correlationId,
+        );
+      }
 
       if (path === '/v1/control-plane/local-agents') {
         if (!localAgents) {
