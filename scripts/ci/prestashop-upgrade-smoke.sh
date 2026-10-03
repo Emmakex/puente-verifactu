@@ -70,7 +70,7 @@ if ((string) $module->version !== '0.4.0') {
     failUpgrade('PRESTA_UPGRADE_BASELINE_VERSION', 'Expected baseline 0.4.0, received ' . (string) $module->version);
 }
 if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
-    failUpgrade('PRESTA_UPGRADE_BASELINE_STATUS_HOOK_MISSING', '0.3.0 baseline must contain the native order status hook.');
+    failUpgrade('PRESTA_UPGRADE_BASELINE_STATUS_HOOK_MISSING', '0.4.0 baseline must contain the native order status hook.');
 }
 if (!$module->isRegisteredInHook('actionOrderStatusPostUpdate') || !$module->isRegisteredInHook('actionOrderSlipAdd')) {
     failUpgrade('PRESTA_UPGRADE_BASELINE_AUTO_HOOK_MISSING', '0.4.0 baseline must preserve automatic event hooks.');
@@ -91,8 +91,8 @@ if (is_array($presentationColumn)) {
     }
 }
 
-Configuration::deleteByName('PVF_AUTO_INVOICES');
-Configuration::deleteByName('PVF_AUTO_RECTIFICATIONS');
+Configuration::updateValue('PVF_AUTO_INVOICES', 0, false, null, 1);
+Configuration::updateValue('PVF_AUTO_RECTIFICATIONS', 0, false, null, 1);
 
 Db::getInstance()->delete('pvf_order_sync', '`id_shop` = 1 AND `id_order` = 424242');
 $ok = Db::getInstance()->insert('pvf_order_sync', array(
@@ -126,7 +126,7 @@ echo json_encode(array(
     'status' => 'ok',
     'baseline' => (string) $module->version,
     'status_hook_registered' => true,
-    'automation_hooks_registered' => false,
+    'automation_hooks_registered' => true,
     'invoice_state_seeded' => true,
     'corrective_state_seeded' => true,
 )) . PHP_EOL;
