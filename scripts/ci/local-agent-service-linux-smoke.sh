@@ -44,8 +44,8 @@ sudo chown kairoseth-agent:kairoseth-agent /var/lib/kairoseth-local-agent/state-
 
 sudo bash "$INSTALLER" --bundle-dir "$BUNDLE_ROOT" --config-source "$CONFIG_TWO" --env-source "$ENV_FILE" >/tmp/pv-linux-install-2.json
 
-grep -q '"marker":"first"' /etc/kairoseth-local-agent/agent.json
-grep -q 'state-survives' /var/lib/kairoseth-local-agent/state-marker
+sudo grep -q '"marker":"first"' /etc/kairoseth-local-agent/agent.json
+sudo grep -q 'state-survives' /var/lib/kairoseth-local-agent/state-marker
 
 sudo bash "$UNINSTALLER" >/tmp/pv-linux-uninstall.json
 
@@ -57,8 +57,8 @@ sudo bash "$UNINSTALLER" >/tmp/pv-linux-uninstall.json
 grep -q '"marker":"first"' /etc/kairoseth-local-agent/agent.json
 grep -q 'state-survives' /var/lib/kairoseth-local-agent/state-marker
 
-mode_config="$(stat -c '%a' /etc/kairoseth-local-agent/agent.json)"
-mode_env="$(stat -c '%a' /etc/kairoseth-local-agent/agent.env)"
+mode_config="$(sudo stat -c '%a' /etc/kairoseth-local-agent/agent.json)"
+mode_env="$(sudo stat -c '%a' /etc/kairoseth-local-agent/agent.env)"
 [[ "$mode_config" == "600" ]]
 [[ "$mode_env" == "600" ]]
 
