@@ -174,11 +174,32 @@ A source SFTP account can therefore be provisioned with read-only filesystem per
 
 `createSftpConnectionConfig()` requires a pinned host fingerprint in either 64-character SHA-256 hex or OpenSSH `SHA256:...` format. The underlying SSH client is configured with `hostHash='sha256'` and a fail-closed verifier.
 
+## SFTP source
+
+The SFTP source is a non-destructive drop-folder adapter for legacy systems that can export CSV/XLSX to a remote server but cannot call the Puente API directly.
+
+Security and durability rules:
+
+- remote SSH host identity is pinned with a required SHA-256 host-key fingerprint;
+- password or private-key authentication is supported, but credentials are never written into queue payloads or manifests;
+- only regular `.csv` / `.xlsx` files are accepted;
+- remote files are read with `list()` + `get()` only; the adapter never renames, deletes or uploads source files;
+- remote source folders should be provisioned read-only for the Local Agent account;
+- file age and size limits are checked before download, and listed/downloaded byte counts must match;
+- downloaded bytes are SHA-256 fingerprinted and handed to the existing private watch-folder pipeline;
+- durable source receipts prevent re-downloading the same remote revision after restart;
+- `issueEnabled=true` remains an explicit fail-closed requirement.
+
+A deployment installs `ssh2-sftp-client@12.1.1` only when SFTP is needed. CI runs a real SFTP server, pins its generated Ed25519 host key, proves that the remote drop directory rejects uploads, downloads a CSV, hands it to the existing `mapped-source` pipeline and verifies that a second poll is idempotent.
+
+The first SFTP unit is intentionally inbound/read-only. Remote acknowledgements, deletes or moves are not performed because they would mutate the customer's source system.
+
 ## Gate
 
 ```bash
 npm run local-agent:smoke
 npm run local-agent:contract
+npm run local-agent:sftp:smoke # Docker + ssh2-sftp-client@12.1.1
 ```
 
 ## Not yet claimed
