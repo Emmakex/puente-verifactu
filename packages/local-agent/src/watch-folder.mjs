@@ -38,33 +38,4 @@ export async function scanWatchFolder(directory, { extensions = DEFAULT_EXTENSIO
   return Object.freeze(files);
 }
 
-export async function enqueueWatchFolder({
-  store,
-  directory,
-  sourceId = 'watch-folder',
-  extensions = DEFAULT_EXTENSIONS,
-  now = Date.now(),
-} = {}) {
-  if (!store) throw new TypeError('store is required');
-  const files = await scanWatchFolder(directory, { extensions });
-  const jobs = [];
-  for (const file of files) {
-    jobs.push(store.enqueue({
-      sourceId,
-      sourceKey: file.sourceKey,
-      payload: {
-        kind: 'watch-file',
-        filename: file.name,
-        path: file.path,
-        extension: file.extension,
-        size: file.size,
-        sha256: file.sha256,
-      },
-      now,
-      availableAt: now,
-    }));
-  }
-  return Object.freeze({ files: files.length, jobs: Object.freeze(jobs) });
-}
-
 export { DEFAULT_EXTENSIONS as WATCH_FOLDER_EXTENSIONS };
