@@ -393,6 +393,3 @@ jobs:
           --artifact artifact/kairoseth-local-agent.zip
           --checksum artifact/kairoseth-local-agent.zip.sha256
           --bundle-root .tmp/local-agent-bundle/kairoseth-local-agent
-          --source-commit "$PV_SOURCE_COMMIT"
-          --platform "$PV_EXPECTED_PLATFORM"
-          --arch "$PV_EXPECTED_ARCH"
