@@ -134,14 +134,14 @@ export function createApiHandler({
         if (method === 'GET') {
           return json(200, {
             schemaVersion: 1,
-            installations: localAgents.list(),
+            installations: await localAgents.list(),
           }, correlationId);
         }
         if (method === 'POST') {
-          return json(201, localAgents.provision(parseJsonBody(request)), correlationId);
+          return json(201, await localAgents.provision(parseJsonBody(request)), correlationId);
         }
         if (method === 'PATCH') {
-          return json(200, localAgents.setControl(parseJsonBody(request)), correlationId);
+          return json(200, await localAgents.setControl(parseJsonBody(request)), correlationId);
         }
         throw Object.assign(new Error('Method not allowed'), {
           code: 'VF_API_METHOD_NOT_ALLOWED',
@@ -157,7 +157,7 @@ export function createApiHandler({
           });
         }
         requirePermission(context, 'agents:manage');
-        return json(200, localAgents.rotateCredential(parseJsonBody(request)), correlationId);
+        return json(200, await localAgents.rotateCredential(parseJsonBody(request)), correlationId);
       }
 
       if (method === 'POST' && path === '/v1/control-plane/local-agents/revoke') {
@@ -168,7 +168,7 @@ export function createApiHandler({
           });
         }
         requirePermission(context, 'agents:manage');
-        return json(200, localAgents.revoke(parseJsonBody(request)), correlationId);
+        return json(200, await localAgents.revoke(parseJsonBody(request)), correlationId);
       }
 
       if (method === 'POST' && path === '/v1/local-agent/heartbeat') {
@@ -178,7 +178,7 @@ export function createApiHandler({
             status: 503,
           });
         }
-        return json(200, localAgents.heartbeat(context, parseJsonBody(request)), correlationId);
+        return json(200, await localAgents.heartbeat(context, parseJsonBody(request)), correlationId);
       }
 
       requireDataPlaneContext(context);

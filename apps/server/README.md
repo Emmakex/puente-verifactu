@@ -205,6 +205,45 @@ A Kairoseth management credential example:
 
 No Local Agent management route moves AEAT certificates, fiscal rules or tenant authority out of Kairoseth.
 
+### Binding PostgreSQL productivo de Kairoseth
+
+El registry de Local Agent puede conectarse a la persistencia PostgreSQL ya existente de Kairoseth mediante un store inyectado. El adapter vive en:
+
+```text
+packages/kairoseth-control-plane/src/postgres-local-agent-registry.mjs
+```
+
+Reglas del binding:
+
+- el adapter **no importa `pg`** ni crea pools;
+- no recibe connection strings ni passwords;
+- Kairoseth crea y gestiona el pool PostgreSQL;
+- `createPuenteRuntime({ localAgentRegistryStore })` recibe el store ya enlazado;
+- la migración se expone como SQL explícito y **no se ejecuta automáticamente**;
+- la tabla se crea dentro de la base/esquema administrados por Kairoseth, no en una base paralela;
+- el token del agente nunca se persiste en claro, solo `token_sha256`;
+- el control plane sigue usando la identidad tenant autoritativa de Kairoseth.
+
+Ejemplo de composición desde la infraestructura Kairoseth:
+
+```js
+import { createPostgresKairosethLocalAgentRegistryStore } from '../../packages/kairoseth-control-plane/src/index.mjs';
+
+const localAgentRegistryStore = createPostgresKairosethLocalAgentRegistryStore({
+  pool: kairosethPostgresPool,
+  tableName: 'public.kairoseth_local_agent_installations',
+});
+
+const runtime = createPuenteRuntime({
+  // ...configuración fiscal existente...
+  localAgentRegistryStore,
+});
+```
+
+El equipo de infraestructura aplica previamente `postgresLocalAgentRegistryMigrationSql()` con el mecanismo de migraciones propio de Kairoseth. El runtime de Puente VeriFactu no adquiere autoridad para crear bases, usuarios PostgreSQL o tenants.
+
+CI valida este binding contra PostgreSQL 16 con un pool real inyectado y comprueba persistencia tras reiniciar el runtime HTTP, rotación/revocación de credenciales y ausencia de tokens en claro.
+
 ## Rate limiting
 
 Se aplica por `credentialId`; cada credencial define `rateLimitPerMinute`, incluida la credencial operacional. En este perfil single-node el contador vive en memoria. Un deployment multi-réplica deberá sustituirlo por rate limiting compartido en Fase 6.

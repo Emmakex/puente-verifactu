@@ -263,6 +263,29 @@ jobs:
         run: bash scripts/ci/local-agent-db-compatibility-smoke.sh
 
 
+  kairoseth-local-agent-postgres-registry:
+    name: Kairoseth control plane / PostgreSQL 16 registry
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Verify injected registry architecture
+        run: npm run kairoseth:agents:postgres:check
+
+      - name: Install PostgreSQL client for CI only
+        run: npm install --no-save --package-lock=false --ignore-scripts "pg@8.23.1"
+
+      - name: Real Kairoseth PostgreSQL registry smoke
+        run: npm run kairoseth:agents:postgres:smoke
+
+
   local-agent-sftp-compatibility:
     name: Local Agent SFTP / OpenSSH
     runs-on: ubuntu-latest
