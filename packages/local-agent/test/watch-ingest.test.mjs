@@ -108,7 +108,17 @@ test('watch-folder fans out rows, preflights server-side and quarantines a rejec
 
   const errorFiles = await readdir(layout.error);
   assert.ok(errorFiles.some((name) => name.endsWith('.csv')));
-  assert.ok(errorFiles.some((name) => name.endsWith('.pv-manifest.json')));
+  const errorManifest = errorFiles.find((name) => name.endsWith('.pv-manifest.json'));
+  assert.ok(errorManifest);
+  const archivedErrorManifest = JSON.parse(await readFile(join(layout.error, errorManifest), 'utf8'));
+  assert.equal(archivedErrorManifest.row_results.length, 2);
+  assert.ok(archivedErrorManifest.row_results.some((row) => row.error_code === 'VF_LOCAL_AGENT_PREFLIGHT_FAILED'));
+  for (const job of store.list()) {
+    assert.equal(job.redacted, true);
+    assert.equal(job.payload, null);
+    assert.equal(job.result, null);
+    if (job.state === 'blocked') assert.equal(job.error.message, undefined);
+  }
   store.close();
 });
 
@@ -154,7 +164,16 @@ test('watch-folder archives a fully accepted batch as processed', async () => {
 
   const processed = await readdir(layout.processed);
   assert.ok(processed.some((name) => name === 'ok.csv'));
-  assert.ok(processed.some((name) => name === 'ok.csv.pv-manifest.json'));
+  const processedManifest = processed.find((name) => name === 'ok.csv.pv-manifest.json');
+  assert.ok(processedManifest);
+  const archivedManifest = JSON.parse(await readFile(join(layout.processed, processedManifest), 'utf8'));
+  assert.deepEqual(archivedManifest.row_results.map((row) => row.record_id).sort(), ['ok-B-1', 'ok-B-2']);
+  for (const job of store.list()) {
+    assert.equal(job.redacted, true);
+    assert.equal(job.payload, null);
+    assert.equal(job.result, null);
+    assert.ok(job.recordId);
+  }
   store.close();
 });
 
