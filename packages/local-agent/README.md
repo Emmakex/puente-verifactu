@@ -44,7 +44,9 @@ A source operation has a stable `sourceId + sourceKey`. The agent derives one st
 
 ### Read-only source strategy
 
-Future generic DB adapters are read-only by default. The foundation already declares `source_read_only=true`.
+Generic database extraction now has a fail-closed read-only contract. The Local Agent accepts only a verified read-only driver, only a single `SELECT` statement, and rejects write-capable SQL constructs before touching the source.
+
+The application-side guard is defense in depth, not a substitute for database permissions. Production database credentials must be provisioned as **SELECT-only**. The foundation continues to declare `source_read_only=true`.
 
 ## Queue payloads
 
@@ -106,16 +108,45 @@ That retained metadata is enough to reject a conflicting replay and to recognize
 
 The original CSV/XLSX archived under `processed/` or `error/` is **not deleted automatically**. Source-file retention is an operator policy and must not be confused with SQLite payload minimization.
 
-## Checkpoints
+## Database source
 
-Database adapters will use:
+`pollDatabaseSource()` provides the shared extraction path for PostgreSQL, MySQL/MariaDB and SQL Server drivers without embedding fiscal rules in the database integration.
+
+The source contract requires:
+
+- a verified read-only driver;
+- an explicit `issueEnabled=true` opt-in;
+- exactly one `SELECT` query;
+- a stable cursor column;
+- bounded pages of at most 1,000 rows;
+- server-side `MappingProfile` through the existing `mapped-source` payload;
+- durable queue insertion before checkpoint advancement.
+
+Example:
 
 ```js
-store.setCheckpoint('erp-orders', { lastId: 12000 });
-store.getCheckpoint('erp-orders');
+const driver = createReadOnlyDatabaseDriver({
+  dialect: 'postgresql',
+  verifyReadOnly: async () => verifyDatabaseRole(),
+  fetchPage: async ({ query, cursor, limit }) => fetchRows(query, [cursor, limit]),
+});
+
+await pollDatabaseSource({
+  store,
+  driver,
+  sourceId: 'erp-invoices',
+  profileId: 'erp-invoices-v1',
+  cursorField: 'id',
+  query: 'SELECT id, number, total FROM invoices WHERE id > $1 ORDER BY id ASC LIMIT $2',
+  issueEnabled: true,
+});
 ```
 
-The checkpoint is transport/source progress. It is not a fiscal record and never replaces server-side idempotency.
+Each row becomes one durable `mapped-source` job. The source key is derived from the cursor value, so a crash between queueing and checkpoint persistence can replay extraction without creating a second fiscal operation.
+
+The checkpoint is **transport/source progress only**. It is not a fiscal record and never replaces server-side idempotency.
+
+This layer intentionally does not bundle vendor client libraries yet. Runtime-tested PostgreSQL/MySQL/MariaDB/SQL Server drivers remain a separate compatibility unit; no database/version is claimed compatible until that evidence exists.
 
 ## Gate
 
@@ -132,6 +163,6 @@ The foundation does **not** claim:
 - SFTP support yet;
 - OS installer/daemon packaging yet;
 - unattended production readiness;
-- automatic local retention/pruning policy for completed queue payloads.
+- automatic source-file retention/pruning policy for archived watch-folder files.
 
 Those capabilities stay on the U3/U4 roadmap until implementation and evidence exist.
