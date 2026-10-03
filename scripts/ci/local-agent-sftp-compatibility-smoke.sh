@@ -34,7 +34,8 @@ docker exec "$name" sh -lc "
   chmod 644 /home/pvreader/drop/invoices.csv
 "
 
-public_key="$(docker exec "$name" sh -lc "awk '{print \\$2}' /etc/ssh/ssh_host_ed25519_key.pub")"
+public_key_line="$(docker exec "$name" cat /etc/ssh/ssh_host_ed25519_key.pub)"
+public_key="$(printf '%s\n' "$public_key_line" | cut -d' ' -f2)"
 host_key_sha256="$(node -e "const {createHash}=require('node:crypto'); process.stdout.write(createHash('sha256').update(Buffer.from(process.argv[1],'base64')).digest('hex'))" "$public_key")"
 
 SFTP_PORT="$port" SFTP_HOST_KEY_SHA256="$host_key_sha256" node scripts/ci/local-agent-sftp-runtime-smoke.mjs
