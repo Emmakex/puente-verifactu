@@ -1,10 +1,10 @@
-# Puente VeriFactu — PrestaShop connector 0.4.0
+# Puente VeriFactu — PrestaShop connector 0.5.0
 
 Conector nativo y deliberadamente fino para **PrestaShop 1.7.8.x y 8.x**. Extrae hechos comerciales de facturas y abonos nativos, construye payloads neutrales y habla con la API universal de Puente VeriFactu. **No contiene reglas AEAT, XML, SOAP, certificados ni decisiones fiscales sensibles.**
 
 ## Estado
 
-Versión `0.4.0` con flujo manual seguro, automatización **opt-in** por tienda y aceptación transversal Connector Contract Suite v2 cerrada:
+Versión `0.5.0` con flujo manual seguro, automatización **opt-in** por tienda y aceptación transversal Connector Contract Suite v2 cerrada:
 
 - configuración por tienda para endpoint HTTPS y `MappingProfile` server-side;
 - Bearer token cifrado localmente con AES-256-GCM usando una clave derivada de `_COOKIE_KEY_`;
@@ -26,7 +26,8 @@ Versión `0.4.0` con flujo manual seguro, automatización **opt-in** por tienda 
 - smoke real en PrestaShop 1.7.8.11, 8.1.7 y 8.2.7;
 - seis escenarios nativos Contract Suite v2 ejecutados en cada versión real para factura y rectificativa;
 - ZIP reproducible con allowlist de runtime, SHA-256 y layout compatible con instaladores legacy;
-- upgrade real `0.3.0 → 0.4.0` que preserva estado existente, registra los hooks automáticos y mantiene ambos switches en OFF.
+- presentación VERI*FACTU de la factura nativa: consume metadatos de presentación emitidos por el servidor, persiste la URL QR validada y renderiza `QR tributario:`, QR `QRCODE,M` y el literal de factura verificable mediante `displayPDFInvoice`;
+- upgrade real `0.4.0 → 0.5.0` que preserva estado existente, añade `presentation_json`, registra `displayPDFInvoice` y mantiene ambos switches automáticos en OFF.
 
 La automatización no sustituye el modo manual: simplemente reutiliza los mismos invariantes de preflight, idempotencia y estado local cuando el comercio decide activarla.
 
@@ -49,6 +50,8 @@ PrestaShop nunca recibe el certificado AEAT. El certificado y la clave privada p
 El módulo tampoco decide `invoiceType`, `R1–R5`, tipo de rectificación `S/I`, `taxCode`, `regimeKey`, `operationClass`, datos del emisor ni criterios de conversión fiscal. Todo ello pertenece al `MappingProfile` y a la configuración server-side.
 
 Las tarjetas de estado son **local-only**: al abrir la ficha de un pedido consultan exclusivamente `pvf_order_sync` y `pvf_order_slip_sync`. No ejecutan peticiones remotas a Puente VeriFactu ni a AEAT.
+
+La presentación QR también es **server-authored**: PrestaShop no reconstruye NIF, URL AEAT ni literales regulatorios. Tras `issue` o `reconcile`, el módulo valida y persiste el bloque `presentation` devuelto por Puente VeriFactu. El PDF usa exclusivamente esa copia validada; si existe un `recordId` pero falta o es inválida la presentación, el render falla cerrado en vez de inventar un QR.
 
 ## Factura original
 
@@ -147,7 +150,9 @@ Rectificativas:
 - única por `id_shop + id_order_slip`;
 - permite múltiples abonos independientes asociados al mismo pedido.
 
-Ambas tablas guardan solo estado mínimo operativo: `record_id`, idempotencia, estado, último error y fecha de actualización. No almacenan certificados ni lógica fiscal AEAT.
+La tabla principal `pvf_order_sync` añade en 0.5.0 `presentation_json`, que contiene únicamente los metadatos de presentación devueltos por el servidor necesarios para reproducir el QR/textos de la factura. No contiene certificado, clave privada ni lógica fiscal AEAT. La tabla rectificativa mantiene su estado mínimo previo.
+
+Ambas tablas conservan `record_id`, idempotencia, estado, último error y fecha de actualización.
 
 ## Semáforo en la ficha del pedido
 
@@ -186,30 +191,31 @@ npm run prestashop:package
 npm run prestashop:package:check
 ```
 
-El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, fixtures y tooling. CI lo construye dos veces y exige igualdad byte-a-byte antes de usarlo en instalaciones reales. `PVFPrestaShopApiException.php` forma parte obligatoria del runtime empaquetado.
+El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, fixtures y tooling. CI lo construye dos veces y exige igualdad byte-a-byte antes de usarlo en instalaciones reales. `PVFPrestaShopApiException.php` forma parte obligatoria del runtime empaquetado. `PVFPrestaShopInvoicePresentation.php` y la migración `install-0.5.0.php` también son obligatorios en el paquete.
 
 ## Upgrade validado
 
-`scripts/ci/prestashop-upgrade-smoke.sh` valida en PrestaShop 8.2.7 el salto **`0.3.0 → 0.4.0`**:
+`scripts/ci/prestashop-upgrade-smoke.sh` valida en PrestaShop 8.2.7 el salto **`0.4.0 → 0.5.0`**:
 
 1. instala una baseline 0.3.0 sin hooks automáticos;
 2. conserva una factura principal ya sincronizada;
 3. conserva una rectificativa ya sincronizada;
 4. despliega el ZIP 0.4.0;
 5. ejecuta `prestashop:module upgrade puenteverifactu`;
-6. exige registro de ambos hooks automáticos;
-7. confirma que factura y rectificativa conservan `recordId`, idempotencia y estado;
-8. exige que ambos switches automáticos continúen en `OFF`.
+6. exige registro de `displayPDFInvoice` además de conservar los hooks existentes;
+7. exige la nueva columna `presentation_json` sin perder la fila previa;
+8. confirma que factura y rectificativa conservan `recordId`, idempotencia y estado;
+9. exige que ambos switches automáticos continúen en `OFF`.
 
 ## Gates CI
 
 - `npm run prestashop:contract`: arquitectura, seguridad, opt-in e invariantes del conector.
 - `npm run prestashop:fixtures`: desglose/reconciliación de factura principal.
 - `npm run prestashop:rectification-fixtures`: IVA positivo 21/10/4, tolerancia de redondeo y rechazo de incoherencias rectificativas.
-- `npm run prestashop:package:check`: ZIP reproducible 0.4.0.
+- `npm run prestashop:package:check`: ZIP reproducible 0.5.0.
 - `npm run native:contract:v2`: contrato transversal compartido con WooCommerce.
 - `scripts/ci/prestashop-compatibility-smoke.sh`: instalación real, hooks, defaults OFF, factura, `OrderSlip` real y escenarios v2 en las tres versiones.
-- `scripts/ci/prestashop-upgrade-smoke.sh`: migración 0.3.0 → 0.4.0 preservando estado y manteniendo la automatización desactivada.
+- `scripts/ci/prestashop-upgrade-smoke.sh`: migración 0.4.0 → 0.5.0 preservando estado y manteniendo la automatización desactivada.
 
 ## Límites conocidos
 
@@ -221,6 +227,4 @@ El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, 
 
 ## Estado dentro de Fase 5
 
-PrestaShop `0.4.0` queda técnicamente cerrado junto con WooCommerce: reconciliación/fallback, rectificativas, packaging, upgrade, automatización opt-in y Connector Contract Suite v2 están cubiertos en matrices reales. La aceptación transversal de Fase 5 está cerrada.
-
-El gate externo AEAT #6 continúa bloqueando cualquier piloto fiscal real o release. El siguiente bloque del roadmap es Fase 6 — Production Readiness.
+PrestaShop `0.5.0` mantiene la base técnica cerrada de Fase 5 y añade el tramo de presentación VERI*FACTU requerido para Fase 6: metadatos server-authored, persistencia local controlada y render del QR/textos en factura nativa. El gate externo AEAT #6 ya está cerrado; el piloto/release permanece pendiente hasta completar y validar el resto del issue #47 y regenerar la evidencia del candidato final.
