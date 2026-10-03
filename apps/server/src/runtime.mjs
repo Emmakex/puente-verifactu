@@ -7,6 +7,7 @@ import { FiscalRecordService } from '../../../packages/core/src/fiscal-record-se
 import { createSqlitePersistence } from '../../../packages/sqlite-store/src/index.mjs';
 import { createHttpAuthenticator } from './auth.mjs';
 import { createIntegrationResolvers } from './integration-config.mjs';
+import { KairosethIntegrationProfileControlPlane, createHybridIntegrationResolvers } from './integration-control-plane.mjs';
 import { createPuenteHttpServer } from './http-server.mjs';
 import { createOperationalObserver } from './observability.mjs';
 import { KairosethLocalAgentControlPlane } from './local-agent-control-plane.mjs';
@@ -36,6 +37,8 @@ export function createPuenteRuntime({
   observabilityThresholds = {},
   localAgentRegistryStore = null,
   onboardingProfileStore = null,
+  integrationProfileStore = null,
+  resolveIntegrationSecretReference = null,
   supportedNativeConnectors = DEFAULT_NATIVE_CONNECTORS,
 } = {}) {
   const normalizedSif = {
@@ -57,7 +60,19 @@ export function createPuenteRuntime({
     store: persistence.fiscalStore,
     clock,
   });
-  const resolvers = createIntegrationResolvers(integrationConfig);
+  const staticResolvers = createIntegrationResolvers(integrationConfig);
+  const integrationProfiles = integrationProfileStore
+    ? new KairosethIntegrationProfileControlPlane({
+        store: integrationProfileStore,
+        onboardingStore: onboardingProfileStore,
+        resolveSecretReference: resolveIntegrationSecretReference,
+        clock: observabilityClock,
+      })
+    : null;
+  const resolvers = createHybridIntegrationResolvers({
+    staticResolvers,
+    dynamicProfiles: integrationProfiles,
+  });
   const bridge = new FxAwareBridgeService({
     fiscalService,
     store: persistence.integrationStore,
@@ -79,6 +94,7 @@ export function createPuenteRuntime({
         store: onboardingProfileStore,
         localAgents,
         resolveStrategy: resolveOnboardingStrategy,
+        integrationProfiles,
         clock: observabilityClock,
       })
     : null;
@@ -93,6 +109,7 @@ export function createPuenteRuntime({
     resolveWebhookSecret: resolvers.resolveWebhookSecret,
     localAgents,
     onboardingProfiles,
+    integrationProfiles,
     resolveOnboardingStrategy,
   });
   const operationalObserver = createOperationalObserver({
@@ -124,6 +141,7 @@ export function createPuenteRuntime({
     imports,
     localAgents,
     onboardingProfiles,
+    integrationProfiles,
     persistence,
     operationalObserver,
     recoveredReservations: Number(recoveredReservations),

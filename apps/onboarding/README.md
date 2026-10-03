@@ -56,6 +56,16 @@ Si un provisioning queda interrumpido después de crear el agente pero antes de 
 
 MongoDB es inyectado desde la infraestructura Kairoseth. Puente VeriFactu no crea `MongoClient`, colecciones ni índices automáticamente. Los índices requeridos se exponen mediante `mongoOnboardingProfileIndexes()`.
 
+### De onboarding a IntegrationProfile
+
+Una vez resuelto el canal, Kairoseth materializa un `IntegrationProfile` tenant-bound en MongoDB.
+
+Para canales Connect con Local Agent, el perfil se crea dentro del propio provisioning y la respuesta incluye su `profileId`. El agente usa ese identificador para solicitar mapping/preflight al servidor; no descarga las reglas fiscales.
+
+Si el canal requiere mapping, el IntegrationProfile nace en `mapping-required`. La ruta de mapping acepta exclusivamente un `MappingProfile v1` validado. Al guardarlo, el perfil pasa a `active` y el onboarding registra la referencia.
+
+Para canales sin Local Agent se genera igualmente un `installationId` determinista; una credencial data-plane compatible podrá enlazarse a esa instalación en el siguiente bloque de provisioning.
+
 ## Flujo
 
 1. subir el CSV/XLSX existente;

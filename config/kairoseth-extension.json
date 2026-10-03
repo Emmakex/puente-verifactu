@@ -66,6 +66,7 @@
     "control_plane_persistence": "mongodb",
     "local_agent_registry": "mongodb-injected",
     "deployment_boundary": "kairoseth-hostinger",
-    "onboarding_profiles": "mongodb-injected"
+    "onboarding_profiles": "mongodb-injected",
+    "integration_profiles": "mongodb-injected"
   }
 }
