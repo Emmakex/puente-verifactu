@@ -31,3 +31,12 @@ export {
   acquireLocalAgentLock,
   createLocalAgentRuntime,
 } from './runtime.mjs';
+export {
+  LOCAL_AGENT_STATE_SCHEMA,
+  LOCAL_AGENT_UPGRADE_MIN_NODE,
+  assertUpgradeNode,
+  createLocalAgentStateBackup,
+  inspectLocalAgentState,
+  prepareLocalAgentUpgrade,
+  readLocalAgentBundleManifest,
+} from './upgrade.mjs';
