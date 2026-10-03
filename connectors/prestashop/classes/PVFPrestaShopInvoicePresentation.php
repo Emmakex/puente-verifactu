@@ -10,7 +10,7 @@ final class PVFPrestaShopInvoicePresentation
 
     public static function rendererAvailable()
     {
-        if (class_exists('TCPDF2DBarcode', false)) {
+        if (class_exists('TCPDF2DBarcode')) {
             return true;
         }
 
@@ -247,18 +247,18 @@ final class PVFPrestaShopInvoicePresentation
 
     private static function qrPng($url)
     {
-        if (!class_exists('TCPDF2DBarcode', false)) {
+        if (!class_exists('TCPDF2DBarcode')) {
             foreach (self::barcodeCandidates() as $barcodeFile) {
                 if ($barcodeFile !== '' && is_file($barcodeFile)) {
                     require_once $barcodeFile;
-                    if (class_exists('TCPDF2DBarcode', false)) {
+                    if (class_exists('TCPDF2DBarcode')) {
                         break;
                     }
                 }
             }
         }
 
-        if (!class_exists('TCPDF2DBarcode', false)) {
+        if (!class_exists('TCPDF2DBarcode')) {
             return '';
         }
 
