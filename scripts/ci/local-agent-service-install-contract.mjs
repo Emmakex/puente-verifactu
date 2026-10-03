@@ -48,6 +48,7 @@ expect(linuxUpgrade.includes('BACKUP_PATH='), 'LINUX_UPGRADE_BACKUP_REQUIRED');
 expect(linuxUpgrade.includes("rollbackPolicy:'code-only'"), 'LINUX_CODE_ONLY_ROLLBACK_RECEIPT_REQUIRED');
 expect(linuxUpgrade.includes('automaticDatabaseRollback:false'), 'LINUX_DB_AUTO_ROLLBACK_FORBIDDEN');
 expect(linuxRollback.includes('databaseRestored=false'), 'LINUX_ROLLBACK_DB_RESTORE_FORBIDDEN');
+expect(!linuxRollback.includes('backupPath') && !linuxRollback.includes('agent.sqlite'), 'LINUX_ROLLBACK_MUST_NOT_TOUCH_DB');
 expect(linuxRollback.includes('ln -sfn "$PREVIOUS_RELEASE" "$CURRENT"'), 'LINUX_CODE_POINTER_ROLLBACK_REQUIRED');
 
 expect(macPlist.includes('<key>UserName</key><string>__SERVICE_USER__</string>'), 'MACOS_NON_ROOT_USER_REQUIRED');
@@ -64,6 +65,7 @@ expect(macUpgrade.includes('upgrade-cli.mjs'), 'MACOS_UPGRADE_GUARD_REQUIRED');
 expect(macUpgrade.includes('BACKUP_PATH='), 'MACOS_UPGRADE_BACKUP_REQUIRED');
 expect(macUpgrade.includes("rollbackPolicy:'code-only'"), 'MACOS_CODE_ONLY_ROLLBACK_RECEIPT_REQUIRED');
 expect(macRollback.includes('databaseRestored=false'), 'MACOS_ROLLBACK_DB_RESTORE_FORBIDDEN');
+expect(!macRollback.includes('backupPath') && !macRollback.includes('agent.sqlite'), 'MACOS_ROLLBACK_MUST_NOT_TOUCH_DB');
 expect(macRollback.includes('ln -sfn "$PREVIOUS_RELEASE" "$CURRENT"'), 'MACOS_CODE_POINTER_ROLLBACK_REQUIRED');
 
 expect(winInstall.includes('$env:ProgramData') && winInstall.includes('Kairoseth\\LocalAgent'), 'WINDOWS_PROGRAMDATA_ROOT_REQUIRED');
@@ -83,6 +85,7 @@ expect(winUpgrade.includes('upgrade-cli.mjs'), 'WINDOWS_UPGRADE_GUARD_REQUIRED')
 expect(winUpgrade.includes('rollbackPolicy = \'code-only\''), 'WINDOWS_CODE_ONLY_ROLLBACK_RECEIPT_REQUIRED');
 expect(winUpgrade.includes('automaticDatabaseRollback = $false'), 'WINDOWS_DB_AUTO_ROLLBACK_FORBIDDEN');
 expect(winRollback.includes('databaseRestored') && winRollback.includes('$false'), 'WINDOWS_ROLLBACK_DB_RESTORE_FORBIDDEN');
+expect(!winRollback.includes('backupPath') && !winRollback.includes('agent.sqlite'), 'WINDOWS_ROLLBACK_MUST_NOT_TOUCH_DB');
 expect(winRollback.includes('New-Item -ItemType Junction -Path $current -Target $previousRelease'), 'WINDOWS_CODE_POINTER_ROLLBACK_REQUIRED');
 
 expect(envExample.includes('PV_LOCAL_AGENT_API_KEY=replace-me'), 'LOCAL_AGENT_ENV_API_KEY_EXAMPLE_REQUIRED');
