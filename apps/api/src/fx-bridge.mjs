@@ -130,7 +130,7 @@ export class FxAwareBridgeService extends UniversalBridgeService {
 
     if (reservation.duplicate) {
       if (!reservation.existing.recordId) throw apiError('VF_API_IDEMPOTENCY_IN_PROGRESS', 'The same request is already being processed', 409);
-      return { ...this.store.get(reservation.existing.recordId), duplicate: true };
+      return { ...this.withPresentation(this.store.get(reservation.existing.recordId)), duplicate: true };
     }
 
     try {
@@ -160,6 +160,7 @@ export class FxAwareBridgeService extends UniversalBridgeService {
         currencyConversion: prepared.conversion,
         status,
         fiscalRecord: fiscalized.record,
+        presentation: this.presentationForRecord(fiscalized.record),
         delivery,
       });
       this.store.complete(requestKey, requestPayload, recordId);
