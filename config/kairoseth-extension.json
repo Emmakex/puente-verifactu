@@ -52,5 +52,14 @@
       "connect",
       "api"
     ]
+  },
+  "infrastructure": {
+    "control_plane": "kairoseth",
+    "fiscal_authority": "server-side",
+    "tenant_authority": "server-side",
+    "certificate_custody": "server-side",
+    "local_agent_role": "edge-connector",
+    "local_agent_inbound_ports": false,
+    "local_agent_direct_aeat_authority": false
   }
 }
