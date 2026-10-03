@@ -81,6 +81,11 @@ if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
 if (!$module->isRegisteredInHook('actionOrderStatusPostUpdate') || !$module->isRegisteredInHook('actionOrderSlipAdd')) {
     failUpgrade('PRESTA_UPGRADE_BASELINE_AUTO_HOOK_MISSING', '0.4.0 baseline must contain automatic event hooks.');
 }
+foreach (array('displayPDFInvoice', 'displayPDFOrderSlip') as $pdfHook) {
+    if ($module->isRegisteredInHook($pdfHook) && !$module->unregisterHook($pdfHook)) {
+        failUpgrade('PRESTA_UPGRADE_BASELINE_PDF_HOOK_REMOVE_FAILED', 'Could not remove synthetic 0.5.0 PDF hook from the 0.4.0 baseline.');
+    }
+}
 if ($module->isRegisteredInHook('displayPDFInvoice') || $module->isRegisteredInHook('displayPDFOrderSlip')) {
     failUpgrade('PRESTA_UPGRADE_BASELINE_PDF_HOOK_PRESENT', '0.4.0 baseline must not contain 0.5.0 PDF hooks.');
 }
