@@ -255,6 +255,50 @@ PV_SOURCE_COMMIT=<40-char-sha> npm run local-agent:package -- \
 
 The portable bundle is deliberately separate from system service installation. U4.4 adds systemd, launchd and Windows startup/service integration on top of the already-tested artifact.
 
+## Native system startup
+
+U4.4 installs the already-tested portable bundle using only native operating-system facilities:
+
+- Linux: hardened `systemd` unit running as the dedicated `kairoseth-agent` account;
+- macOS: `launchd` daemon running as an explicit non-root local user;
+- Windows: native Task Scheduler startup task running as `SYSTEM`, without NSSM/WinSW/node-windows or another opaque service wrapper.
+
+Code, configuration and local state are deliberately separated:
+
+```text
+Linux
+  code:   /opt/kairoseth/local-agent/
+  config: /etc/kairoseth-local-agent/
+  data:   /var/lib/kairoseth-local-agent/
+
+macOS
+  code:   /Library/Kairoseth/LocalAgent/
+  state:  /Library/Application Support/Kairoseth/LocalAgent/
+
+Windows
+  code:   %ProgramData%\Kairoseth\LocalAgent\app\
+  config: %ProgramData%\Kairoseth\LocalAgent\config\
+  data:   %ProgramData%\Kairoseth\LocalAgent\data\
+```
+
+Each installed code release lives under a version + source-commit directory and a `current` link/junction selects the active code. Reinstalling the same bundle is idempotent. Configuration is preserved unless an explicit replace option is supplied. Uninstall removes the startup integration and code while preserving configuration/secrets and SQLite/data.
+
+Windows configuration/data ACL inheritance is removed and access is restricted to `SYSTEM` and local Administrators. POSIX configuration and secret files are installed with mode `0600`.
+
+Native CI takes the exact ZIP produced by the portable build and, on each supported runner, performs:
+
+```text
+install
+  -> verify native integration files/ACLs
+  -> create local state marker
+  -> reinstall with a different config candidate
+  -> prove original config + local state survived
+  -> uninstall code
+  -> prove config + secret env + local state still survive
+```
+
+Service activation is intentionally separate from installation in the smoke tests. Production installation can opt into enabling/starting the native startup mechanism after configuration has been reviewed.
+
 ## Gate
 
 ```bash
@@ -262,6 +306,7 @@ npm run local-agent:smoke
 npm run local-agent:contract
 npm run local-agent:runtime:smoke
 npm run local-agent:package:check
+npm run local-agent:service:check
 npm run local-agent:sftp:smoke # Docker + ssh2-sftp-client@12.1.1
 ```
 
@@ -269,7 +314,6 @@ npm run local-agent:sftp:smoke # Docker + ssh2-sftp-client@12.1.1
 
 The foundation does **not** claim:
 
-- OS installer/daemon packaging yet;
 - unattended production readiness;
 - automatic source-file retention/pruning policy for archived watch-folder files.
 
