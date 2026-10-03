@@ -9,6 +9,7 @@ require_once __DIR__ . '/classes/PVFPrestaShopClient.php';
 require_once __DIR__ . '/classes/PVFPrestaShopOrderPayload.php';
 require_once __DIR__ . '/classes/PVFPrestaShopAdminStatus.php';
 require_once __DIR__ . '/classes/PVFPrestaShopInvoicePresentation.php';
+require_once __DIR__ . '/classes/PVFPrestaShopCompatibility.php';
 require_once __DIR__ . '/classes/PVFPrestaShopRectifications.php';
 require_once __DIR__ . '/classes/PVFPrestaShopAutomation.php';
 
@@ -44,10 +45,12 @@ class PuenteVerifactu extends Module
             && PVFPrestaShopRectifications::installSchema()
             && Configuration::updateValue(self::CONFIG_TIMEOUT, 15, false, null, $shopId)
             && PVFPrestaShopAutomation::installDefaults($shopId)
-            && $this->registerHook('displayAdminOrderMainBottom')
-            && $this->registerHook('displayPDFInvoice')
-            && $this->registerHook('actionOrderStatusPostUpdate')
-            && $this->registerHook('actionOrderSlipAdd');
+            && PVFPrestaShopCompatibility::registerAvailableHooks($this, array(
+                'displayAdminOrderMainBottom',
+                'displayPDFInvoice',
+                'actionOrderStatusPostUpdate',
+                'actionOrderSlipAdd',
+            ));
     }
 
     public function uninstall()
@@ -395,6 +398,7 @@ class PuenteVerifactu extends Module
                 return $this->displayWarning($this->l('This order already has a Puente VeriFactu record. Use Refresh status instead of creating another record.'));
             }
 
+            PVFPrestaShopCompatibility::assertInvoicePresentationReady();
             $idempotencyKey = $this->idempotencyKey($order, $payload);
             $result = $client->issue($payload, $idempotencyKey);
             if (empty($result['recordId'])) {
