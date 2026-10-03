@@ -1,7 +1,7 @@
 import { createHash, scryptSync, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
-const ALLOWED_PERMISSIONS = new Set(['ops:read', 'agents:manage']);
+const ALLOWED_PERMISSIONS = new Set(['ops:read', 'agents:manage', 'onboarding:manage']);
 
 function authError(code, message = 'Unauthorized') {
   return Object.assign(new Error(message), { code, status: 401 });
