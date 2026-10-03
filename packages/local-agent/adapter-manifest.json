@@ -25,6 +25,10 @@
   "security": {
     "secrets_server_side": true,
     "aeat_certificate_server_side": true,
-    "tenant_server_authoritative": true
+    "tenant_server_authoritative": true,
+    "control_plane": "kairoseth",
+    "local_agent_role": "edge-connector",
+    "inbound_listener": false,
+    "direct_aeat_authority": false
   }
 }
