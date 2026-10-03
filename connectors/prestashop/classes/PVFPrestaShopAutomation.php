@@ -114,6 +114,7 @@ final class PVFPrestaShopAutomation
                 return;
             }
 
+            PVFPrestaShopCompatibility::assertInvoicePresentationReady();
             $result = $client->issue($payload, $idempotencyKey);
             if (empty($result['recordId'])) {
                 throw new RuntimeException('Puente VeriFactu did not return a record ID.');
