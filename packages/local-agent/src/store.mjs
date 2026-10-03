@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { chmodSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { sha256, stableStringify } from '../../core/src/idempotency.mjs';
@@ -55,9 +55,16 @@ export class LocalAgentStore {
   constructor(path) {
     if (!path) throw new TypeError('Local Agent SQLite path is required');
     const resolved = path === ':memory:' ? path : resolve(path);
-    if (resolved !== ':memory:') mkdirSync(dirname(resolved), { recursive: true });
+    if (resolved !== ':memory:') mkdirSync(dirname(resolved), { recursive: true, mode: 0o700 });
     this.path = resolved;
     this.db = new DatabaseSync(resolved);
+    if (resolved !== ':memory:') {
+      try {
+        chmodSync(resolved, 0o600);
+      } catch (error) {
+        if (process.platform !== 'win32') throw error;
+      }
+    }
     this.db.exec('PRAGMA foreign_keys = ON');
     this.db.exec('PRAGMA busy_timeout = 5000');
     if (resolved !== ':memory:') this.db.exec('PRAGMA journal_mode = WAL');
