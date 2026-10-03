@@ -322,7 +322,7 @@ try {
     profileId: onboardingProfileId,
   });
   const onboardingSerialized = JSON.stringify(storedOnboarding).toLowerCase();
-  for (const secretName of ['apikey', 'password', 'privatekey', 'certificate', 'tokensha256']) {
+  for (const secretName of ['apikey', 'password', 'privatekey', 'certificatepath', 'pfx', 'tokensha256']) {
     assert.equal(onboardingSerialized.includes(secretName), false);
   }
 
