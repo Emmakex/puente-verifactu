@@ -165,9 +165,9 @@ SFTP is an optional remote file ingress for systems that can only export files t
 - the remote file is never renamed or deleted;
 - host-key verification is mandatory and pinned with SHA-256;
 - password/private-key credentials live only in Local Agent runtime configuration and are not written to manifests or receipts;
-- each remote identity has a durable SQLite receipt, preventing repeated downloads across restarts;
+- each remote identity (directory + filename + size + modification time) has a durable SQLite receipt, preventing repeated downloads across restarts;
 - downloaded bytes are size-checked and SHA-256 fingerprinted before being admitted to the local inbox;
-- a same-metadata/different-content conflict fails closed;
+- SFTP receipts are transport deduplication; fiscal idempotency remains enforced independently by the durable row queue and Puente API;
 - the existing watch-folder pipeline still owns parsing, MappingProfile, preflight, issue, quarantine and row idempotency.
 
 A source SFTP account can therefore be provisioned with read-only filesystem permissions. CI proves this by reading a real SFTP source and verifying that an attempted remote upload is rejected.
