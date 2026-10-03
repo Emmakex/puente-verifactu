@@ -101,6 +101,12 @@ function authenticateBearer(token, config, resolveBearerDigest) {
   }
   if (typeof resolveBearerDigest === 'function') {
     const resolved = resolveBearerDigest(digest);
+    if (resolved && typeof resolved.then === 'function') {
+      return resolved.then((context) => {
+        if (!context) throw authError('VF_AUTH_INVALID_BEARER');
+        return Object.freeze(context);
+      });
+    }
     if (resolved) return Object.freeze(resolved);
   }
   throw authError('VF_AUTH_INVALID_BEARER');
