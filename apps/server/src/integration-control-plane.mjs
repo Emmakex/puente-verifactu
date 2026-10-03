@@ -397,6 +397,7 @@ export class KairosethIntegrationProfileControlPlane {
         || binding?.status !== 'active'
         || !binding?.credentialId
         || binding.credentialId !== credentialId
+        || String(context?.sourceSystem ?? '') !== String(profile.adapter ?? '')
       ) {
         return Object.freeze({
           exists: true,
