@@ -119,7 +119,26 @@ final class PVFPrestaShopAutomation
                 throw new RuntimeException('Puente VeriFactu did not return a record ID.');
             }
             $status = isset($result['status']) ? (string) $result['status'] : 'created';
-            self::saveOrderSync($order, (string) $result['recordId'], $idempotencyKey, $status, '');
+            try {
+                $presentationJson = PVFPrestaShopInvoicePresentation::encodeApiResult($result);
+            } catch (Exception $presentationException) {
+                self::saveOrderSync(
+                    $order,
+                    (string) $result['recordId'],
+                    $idempotencyKey,
+                    'blocked',
+                    self::safeMessage($presentationException)
+                );
+                return;
+            }
+            self::saveOrderSync(
+                $order,
+                (string) $result['recordId'],
+                $idempotencyKey,
+                $status,
+                '',
+                $presentationJson
+            );
         } catch (PVFPrestaShopApiException $exception) {
             self::saveOrderSync(
                 $order,
@@ -137,7 +156,15 @@ final class PVFPrestaShopAutomation
         try {
             $result = $client->status((string) $existing['record_id']);
             $status = isset($result['status']) ? (string) $result['status'] : 'unknown';
-            self::saveOrderSync($order, (string) $existing['record_id'], (string) $existing['idempotency_key'], $status, '');
+            $presentationJson = PVFPrestaShopInvoicePresentation::encodeApiResult($result);
+            self::saveOrderSync(
+                $order,
+                (string) $existing['record_id'],
+                (string) $existing['idempotency_key'],
+                $status,
+                '',
+                $presentationJson
+            );
         } catch (PVFPrestaShopApiException $exception) {
             self::saveOrderSync(
                 $order,
@@ -287,7 +314,7 @@ final class PVFPrestaShopAutomation
         return is_array($row) ? $row : null;
     }
 
-    private static function saveOrderSync(Order $order, $recordId, $idempotencyKey, $status, $lastError)
+    private static function saveOrderSync(Order $order, $recordId, $idempotencyKey, $status, $lastError, $presentationJson = '')
     {
         $existing = self::getOrderSync((int) $order->id_shop, (int) $order->id);
         if (is_array($existing)) {
@@ -297,15 +324,19 @@ final class PVFPrestaShopAutomation
             if ($idempotencyKey === '') {
                 $idempotencyKey = (string) $existing['idempotency_key'];
             }
+            if ($presentationJson === '' && isset($existing['presentation_json'])) {
+                $presentationJson = (string) $existing['presentation_json'];
+            }
         }
         return Db::getInstance()->execute(
             'INSERT INTO `' . _DB_PREFIX_ . 'pvf_order_sync` '
-            . '(`id_shop`,`id_order`,`record_id`,`idempotency_key`,`status`,`last_error`,`date_upd`) VALUES ('
+            . '(`id_shop`,`id_order`,`record_id`,`idempotency_key`,`status`,`presentation_json`,`last_error`,`date_upd`) VALUES ('
             . (int) $order->id_shop . ',' . (int) $order->id . ',\'' . pSQL((string) $recordId) . '\',\''
             . pSQL((string) $idempotencyKey) . '\',\'' . pSQL((string) $status) . '\',\''
-            . pSQL((string) $lastError, true) . '\',NOW()) '
+            . pSQL((string) $presentationJson, true) . '\',\'' . pSQL((string) $lastError, true) . '\',NOW()) '
             . 'ON DUPLICATE KEY UPDATE `record_id`=VALUES(`record_id`),`idempotency_key`=VALUES(`idempotency_key`),'
-            . '`status`=VALUES(`status`),`last_error`=VALUES(`last_error`),`date_upd`=NOW()'
+            . '`status`=VALUES(`status`),`presentation_json`=VALUES(`presentation_json`),'
+            . '`last_error`=VALUES(`last_error`),`date_upd`=NOW()'
         );
     }
 
