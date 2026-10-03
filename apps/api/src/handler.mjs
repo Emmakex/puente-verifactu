@@ -122,6 +122,7 @@ export function createApiHandler({
   localAgents = null,
   resolveOnboardingStrategy = null,
   onboardingProfiles = null,
+  integrationProfiles = null,
 } = {}) {
   if (!bridge) throw new TypeError('bridge is required');
   if (typeof authenticate !== 'function') throw new TypeError('authenticate is required');
@@ -216,6 +217,28 @@ export function createApiHandler({
         );
       }
 
+      const onboardingMaterializeMatch = path.match(
+        /^\/v1\/control-plane\/onboarding\/profiles\/(onb_[a-f0-9]{32})\/materialize-integration$/,
+      );
+      if (method === 'POST' && onboardingMaterializeMatch) {
+        if (!onboardingProfiles) {
+          throw Object.assign(new Error('Kairoseth onboarding profile store is unavailable'), {
+            code: 'VF_ONBOARDING_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+        return json(
+          201,
+          await onboardingProfiles.materializeIntegration(
+            context,
+            onboardingMaterializeMatch[1],
+            parseJsonBody(request),
+          ),
+          correlationId,
+        );
+      }
+
       const onboardingProvisionMatch = path.match(
         /^\/v1\/control-plane\/onboarding\/profiles\/(onb_[a-f0-9]{32})\/provision-local-agent$/,
       );
@@ -234,6 +257,106 @@ export function createApiHandler({
             onboardingProvisionMatch[1],
             parseJsonBody(request),
           ),
+          correlationId,
+        );
+      }
+
+      if (path === '/v1/control-plane/integration-profiles') {
+        if (!integrationProfiles) {
+          throw Object.assign(new Error('Kairoseth integration profile store is unavailable'), {
+            code: 'VF_INTEGRATION_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+        if (method === 'GET') {
+          return json(200, {
+            schemaVersion: 1,
+            profiles: await integrationProfiles.list(context),
+          }, correlationId);
+        }
+        throw Object.assign(new Error('Method not allowed'), {
+          code: 'VF_API_METHOD_NOT_ALLOWED',
+          status: 405,
+        });
+      }
+
+      const integrationProfileMatch = path.match(
+        /^\/v1\/control-plane\/integration-profiles\/(int_[a-f0-9]{32})$/,
+      );
+      if (method === 'GET' && integrationProfileMatch) {
+        if (!integrationProfiles) {
+          throw Object.assign(new Error('Kairoseth integration profile store is unavailable'), {
+            code: 'VF_INTEGRATION_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+        return json(
+          200,
+          await integrationProfiles.get(context, integrationProfileMatch[1]),
+          correlationId,
+        );
+      }
+
+      const integrationMappingMatch = path.match(
+        /^\/v1\/control-plane\/integration-profiles\/(int_[a-f0-9]{32})\/mapping$/,
+      );
+      if (method === 'PUT' && integrationMappingMatch) {
+        if (!integrationProfiles) {
+          throw Object.assign(new Error('Kairoseth integration profile store is unavailable'), {
+            code: 'VF_INTEGRATION_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+        return json(
+          200,
+          await integrationProfiles.setMapping(
+            context,
+            integrationMappingMatch[1],
+            parseJsonBody(request),
+          ),
+          correlationId,
+        );
+      }
+
+      const integrationSecretRefMatch = path.match(
+        /^\/v1\/control-plane\/integration-profiles\/(int_[a-f0-9]{32})\/webhook-secret-ref$/,
+      );
+      if (method === 'PUT' && integrationSecretRefMatch) {
+        if (!integrationProfiles) {
+          throw Object.assign(new Error('Kairoseth integration profile store is unavailable'), {
+            code: 'VF_INTEGRATION_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+        return json(
+          200,
+          await integrationProfiles.setWebhookSecretReference(
+            context,
+            integrationSecretRefMatch[1],
+            parseJsonBody(request),
+          ),
+          correlationId,
+        );
+      }
+
+      const integrationDisableMatch = path.match(
+        /^\/v1\/control-plane\/integration-profiles\/(int_[a-f0-9]{32})\/disable$/,
+      );
+      if (method === 'POST' && integrationDisableMatch) {
+        if (!integrationProfiles) {
+          throw Object.assign(new Error('Kairoseth integration profile store is unavailable'), {
+            code: 'VF_INTEGRATION_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+        return json(
+          200,
+          await integrationProfiles.disable(context, integrationDisableMatch[1]),
           correlationId,
         );
       }
