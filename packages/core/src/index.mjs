@@ -10,3 +10,4 @@ export * from './memory-intent-store.mjs';
 export * from './preflight.mjs';
 export * from './state-machine.mjs';
 export * from './validation.mjs';
+export * from './verifactu-presentation.mjs';
