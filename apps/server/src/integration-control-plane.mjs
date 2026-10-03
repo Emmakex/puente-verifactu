@@ -93,10 +93,13 @@ export class KairosethIntegrationProfileControlPlane {
     if (existing) return existing;
 
     const requiresLocalAgent = Boolean(profile.strategy?.requiresLocalAgent);
-    if (requiresLocalAgent && profile.localAgent?.status !== 'provisioned') {
+    if (
+      requiresLocalAgent
+      && !['provisioning', 'provisioned'].includes(profile.localAgent?.status)
+    ) {
       throw fail(
         'VF_INTEGRATION_LOCAL_AGENT_REQUIRED',
-        'Local Agent must be provisioned before materializing this integration',
+        'Local Agent provisioning must start before materializing this integration',
         409,
       );
     }
