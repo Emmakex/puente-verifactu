@@ -482,6 +482,7 @@ class FakeKairosethAuthProvider {
       organizationId: identity.organizationId,
       installationId: identity.installationId,
       sourceSystem: identity.sourceSystem,
+      profileId: identity.profileId,
       rateLimitPerMinute: 500,
       permissions: [],
     };
@@ -585,6 +586,26 @@ test('Kairoseth Auth provisions, rotates and revokes dynamic API credentials wit
     assert.equal(firstPreflight.body.preview.organizationId, 'org-dynamic');
     assert.equal(firstPreflight.body.preview.installationId, 'int-api-01');
     assert.equal(firstPreflight.body.preview.sourceSystem, 'universal-rest');
+
+    const directIntentBypass = await jsonRequest(baseUrl, firstToken, '/v1/preflight', {
+      method: 'POST',
+      body: { intent: {} },
+    });
+    assert.equal(directIntentBypass.response.status, 403);
+    assert.equal(
+      directIntentBypass.body.error.code,
+      'VF_API_INTEGRATION_PROFILE_SCOPE_REQUIRED',
+    );
+
+    const wrongProfile = await jsonRequest(baseUrl, firstToken, '/v1/preflight', {
+      method: 'POST',
+      body: {
+        profileId: 'int_cccccccccccccccccccccccccccccccc',
+        source: source(),
+      },
+    });
+    assert.equal(wrongProfile.response.status, 403);
+    assert.equal(wrongProfile.body.error.code, 'VF_API_INTEGRATION_PROFILE_SCOPE_REQUIRED');
 
     const rotated = await jsonRequest(
       baseUrl,
