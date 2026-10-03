@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const ZIP_ROOT = 'kairoseth-local-agent';
 const NODE_REQUIREMENT = '>=22.13.0';
+const UPGRADE_NODE_REQUIREMENT = '>=22.16.0';
 
 export const LOCAL_AGENT_RUNTIME_DEPENDENCIES = Object.freeze({
   pg: '8.23.1',
@@ -247,6 +248,14 @@ export async function buildLocalAgentPortableZip({ sourceCommit } = {}) {
     version,
     sourceCommit: commit,
     requiredNode: NODE_REQUIREMENT,
+    upgradeRequiredNode: UPGRADE_NODE_REQUIREMENT,
+    stateCompatibility: Object.freeze({
+      current: 1,
+      minReadable: 1,
+      maxReadable: 1,
+      backupRequired: true,
+      automaticDatabaseRollback: false,
+    }),
     runtimeDependencies: LOCAL_AGENT_RUNTIME_DEPENDENCIES,
     architecture: 'any-node22',
     contentFingerprint,
