@@ -75,6 +75,54 @@ async function listen(runtime) {
   return 'http://127.0.0.1:' + address.port;
 }
 
+class FakeKairosethAuthProvider {
+  constructor() {
+    this.byDigest = new Map();
+    this.byCredential = new Map();
+    this.sequence = 0;
+  }
+
+  issue(identity) {
+    this.sequence += 1;
+    const credentialId = `mongo-kcred-${this.sequence}`;
+    const token = `mongo_kairoseth_data_plane_${this.sequence}_${'x'.repeat(32)}`;
+    const digest = hashBearerToken(token);
+    const context = {
+      credentialId,
+      organizationId: identity.organizationId,
+      installationId: identity.installationId,
+      sourceSystem: identity.sourceSystem,
+      rateLimitPerMinute: 500,
+      permissions: [],
+    };
+    this.byDigest.set(digest, context);
+    this.byCredential.set(credentialId, { digest, context });
+    return { credentialId, token, ...identity };
+  }
+
+  async provisionDataPlaneCredential(identity) {
+    return this.issue(identity);
+  }
+
+  async rotateDataPlaneCredential({ credentialId, ...identity }) {
+    const previous = this.byCredential.get(credentialId);
+    if (previous) this.byDigest.delete(previous.digest);
+    this.byCredential.delete(credentialId);
+    return this.issue(identity);
+  }
+
+  async revokeDataPlaneCredential({ credentialId }) {
+    const previous = this.byCredential.get(credentialId);
+    if (previous) this.byDigest.delete(previous.digest);
+    this.byCredential.delete(credentialId);
+    return true;
+  }
+
+  async resolveBearerDigest(digest) {
+    return this.byDigest.get(digest) ?? null;
+  }
+}
+
 async function request(baseUrl, path, { method = 'GET', token = manageToken, body } = {}) {
   const response = await fetch(baseUrl + path, {
     method,
@@ -158,6 +206,7 @@ await database.collection(integrationCollectionName).createIndexes(
 );
 
 const nowRef = { value: Date.UTC(2026, 9, 3, 21, 0, 0) };
+const kairosethAuthProvider = new FakeKairosethAuthProvider();
 const createRuntime = async () => {
   const runtime = createPuenteRuntime({
     databasePath: ':memory:',
@@ -167,6 +216,7 @@ const createRuntime = async () => {
     localAgentRegistryStore: registry,
     onboardingProfileStore,
     integrationProfileStore,
+    kairosethAuthProvider,
   });
   return { runtime, baseUrl: await listen(runtime) };
 };
@@ -307,6 +357,103 @@ try {
   );
   assert.equal(crossTenantIntegration.response.status, 404);
 
+  const apiOnboarding = await request(first.baseUrl, '/v1/control-plane/onboarding/profiles', {
+    method: 'POST',
+    token: onboardingToken,
+    body: {
+      label: 'API ERP Mongo',
+      capabilities: {
+        locale: 'es',
+        hasApi: true,
+      },
+    },
+  });
+  assert.equal(apiOnboarding.response.status, 201);
+  assert.equal(apiOnboarding.payload.strategy.channel, 'rest_api');
+  const apiOnboardingProfileId = apiOnboarding.payload.profileId;
+
+  const apiMaterialized = await request(
+    first.baseUrl,
+    '/v1/control-plane/onboarding/profiles/' + apiOnboardingProfileId + '/materialize-integration',
+    {
+      method: 'POST',
+      token: onboardingToken,
+      body: {},
+    },
+  );
+  assert.equal(apiMaterialized.response.status, 201);
+  assert.equal(apiMaterialized.payload.integration.status, 'mapping-required');
+  const apiIntegrationProfileId = apiMaterialized.payload.integration.profileId;
+
+  const apiMapping = {
+    ...mapping,
+    id: apiIntegrationProfileId,
+    name: 'API Mongo dynamic mapping',
+    sourceType: 'api',
+  };
+  const apiMapped = await request(
+    first.baseUrl,
+    '/v1/control-plane/integration-profiles/' + apiIntegrationProfileId + '/mapping',
+    {
+      method: 'PUT',
+      token: onboardingToken,
+      body: { mappingProfile: apiMapping },
+    },
+  );
+  assert.equal(apiMapped.response.status, 200);
+  assert.equal(apiMapped.payload.status, 'active');
+
+  const apiCredential = await request(
+    first.baseUrl,
+    '/v1/control-plane/integration-profiles/' + apiIntegrationProfileId + '/credential',
+    {
+      method: 'POST',
+      token: onboardingToken,
+      body: {},
+    },
+  );
+  assert.equal(apiCredential.response.status, 201);
+  assert.equal(apiCredential.payload.profile.authBinding.provider, 'kairoseth');
+  assert.equal(apiCredential.payload.profile.authBinding.status, 'active');
+  assert.match(apiCredential.payload.credential.token, /^mongo_kairoseth_data_plane_/);
+  const apiTokenOne = apiCredential.payload.credential.token;
+  const apiCredentialIdOne = apiCredential.payload.credential.credentialId;
+
+  const apiStoredAfterProvision = await database.collection(integrationCollectionName).findOne({
+    organizationId: 'org-mongo-001',
+    profileId: apiIntegrationProfileId,
+  });
+  assert.equal(apiStoredAfterProvision.authBinding.credentialId, apiCredentialIdOne);
+  assert.equal(JSON.stringify(apiStoredAfterProvision).includes(apiTokenOne), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(apiStoredAfterProvision.authBinding, 'token'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(apiStoredAfterProvision.authBinding, 'tokenSha256'), false);
+
+  const apiPreflight = await request(first.baseUrl, '/v1/preflight', {
+    method: 'POST',
+    token: apiTokenOne,
+    body: {
+      profileId: apiIntegrationProfileId,
+      source: {
+        numero: '9101',
+        fecha: '2026-09-15',
+        tipo: 'F2',
+        descripcion: 'Servicio API desde Kairoseth Auth',
+        base: '100.00',
+        iva: '21',
+        cuota: '21.00',
+        total: '121.00',
+      },
+    },
+  });
+  assert.equal(apiPreflight.response.status, 200);
+  assert.equal(apiPreflight.payload.ok, true);
+  assert.equal(apiPreflight.payload.preview.organizationId, 'org-mongo-001');
+  assert.equal(
+    apiPreflight.payload.preview.installationId,
+    apiCredential.payload.profile.installationId,
+  );
+  assert.equal(apiPreflight.payload.preview.sourceSystem, 'universal-rest');
+
   await first.runtime.close();
 
   const second = await createRuntime();
@@ -375,6 +522,85 @@ try {
       onboardingProvision.payload.profile.localAgent.installationId,
     );
     assert.equal(dynamicPreflight.payload.preview.sourceSystem, 'local-agent');
+
+    const apiTokenAfterRestart = await request(second.baseUrl, '/v1/preflight', {
+      method: 'POST',
+      token: apiTokenOne,
+      body: {
+        profileId: apiIntegrationProfileId,
+        source: {
+          numero: '9102',
+          fecha: '2026-09-15',
+          tipo: 'F2',
+          descripcion: 'API after restart',
+          base: '100.00',
+          iva: '21',
+          cuota: '21.00',
+          total: '121.00',
+        },
+      },
+    });
+    assert.equal(apiTokenAfterRestart.response.status, 200);
+    assert.equal(apiTokenAfterRestart.payload.ok, true);
+
+    const apiRotated = await request(
+      second.baseUrl,
+      '/v1/control-plane/integration-profiles/' + apiIntegrationProfileId + '/credential/rotate',
+      {
+        method: 'POST',
+        token: onboardingToken,
+        body: {},
+      },
+    );
+    assert.equal(apiRotated.response.status, 200);
+    const apiTokenTwo = apiRotated.payload.credential.token;
+    assert.notEqual(apiTokenTwo, apiTokenOne);
+
+    const apiOldToken = await request(second.baseUrl, '/v1/preflight', {
+      method: 'POST',
+      token: apiTokenOne,
+      body: { profileId: apiIntegrationProfileId, source: {} },
+    });
+    assert.equal(apiOldToken.response.status, 401);
+
+    const apiNewToken = await request(second.baseUrl, '/v1/preflight', {
+      method: 'POST',
+      token: apiTokenTwo,
+      body: {
+        profileId: apiIntegrationProfileId,
+        source: {
+          numero: '9103',
+          fecha: '2026-09-15',
+          tipo: 'F2',
+          descripcion: 'API rotated',
+          base: '100.00',
+          iva: '21',
+          cuota: '21.00',
+          total: '121.00',
+        },
+      },
+    });
+    assert.equal(apiNewToken.response.status, 200);
+    assert.equal(apiNewToken.payload.ok, true);
+
+    const apiRevoked = await request(
+      second.baseUrl,
+      '/v1/control-plane/integration-profiles/' + apiIntegrationProfileId + '/credential/revoke',
+      {
+        method: 'POST',
+        token: onboardingToken,
+        body: {},
+      },
+    );
+    assert.equal(apiRevoked.response.status, 200);
+    assert.equal(apiRevoked.payload.profile.authBinding.status, 'revoked');
+
+    const apiRevokedToken = await request(second.baseUrl, '/v1/preflight', {
+      method: 'POST',
+      token: apiTokenTwo,
+      body: { profileId: apiIntegrationProfileId, source: {} },
+    });
+    assert.equal(apiRevokedToken.response.status, 401);
 
     const rotate = await request(second.baseUrl, '/v1/control-plane/local-agents/rotate-credential', {
       method: 'POST',
@@ -447,6 +673,16 @@ try {
     assert.equal(integrationSerialized.includes(secretName), false);
   }
 
+  const storedApiIntegration = await database.collection(integrationCollectionName).findOne({
+    organizationId: 'org-mongo-001',
+    onboardingProfileId: apiOnboardingProfileId,
+  });
+  assert.ok(storedApiIntegration);
+  assert.equal(storedApiIntegration.authBinding.provider, 'kairoseth');
+  assert.equal(storedApiIntegration.authBinding.status, 'revoked');
+  assert.equal(Object.prototype.hasOwnProperty.call(storedApiIntegration.authBinding, 'token'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(storedApiIntegration.authBinding, 'tokenSha256'), false);
+
   console.log(JSON.stringify({
     schema_version: 1,
     status: 'ok',
@@ -464,6 +700,10 @@ try {
     integration_profile_dynamic_preflight: true,
     integration_tenant_installation_isolation: true,
     integration_json_role: 'reference-fallback',
+    kairoseth_auth_bridge: true,
+    data_plane_token_persistence: false,
+    api_credential_rotation: true,
+    api_credential_revocation: true,
   }, null, 2));
 } finally {
   await database.dropDatabase().catch(() => {});
