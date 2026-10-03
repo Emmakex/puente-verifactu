@@ -168,6 +168,7 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 - [x] Evidencia de release v1 y revisión regulatoria interna: registro versionado de fuentes, cruce con `AEAT_ARTIFACTS`, caducidad de revisión, commit/CI explícitos y SHA-256 reproducible de artefactos; transición a `release_candidate` tras el cierre documentado de #6.
 - [x] Workflow privado de declaración responsable v0.1.0: plantilla a)-l), generación fuera del repositorio, permisos `0600` y contrato CI.
 - [x] Acceso rápido e individualizado a la declaración responsable dentro del runtime mediante ruta autenticada y fichero privado de deployment.
+- [x] Bundle final sanitizado de candidato: liga evidencia de release + SHA-256 de la declaración privada sin incluir datos personales, y falla si commit/CI/versión/blockers no coinciden.
 - [ ] Cierre regulatorio final de una versión candidata: generar evidencia de release para el commit candidato final y preparar/aprobar la declaración responsable definitiva de esa versión.
 - [ ] Perfil HA/multi-réplica con store/locking/rate limiting compartidos **solo si el despliegue real lo requiere**; para el perfil `sqlite-single-node` actual figura como `not_applicable` y no bloquea el desarrollo interno.
 - [ ] Piloto progresivo con rollback y monitorización activa.
