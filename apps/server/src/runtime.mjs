@@ -9,6 +9,7 @@ import { createHttpAuthenticator } from './auth.mjs';
 import { createIntegrationResolvers } from './integration-config.mjs';
 import { createPuenteHttpServer } from './http-server.mjs';
 import { createOperationalObserver } from './observability.mjs';
+import { KairosethLocalAgentControlPlane } from './local-agent-control-plane.mjs';
 import { FixedWindowRateLimiter } from './rate-limit.mjs';
 
 const DEFAULT_ONBOARDING_DIR = resolve(fileURLToPath(new URL('../../onboarding/', import.meta.url)));
@@ -59,13 +60,20 @@ export function createPuenteRuntime({
     presentationEnvironment,
   });
   const imports = new ImportSessionService({ store: persistence.importStore });
-  const authenticateHttp = createHttpAuthenticator(authConfig);
+  const localAgents = new KairosethLocalAgentControlPlane({
+    store: persistence.localAgentRegistry,
+    clock: observabilityClock,
+  });
+  const authenticateHttp = createHttpAuthenticator(authConfig, {
+    resolveBearerDigest: (digest) => localAgents.authenticateBearerDigest(digest),
+  });
   const apiHandler = createApiHandler({
     bridge,
     imports,
     authenticate: async (request) => request.authContext,
     resolveMappingProfile: resolvers.resolveMappingProfile,
     resolveWebhookSecret: resolvers.resolveWebhookSecret,
+    localAgents,
   });
   const operationalObserver = createOperationalObserver({
     persistence,
@@ -94,6 +102,7 @@ export function createPuenteRuntime({
     server,
     bridge,
     imports,
+    localAgents,
     persistence,
     operationalObserver,
     recoveredReservations: Number(recoveredReservations),
