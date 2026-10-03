@@ -42,7 +42,9 @@ cp -R "$TARGET_TREE/puenteverifactu" "$BASELINE_TREE/puenteverifactu"
 sed -i "s/const VERSION = '0.5.0';/const VERSION = '0.4.0';/" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
 sed -i "/PVFPrestaShopInvoicePresentation.php/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
 sed -i "/registerHook('displayPDFInvoice')/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
+sed -i "/registerHook('displayPDFOrderSlip')/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
 sed -i "/presentation_json.*TEXT NULL/d" "$BASELINE_TREE/puenteverifactu/puenteverifactu.php"
+sed -i "/presentation_json.*TEXT NULL/d" "$BASELINE_TREE/puenteverifactu/classes/PVFPrestaShopRectifications.php"
 rm -f "$BASELINE_TREE/puenteverifactu/classes/PVFPrestaShopInvoicePresentation.php"
 rm -f "$BASELINE_TREE/puenteverifactu/upgrade/install-0.5.0.php"
 
@@ -152,8 +154,8 @@ if (!$module->isRegisteredInHook('displayAdminOrderMainBottom')) {
 if (!$module->isRegisteredInHook('actionOrderStatusPostUpdate') || !$module->isRegisteredInHook('actionOrderSlipAdd')) {
     failUpgrade('PRESTA_UPGRADE_AUTOMATION_HOOK_MISSING', '0.5.0 upgrade lost automation hooks.');
 }
-if (!$module->isRegisteredInHook('displayPDFInvoice')) {
-    failUpgrade('PRESTA_UPGRADE_PDF_HOOK_MISSING', '0.5.0 upgrade did not register displayPDFInvoice.');
+if (!$module->isRegisteredInHook('displayPDFInvoice') || !$module->isRegisteredInHook('displayPDFOrderSlip')) {
+    failUpgrade('PRESTA_UPGRADE_PDF_HOOK_MISSING', '0.5.0 upgrade did not register both PDF presentation hooks.');
 }
 
 $row = Db::getInstance()->getRow(
@@ -172,6 +174,14 @@ $presentationColumn = (int) Db::getInstance()->getValue(
 );
 if ($presentationColumn !== 1) {
     failUpgrade('PRESTA_UPGRADE_PRESENTATION_COLUMN_MISSING', '0.5.0 upgrade did not add presentation_json.');
+}
+
+$correctivePresentationColumn = (int) Db::getInstance()->getValue(
+    "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE()"
+    . " AND table_name = '" . pSQL(_DB_PREFIX_ . "pvf_order_slip_sync") . "' AND column_name = 'presentation_json'"
+);
+if ($correctivePresentationColumn !== 1) {
+    failUpgrade('PRESTA_UPGRADE_CORRECTIVE_PRESENTATION_COLUMN_MISSING', '0.5.0 upgrade did not add corrective presentation_json.');
 }
 
 $corrective = Db::getInstance()->getRow(
@@ -209,7 +219,9 @@ fwrite(STDOUT, json_encode(array(
     'status_hook_registered' => true,
     'automation_hooks_registered' => true,
     'pdf_invoice_hook_registered' => true,
+    'pdf_order_slip_hook_registered' => true,
     'presentation_column_added' => true,
+    'corrective_presentation_column_added' => true,
     'automation_default_off' => true,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 PHP
