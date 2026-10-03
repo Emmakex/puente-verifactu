@@ -1,17 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { LocalAgentStore } from '../src/store.mjs';
 import { LocalAgentWorker, createPuenteApiTransport, retryDelayMs } from '../src/worker.mjs';
 import { assertOutboundBaseUrl } from '../src/network.mjs';
+import { createLocalAgentApiClient } from '../src/client.mjs';
 import { enqueueWatchFolder, scanWatchFolder } from '../src/watch-folder.mjs';
 
 test('Local Agent queue is durable and source-key idempotent', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'pv-local-agent-'));
   const dbPath = join(dir, 'agent.sqlite');
   const first = new LocalAgentStore(dbPath);
+  if (process.platform !== 'win32') {
+    assert.equal((await stat(dbPath)).mode & 0o777, 0o600);
+  }
   const payload = { kind: 'invoice-intent', intent: { number: 'A-1' } };
 
   const job = first.enqueue({
@@ -144,6 +148,16 @@ test('API transport always preflights before issue and reuses worker idempotency
     () => transport({ kind: 'watch-file' }, { idempotencyKey: 'idem-c' }),
     (error) => error.code === 'VF_LOCAL_AGENT_PAYLOAD_KIND_UNSUPPORTED' && error.retryable === false,
   );
+
+  const networkTransport = createPuenteApiTransport({
+    async preflight() {
+      throw new TypeError('fetch failed');
+    },
+  });
+  await assert.rejects(
+    () => networkTransport({ kind: 'invoice-intent', intent: { number: 'A-2' } }, { idempotencyKey: 'idem-network' }),
+    (error) => error.code === 'VF_LOCAL_AGENT_NETWORK_ERROR' && error.retryable === true,
+  );
 });
 
 test('watch-folder discovery is deterministic and queues each file revision once', async () => {
@@ -184,4 +198,18 @@ test('Local Agent network policy requires outbound HTTPS except explicit localho
     () => assertOutboundBaseUrl('https://user:secret@kairoseth.example'),
     (error) => error.code === 'VF_LOCAL_AGENT_URL_CREDENTIALS_FORBIDDEN',
   );
+
+  assert.throws(
+    () => createLocalAgentApiClient({ baseUrl: 'http://kairoseth.example', apiKey: 'test-key' }),
+    (error) => error.code === 'VF_LOCAL_AGENT_HTTPS_REQUIRED',
+  );
+  const client = createLocalAgentApiClient({
+    baseUrl: 'https://kairoseth.example/',
+    apiKey: 'test-key',
+    fetchImpl: async () => {
+      throw new Error('not called');
+    },
+  });
+  assert.equal(client.baseUrl, 'https://kairoseth.example');
+  assert.equal(client.connectorVersion, 'local-agent-v1');
 });
