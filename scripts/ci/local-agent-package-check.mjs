@@ -23,6 +23,10 @@ assert.ok(names.includes('kairoseth-local-agent/packages/sdk/src/client.mjs'));
 assert.ok(names.includes('kairoseth-local-agent/packages/contracts/src/constants.mjs'));
 assert.ok(names.includes('kairoseth-local-agent/connectors/file-import/src/file-reader.mjs'));
 assert.ok(names.includes('kairoseth-local-agent/config/local-agent.example.json'));
+assert.ok(names.includes('kairoseth-local-agent/config/local-agent.env.example'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/linux/install.sh'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/macos/install.sh'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/windows/install.ps1'));
 assert.ok(names.includes('kairoseth-local-agent/bundle-manifest.json'));
 
 for (const name of names) {

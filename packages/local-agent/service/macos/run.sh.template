@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ENV_FILE="__ENV_FILE__"
+NODE_BIN="__NODE_BIN__"
+APP_CURRENT="__APP_CURRENT__"
+CONFIG_FILE="__CONFIG_FILE__"
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+  [[ -z "$line" || "$line" == \#* ]] && continue
+  [[ "$line" =~ ^[A-Z_][A-Z0-9_]*= ]] || { echo "Invalid environment entry" >&2; exit 2; }
+  key="${line%%=*}"
+  value="${line#*=}"
+  export "$key=$value"
+done < "$ENV_FILE"
+
+exec "$NODE_BIN" "$APP_CURRENT/bin/kairoseth-local-agent.mjs" start --config "$CONFIG_FILE"

@@ -1,0 +1,27 @@
+[Unit]
+Description=Kairoseth Fiscal Local Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__SERVICE_USER__
+Group=__SERVICE_USER__
+WorkingDirectory=__APP_CURRENT__
+EnvironmentFile=__ENV_FILE__
+ExecStart=__NODE_BIN__ __APP_CURRENT__/bin/kairoseth-local-agent.mjs start --config __CONFIG_FILE__
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=__DATA_DIR__
+
+[Install]
+WantedBy=multi-user.target

@@ -26,6 +26,17 @@ const SOURCE_FILES = Object.freeze([
   'packages/local-agent/README.md',
   'packages/local-agent/adapter-manifest.json',
   'config/local-agent.example.json',
+  'config/local-agent.env.example',
+  'packages/local-agent/service/linux/kairoseth-local-agent.service.template',
+  'packages/local-agent/service/linux/install.sh',
+  'packages/local-agent/service/linux/uninstall.sh',
+  'packages/local-agent/service/macos/run.sh.template',
+  'packages/local-agent/service/macos/com.kairoseth.local-agent.plist.template',
+  'packages/local-agent/service/macos/install.sh',
+  'packages/local-agent/service/macos/uninstall.sh',
+  'packages/local-agent/service/windows/run.ps1',
+  'packages/local-agent/service/windows/install.ps1',
+  'packages/local-agent/service/windows/uninstall.ps1',
 ]);
 
 const CRC_TABLE = Array.from({ length: 256 }, (_, value) => {
