@@ -10,6 +10,7 @@ require_once __DIR__ . '/classes/PVFPrestaShopOrderPayload.php';
 require_once __DIR__ . '/classes/PVFPrestaShopAdminStatus.php';
 require_once __DIR__ . '/classes/PVFPrestaShopRectifications.php';
 require_once __DIR__ . '/classes/PVFPrestaShopInvoicePresentation.php';
+require_once __DIR__ . '/classes/PVFPrestaShopCompatibility.php';
 require_once __DIR__ . '/classes/PVFPrestaShopAutomation.php';
 
 class PuenteVerifactu extends Module
@@ -27,7 +28,7 @@ class PuenteVerifactu extends Module
         $this->author = 'Kairoseth Extensions';
         $this->need_instance = 0;
         $this->bootstrap = true;
-        $this->ps_versions_compliancy = array('min' => '1.7.8.0', 'max' => '8.99.99');
+        $this->ps_versions_compliancy = array('min' => '1.7.8.0', 'max' => '99.99.99');
 
         parent::__construct();
 
@@ -44,11 +45,13 @@ class PuenteVerifactu extends Module
             && PVFPrestaShopRectifications::installSchema()
             && Configuration::updateValue(self::CONFIG_TIMEOUT, 15, false, null, $shopId)
             && PVFPrestaShopAutomation::installDefaults($shopId)
-            && $this->registerHook('displayAdminOrderMainBottom')
-            && $this->registerHook('displayPDFInvoice')
-            && $this->registerHook('displayPDFOrderSlip')
-            && $this->registerHook('actionOrderStatusPostUpdate')
-            && $this->registerHook('actionOrderSlipAdd');
+            && PVFPrestaShopCompatibility::registerAvailableHooks($this, array(
+                'displayAdminOrderMainBottom',
+                'displayPDFInvoice',
+                'displayPDFOrderSlip',
+                'actionOrderStatusPostUpdate',
+                'actionOrderSlipAdd',
+            ));
     }
 
     public function uninstall()
@@ -393,6 +396,7 @@ class PuenteVerifactu extends Module
                 return $this->displayWarning($this->l('This order already has a Puente VeriFactu record. Use Refresh status instead of creating another record.'));
             }
 
+            PVFPrestaShopCompatibility::assertInvoicePresentationReady();
             $idempotencyKey = $this->idempotencyKey($order, $payload);
             $result = $client->issue($payload, $idempotencyKey);
             if (empty($result['recordId'])) {
