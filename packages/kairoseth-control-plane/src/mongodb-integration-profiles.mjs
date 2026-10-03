@@ -18,6 +18,10 @@ const FORBIDDEN_CONSTANT_KEYS = new Set([
   'aeatEnvironment',
   'fiscalRules',
   'taxRules',
+  'apiKey',
+  'token',
+  'password',
+  'webhookSecret',
 ]);
 
 function fail(code, message, status = 500, cause = null) {
