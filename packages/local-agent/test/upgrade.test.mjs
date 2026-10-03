@@ -54,6 +54,8 @@ async function fixture() {
       backupRequired: true,
       automaticDatabaseRollback: false,
     },
+    files: [],
+    contentFingerprint: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
   }, null, 2) + '\n');
 
   return { root, dataDir, configPath, manifestPath, dbPath: join(dataDir, 'agent.sqlite') };
@@ -217,4 +219,28 @@ test('backup is a verified snapshot and never rewrites the source database', asy
 
   assert.deepEqual(after, before);
   assert.equal(backup.created, true);
+});
+
+
+test('prepare upgrade rejects bundle content that does not match its manifest', async () => {
+  const { root, configPath, manifestPath, dbPath } = await fixture();
+  const payloadPath = join(root, 'payload.txt');
+  await writeFile(payloadPath, 'tampered');
+
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  manifest.files = [{
+    path: 'payload.txt',
+    bytes: 8,
+    sha256: '0000000000000000000000000000000000000000000000000000000000000000',
+  }];
+  manifest.contentFingerprint = '0000000000000000000000000000000000000000000000000000000000000000';
+  await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+
+  const store = new LocalAgentStore(dbPath);
+  store.close();
+
+  await assert.rejects(
+    () => prepareLocalAgentUpgrade({ manifestPath, configPath }),
+    (error) => error.code === 'VF_LOCAL_AGENT_UPGRADE_BUNDLE_TAMPERED',
+  );
 });
