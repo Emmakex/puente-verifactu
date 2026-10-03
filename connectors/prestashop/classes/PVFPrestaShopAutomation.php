@@ -365,7 +365,7 @@ final class PVFPrestaShopAutomation
         );
     }
 
-    private static function saveSlipSync($shopId, $orderId, $slipId, $recordId, $idempotencyKey, $status, $lastError)
+    private static function saveSlipSync($shopId, $orderId, $slipId, $recordId, $idempotencyKey, $status, $lastError, $presentationJson = '')
     {
         $existing = self::getSlipSync($shopId, $slipId);
         if (is_array($existing)) {
@@ -375,15 +375,19 @@ final class PVFPrestaShopAutomation
             if ($idempotencyKey === '') {
                 $idempotencyKey = (string) $existing['idempotency_key'];
             }
+            if ($presentationJson === '' && isset($existing['presentation_json'])) {
+                $presentationJson = (string) $existing['presentation_json'];
+            }
         }
         return Db::getInstance()->execute(
             'INSERT INTO `' . _DB_PREFIX_ . 'pvf_order_slip_sync` '
-            . '(`id_shop`,`id_order`,`id_order_slip`,`record_id`,`idempotency_key`,`status`,`last_error`,`date_upd`) VALUES ('
+            . '(`id_shop`,`id_order`,`id_order_slip`,`record_id`,`idempotency_key`,`status`,`presentation_json`,`last_error`,`date_upd`) VALUES ('
             . (int) $shopId . ',' . (int) $orderId . ',' . (int) $slipId . ',\'' . pSQL((string) $recordId) . '\',\''
             . pSQL((string) $idempotencyKey) . '\',\'' . pSQL((string) $status) . '\',\''
-            . pSQL((string) $lastError, true) . '\',NOW()) '
+            . pSQL((string) $presentationJson, true) . '\',\'' . pSQL((string) $lastError, true) . '\',NOW()) '
             . 'ON DUPLICATE KEY UPDATE `id_order`=VALUES(`id_order`),`record_id`=VALUES(`record_id`),'
             . '`idempotency_key`=VALUES(`idempotency_key`),`status`=VALUES(`status`),'
+            . '`presentation_json`=VALUES(`presentation_json`),'
             . '`last_error`=VALUES(`last_error`),`date_upd`=NOW()'
         );
     }
