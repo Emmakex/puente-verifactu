@@ -34,5 +34,23 @@
     "adapters_are_not_products": true,
     "server_side_fiscal_authority": true,
     "capability_first_onboarding": true
+  },
+  "technical_identity": {
+    "name": "Puente VeriFactu",
+    "slug": "puente-verifactu",
+    "repository": "Emmakex/puente-verifactu"
+  },
+  "commercial_facade": {
+    "enabled": true,
+    "status": "naming_pending",
+    "pattern_reference": "Puente DeCA -> Kairoseth Cargo",
+    "canonical_route_template": "/products/{commercial_slug}",
+    "technical_route": "/products/puente-verifactu",
+    "redirect_technical_route_when_named": true,
+    "commercial_families": [
+      "web",
+      "connect",
+      "api"
+    ]
   }
 }
