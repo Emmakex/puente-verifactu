@@ -17,6 +17,7 @@ const paths = {
   upgradeStatus: 'connectors/prestashop/upgrade/install-0.2.0.php',
   upgradeRectifications: 'connectors/prestashop/upgrade/install-0.3.0.php',
   upgradeAutomation: 'connectors/prestashop/upgrade/install-0.4.0.php',
+  upgradePresentation: 'connectors/prestashop/upgrade/install-0.5.0.php',
   taxFixtureScript: 'scripts/ci/prestashop-tax-fixtures.php'
 };
 
@@ -42,21 +43,24 @@ const statusFile = read(paths.adminStatus);
 const upgradeStatusFile = read(paths.upgradeStatus);
 const upgradeRectificationsFile = read(paths.upgradeRectifications);
 const upgradeAutomationFile = read(paths.upgradeAutomation);
+const presentationFile = read(paths.presentation);
+const compatibilityFile = read(paths.compatibility);
+const upgradePresentationFile = read(paths.upgradePresentation);
 const readme = read(paths.readme);
 
 const expectations = [
   [moduleFile.includes('class PuenteVerifactu extends Module'), 'PRESTA_MODULE_CLASS_MISSING'],
-  [moduleFile.includes("const VERSION = '0.4.0'"), 'PRESTA_MODULE_VERSION_INVALID'],
-  [moduleFile.includes("'min' => '1.7.8.0'") && moduleFile.includes("'max' => '8.99.99'"), 'PRESTA_VERSION_RANGE_MISSING'],
+  [moduleFile.includes("const VERSION = '0.5.0'"), 'PRESTA_MODULE_VERSION_INVALID'],
+  [moduleFile.includes("'min' => '1.7.8.0'"), 'PRESTA_MINIMUM_VERSION_MISSING'],
   [moduleFile.includes("runManualAction('preflight')") && moduleFile.includes("runManualAction('send')") && moduleFile.includes("runManualAction('reconcile')"), 'PRESTA_MANUAL_SAFE_FLOW_MISSING'],
   [moduleFile.includes('idempotencyKey') && moduleFile.includes("':invoice:'"), 'PRESTA_IDEMPOTENCY_MISSING'],
   [moduleFile.includes('pvf_order_sync') && moduleFile.includes('UNIQUE KEY `pvf_shop_order`'), 'PRESTA_LOCAL_SYNC_STATE_MISSING'],
-  [moduleFile.includes("registerHook('displayAdminOrderMainBottom')") && moduleFile.includes('hookDisplayAdminOrderMainBottom'), 'PRESTA_NATIVE_ORDER_STATUS_HOOK_MISSING'],
+  [moduleFile.includes('hookDisplayAdminOrderMainBottom') && compatibilityFile.includes("'displayAdminOrderMainBottom'"), 'PRESTA_NATIVE_ORDER_STATUS_HOOK_MISSING'],
   [moduleFile.includes('PVFPrestaShopAdminStatus::summarize') && moduleFile.includes('getSyncRow($orderId)'), 'PRESTA_NATIVE_ORDER_STATUS_LOCAL_READ_MISSING'],
   [moduleFile.includes("'green' => $this->l('Synced')") && moduleFile.includes("'amber' => $this->l('Pending / review')") && moduleFile.includes("'red' => $this->l('Action required')") && moduleFile.includes("'gray' => $this->l('Not sent')"), 'PRESTA_NATIVE_ORDER_STATUS_LABELS_MISSING'],
   [moduleFile.includes('PVFPrestaShopRectifications::installSchema()') && moduleFile.includes('PVFPrestaShopRectifications::handleSubmissions($this)') && moduleFile.includes('PVFPrestaShopRectifications::renderOrderStatus($this, $orderId)'), 'PRESTA_RECTIFICATION_WIRING_MISSING'],
-  [moduleFile.includes("registerHook('actionOrderStatusPostUpdate')") && moduleFile.includes('hookActionOrderStatusPostUpdate'), 'PRESTA_AUTO_INVOICE_HOOK_MISSING'],
-  [moduleFile.includes("registerHook('actionOrderSlipAdd')") && moduleFile.includes('hookActionOrderSlipAdd'), 'PRESTA_AUTO_RECTIFICATION_HOOK_MISSING'],
+  [moduleFile.includes('hookActionOrderStatusPostUpdate') && compatibilityFile.includes("'actionOrderStatusPostUpdate'"), 'PRESTA_AUTO_INVOICE_HOOK_MISSING'],
+  [moduleFile.includes('hookActionOrderSlipAdd') && compatibilityFile.includes("'actionOrderSlipAdd'"), 'PRESTA_AUTO_RECTIFICATION_HOOK_MISSING'],
   [moduleFile.includes('PVFPrestaShopAutomation::CONFIG_AUTO_INVOICES') && moduleFile.includes('PVFPrestaShopAutomation::CONFIG_AUTO_RECTIFICATIONS'), 'PRESTA_AUTO_SWITCHES_MISSING'],
   [clientFile.includes("strpos($this->endpoint, 'https://') === 0"), 'PRESTA_HTTPS_GUARD_MISSING'],
   [clientFile.includes('CURLOPT_SSL_VERIFYPEER => true') && clientFile.includes('CURLOPT_SSL_VERIFYHOST => 2'), 'PRESTA_TLS_VERIFY_MISSING'],
@@ -96,6 +100,10 @@ const expectations = [
   [upgradeRectificationsFile.includes('upgrade_module_0_3_0') && upgradeRectificationsFile.includes('pvf_order_slip_sync') && upgradeRectificationsFile.includes('UNIQUE KEY `pvf_shop_slip`'), 'PRESTA_RECTIFICATION_UPGRADE_MISSING'],
   [upgradeAutomationFile.includes('upgrade_module_0_4_0') && upgradeAutomationFile.includes("registerHook('actionOrderStatusPostUpdate')") && upgradeAutomationFile.includes("registerHook('actionOrderSlipAdd')"), 'PRESTA_AUTOMATION_UPGRADE_HOOKS_MISSING'],
   [upgradeAutomationFile.includes('PVFPrestaShopAutomation::installDefaults'), 'PRESTA_AUTOMATION_UPGRADE_DEFAULTS_MISSING'],
+  [presentationFile.includes('renderPdfHtml') && presentationFile.includes('QRCODE,M') && presentationFile.includes('QR tributario:'), 'PRESTA_PDF_PRESENTATION_MISSING'],
+  [presentationFile.includes('rendererAvailable') && compatibilityFile.includes('invoicePresentationCapabilities') && compatibilityFile.includes('Hook::getIdByName'), 'PRESTA_CAPABILITY_FIRST_MISSING'],
+  [moduleFile.includes('presentation_json') && moduleFile.includes('hookDisplayPDFInvoice'), 'PRESTA_PRESENTATION_PERSISTENCE_MISSING'],
+  [upgradePresentationFile.includes('upgrade_module_0_5_0') && upgradePresentationFile.includes('presentation_json') && upgradePresentationFile.includes('registerAvailableHooks'), 'PRESTA_PRESENTATION_UPGRADE_MISSING'],
   [readme.includes('No contiene reglas AEAT'), 'PRESTA_THIN_CONNECTOR_DOC_MISSING']
 ];
 
@@ -185,5 +193,7 @@ console.log(JSON.stringify({
   required_paths: required.length,
   native_order_status: true,
   corrective_credit_slips: true,
-  opt_in_automation: true
+  opt_in_automation: true,
+  verifactu_pdf_presentation: true,
+  capability_first_compatibility: true
 }, null, 2));
