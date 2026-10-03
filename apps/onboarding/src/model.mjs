@@ -65,6 +65,7 @@ export const COPY = Object.freeze({
     confirmReviews: 'Confirma o ignora las equivalencias marcadas para revisar.',
     requiredData: 'Completa los datos obligatorios del negocio.',
     validating: 'Validando…',
+    responsibleDeclaration: 'Declaración responsable del sistema',
   },
   en: {
     principle: 'Chameleon Principle',
@@ -103,6 +104,7 @@ export const COPY = Object.freeze({
     confirmReviews: 'Confirm or ignore the mappings marked for review.',
     requiredData: 'Complete the required business data.',
     validating: 'Validating…',
+    responsibleDeclaration: 'System responsible declaration',
   },
 });
 
