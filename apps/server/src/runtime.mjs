@@ -10,6 +10,7 @@ import { createIntegrationResolvers } from './integration-config.mjs';
 import { createPuenteHttpServer } from './http-server.mjs';
 import { createOperationalObserver } from './observability.mjs';
 import { KairosethLocalAgentControlPlane } from './local-agent-control-plane.mjs';
+import { DEFAULT_NATIVE_CONNECTORS, resolveKairosethIntegrationStrategy } from '../../../packages/kairoseth-control-plane/src/capability-onboarding.mjs';
 import { FixedWindowRateLimiter } from './rate-limit.mjs';
 
 const DEFAULT_ONBOARDING_DIR = resolve(fileURLToPath(new URL('../../onboarding/', import.meta.url)));
@@ -33,6 +34,7 @@ export function createPuenteRuntime({
   presentationEnvironment = 'test',
   observabilityThresholds = {},
   localAgentRegistryStore = null,
+  supportedNativeConnectors = DEFAULT_NATIVE_CONNECTORS,
 } = {}) {
   const normalizedSif = {
     systemId: requiredString(sif?.systemId, 'sif.systemId'),
@@ -77,6 +79,9 @@ export function createPuenteRuntime({
     resolveMappingProfile: resolvers.resolveMappingProfile,
     resolveWebhookSecret: resolvers.resolveWebhookSecret,
     localAgents,
+    resolveOnboardingStrategy: (input) => resolveKairosethIntegrationStrategy(input, {
+      supportedNativeConnectors,
+    }),
   });
   const operationalObserver = createOperationalObserver({
     persistence,

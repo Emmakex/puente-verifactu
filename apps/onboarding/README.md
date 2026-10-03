@@ -4,6 +4,38 @@ Interfaz customer-facing ES/EN para conectar archivos CSV/XLSX mediante el **Pri
 
 El usuario no ve rutas internas del modelo canónico como interfaz principal y no necesita conocer XML, SOAP, hashes ni certificados AEAT.
 
+## Entrada capability-first de Kairoseth
+
+Antes de abrir un wizard técnico concreto, Kairoseth puede resolver el canal adecuado con:
+
+`POST /v1/control-plane/onboarding/resolve`
+
+La petición describe únicamente capacidades, por ejemplo:
+
+```json
+{
+  "locale": "es",
+  "canReadDatabase": true
+}
+```
+
+El resolver elige de forma determinista entre:
+
+- conector nativo;
+- REST API;
+- webhook;
+- upload CSV/XLSX;
+- base de datos read-only mediante Local Agent;
+- SFTP mediante Local Agent;
+- watch-folder / aplicación local;
+- captura manual en Kairoseth.
+
+La respuesta incluye `channel`, `commercialFamily`, `deploymentMode`, `requiresLocalAgent`, `sourceKind` y próximos pasos. No contiene credenciales ni secretos y no puede seleccionar tenant, certificado, entorno AEAT o reglas fiscales.
+
+Un nombre de software no soportado no determina la estrategia: si el sistema expone API, webhook u otra capacidad válida, se usa esa capacidad. Esto mantiene el onboarding **capability-first, no brand-first**.
+
+El fallback manual es únicamente una superficie de captura dentro de Kairoseth; usa el mismo preflight y motor fiscal server-side y no constituye un segundo motor fiscal.
+
 ## Flujo
 
 1. subir el CSV/XLSX existente;
