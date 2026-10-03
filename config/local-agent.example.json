@@ -11,7 +11,8 @@
     "workerBatchSize": 50,
     "leaseMs": 60000,
     "maxAttempts": 12,
-    "terminalRedactionDelayMs": 0
+    "terminalRedactionDelayMs": 0,
+    "heartbeatIntervalMs": 60000
   },
   "source": {
     "kind": "watch-folder",
