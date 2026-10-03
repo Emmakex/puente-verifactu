@@ -76,6 +76,15 @@ function requirePermission(context, permission) {
   }
 }
 
+function requireAnyPermission(context, permissions) {
+  if (!permissions.some((permission) => context?.permissions?.includes(permission))) {
+    throw Object.assign(new Error(`One of these permissions is required: ${permissions.join(', ')}`), {
+      code: 'VF_API_FORBIDDEN',
+      status: 403,
+    });
+  }
+}
+
 function requireDataPlaneContext(context) {
   if (Array.isArray(context?.permissions) && context.permissions.length > 0) {
     throw Object.assign(new Error('Privileged control-plane credentials cannot use fiscal data-plane routes'), {
@@ -112,6 +121,7 @@ export function createApiHandler({
   imports,
   localAgents = null,
   resolveOnboardingStrategy = null,
+  onboardingProfiles = null,
 } = {}) {
   if (!bridge) throw new TypeError('bridge is required');
   if (typeof authenticate !== 'function') throw new TypeError('authenticate is required');
@@ -124,7 +134,7 @@ export function createApiHandler({
       const path = String(request.path ?? '/').split('?')[0];
 
       if (method === 'POST' && path === '/v1/control-plane/onboarding/resolve') {
-        requirePermission(context, 'agents:manage');
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
         if (typeof resolveOnboardingStrategy !== 'function') {
           throw Object.assign(new Error('Kairoseth onboarding resolver is unavailable'), {
             code: 'VF_ONBOARDING_RESOLVER_UNAVAILABLE',
@@ -134,6 +144,96 @@ export function createApiHandler({
         return json(
           200,
           await resolveOnboardingStrategy(parseJsonBody(request)),
+          correlationId,
+        );
+      }
+
+      if (path === '/v1/control-plane/onboarding/profiles') {
+        if (!onboardingProfiles) {
+          throw Object.assign(new Error('Kairoseth onboarding profile store is unavailable'), {
+            code: 'VF_ONBOARDING_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+
+        if (method === 'GET') {
+          return json(200, {
+            schemaVersion: 1,
+            profiles: await onboardingProfiles.listProfiles(context),
+          }, correlationId);
+        }
+        if (method === 'POST') {
+          return json(
+            201,
+            await onboardingProfiles.createProfile(context, parseJsonBody(request)),
+            correlationId,
+          );
+        }
+        throw Object.assign(new Error('Method not allowed'), {
+          code: 'VF_API_METHOD_NOT_ALLOWED',
+          status: 405,
+        });
+      }
+
+      const onboardingProfileMatch = path.match(
+        /^\/v1\/control-plane\/onboarding\/profiles\/(onb_[a-f0-9]{32})$/,
+      );
+      if (method === 'GET' && onboardingProfileMatch) {
+        if (!onboardingProfiles) {
+          throw Object.assign(new Error('Kairoseth onboarding profile store is unavailable'), {
+            code: 'VF_ONBOARDING_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+        return json(
+          200,
+          await onboardingProfiles.getProfile(context, onboardingProfileMatch[1]),
+          correlationId,
+        );
+      }
+
+      const onboardingIntegrationMatch = path.match(
+        /^\/v1\/control-plane\/onboarding\/profiles\/(onb_[a-f0-9]{32})\/integration$/,
+      );
+      if (method === 'PATCH' && onboardingIntegrationMatch) {
+        if (!onboardingProfiles) {
+          throw Object.assign(new Error('Kairoseth onboarding profile store is unavailable'), {
+            code: 'VF_ONBOARDING_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+        return json(
+          200,
+          await onboardingProfiles.bindIntegration(
+            context,
+            onboardingIntegrationMatch[1],
+            parseJsonBody(request),
+          ),
+          correlationId,
+        );
+      }
+
+      const onboardingProvisionMatch = path.match(
+        /^\/v1\/control-plane\/onboarding\/profiles\/(onb_[a-f0-9]{32})\/provision-local-agent$/,
+      );
+      if (method === 'POST' && onboardingProvisionMatch) {
+        if (!onboardingProfiles) {
+          throw Object.assign(new Error('Kairoseth onboarding profile store is unavailable'), {
+            code: 'VF_ONBOARDING_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+        return json(
+          201,
+          await onboardingProfiles.provisionLocalAgent(
+            context,
+            onboardingProvisionMatch[1],
+            parseJsonBody(request),
+          ),
           correlationId,
         );
       }
