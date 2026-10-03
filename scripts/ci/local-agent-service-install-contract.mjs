@@ -7,13 +7,19 @@ function source(path) {
 const linuxUnit = source('packages/local-agent/service/linux/kairoseth-local-agent.service.template');
 const linuxInstall = source('packages/local-agent/service/linux/install.sh');
 const linuxUninstall = source('packages/local-agent/service/linux/uninstall.sh');
+const linuxUpgrade = source('packages/local-agent/service/linux/upgrade.sh');
+const linuxRollback = source('packages/local-agent/service/linux/rollback.sh');
 const macRunner = source('packages/local-agent/service/macos/run.sh.template');
 const macPlist = source('packages/local-agent/service/macos/com.kairoseth.local-agent.plist.template');
 const macInstall = source('packages/local-agent/service/macos/install.sh');
 const macUninstall = source('packages/local-agent/service/macos/uninstall.sh');
+const macUpgrade = source('packages/local-agent/service/macos/upgrade.sh');
+const macRollback = source('packages/local-agent/service/macos/rollback.sh');
 const winRunner = source('packages/local-agent/service/windows/run.ps1');
 const winInstall = source('packages/local-agent/service/windows/install.ps1');
 const winUninstall = source('packages/local-agent/service/windows/uninstall.ps1');
+const winUpgrade = source('packages/local-agent/service/windows/upgrade.ps1');
+const winRollback = source('packages/local-agent/service/windows/rollback.ps1');
 const envExample = source('config/local-agent.env.example');
 
 const failures = [];
@@ -37,6 +43,12 @@ expect(linuxInstall.includes('if [[ ! -f "$CONFIG_FILE" || $REPLACE_CONFIG -eq 1
 expect(linuxInstall.includes('ln -sfn "$RELEASE_DIR" "$CURRENT"'), 'LINUX_CURRENT_LINK_REQUIRED');
 expect(!linuxUninstall.includes('rm -rf /etc/kairoseth-local-agent'), 'LINUX_UNINSTALL_CONFIG_DELETE_FORBIDDEN');
 expect(!linuxUninstall.includes('rm -rf /var/lib/kairoseth-local-agent'), 'LINUX_UNINSTALL_DATA_DELETE_FORBIDDEN');
+expect(linuxUpgrade.includes('upgrade-cli.mjs'), 'LINUX_UPGRADE_GUARD_REQUIRED');
+expect(linuxUpgrade.includes('BACKUP_PATH='), 'LINUX_UPGRADE_BACKUP_REQUIRED');
+expect(linuxUpgrade.includes("rollbackPolicy:'code-only'"), 'LINUX_CODE_ONLY_ROLLBACK_RECEIPT_REQUIRED');
+expect(linuxUpgrade.includes('automaticDatabaseRollback:false'), 'LINUX_DB_AUTO_ROLLBACK_FORBIDDEN');
+expect(linuxRollback.includes('databaseRestored=false'), 'LINUX_ROLLBACK_DB_RESTORE_FORBIDDEN');
+expect(linuxRollback.includes('ln -sfn "$PREVIOUS_RELEASE" "$CURRENT"'), 'LINUX_CODE_POINTER_ROLLBACK_REQUIRED');
 
 expect(macPlist.includes('<key>UserName</key><string>__SERVICE_USER__</string>'), 'MACOS_NON_ROOT_USER_REQUIRED');
 expect(macPlist.includes('<key>RunAtLoad</key><true/>'), 'MACOS_RUN_AT_LOAD_REQUIRED');
@@ -48,6 +60,11 @@ expect(macInstall.includes('ln -sfn "$RELEASE_DIR" "$CURRENT"'), 'MACOS_CURRENT_
 expect(macRunner.includes('export "$key=$value"'), 'MACOS_ENV_EXPORT_REQUIRED');
 expect(!/\bsource\s+["']?\$ENV_FILE|\beval\b/.test(macRunner), 'MACOS_ENV_EVAL_FORBIDDEN');
 expect(!macUninstall.includes('rm -rf "/Library/Application Support/Kairoseth/LocalAgent"'), 'MACOS_UNINSTALL_STATE_DELETE_FORBIDDEN');
+expect(macUpgrade.includes('upgrade-cli.mjs'), 'MACOS_UPGRADE_GUARD_REQUIRED');
+expect(macUpgrade.includes('BACKUP_PATH='), 'MACOS_UPGRADE_BACKUP_REQUIRED');
+expect(macUpgrade.includes("rollbackPolicy:'code-only'"), 'MACOS_CODE_ONLY_ROLLBACK_RECEIPT_REQUIRED');
+expect(macRollback.includes('databaseRestored=false'), 'MACOS_ROLLBACK_DB_RESTORE_FORBIDDEN');
+expect(macRollback.includes('ln -sfn "$PREVIOUS_RELEASE" "$CURRENT"'), 'MACOS_CODE_POINTER_ROLLBACK_REQUIRED');
 
 expect(winInstall.includes('$env:ProgramData') && winInstall.includes('Kairoseth\\LocalAgent'), 'WINDOWS_PROGRAMDATA_ROOT_REQUIRED');
 expect(winInstall.includes('Register-ScheduledTask -TaskName $taskName'), 'WINDOWS_NATIVE_TASK_REQUIRED');
@@ -62,18 +79,23 @@ expect(winInstall.includes('if ($ReplaceConfig -or -not (Test-Path $configFile))
 expect(!/nssm|winsw|node-windows/i.test(winInstall + winRunner), 'WINDOWS_THIRD_PARTY_SERVICE_WRAPPER_FORBIDDEN');
 expect(!/Remove-Item[^\n]*(?:config|data)/i.test(winUninstall), 'WINDOWS_UNINSTALL_STATE_DELETE_FORBIDDEN');
 expect(winRunner.includes("[Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], 'Process')"), 'WINDOWS_ENV_PROCESS_SCOPE_REQUIRED');
+expect(winUpgrade.includes('upgrade-cli.mjs'), 'WINDOWS_UPGRADE_GUARD_REQUIRED');
+expect(winUpgrade.includes('rollbackPolicy = \'code-only\''), 'WINDOWS_CODE_ONLY_ROLLBACK_RECEIPT_REQUIRED');
+expect(winUpgrade.includes('automaticDatabaseRollback = $false'), 'WINDOWS_DB_AUTO_ROLLBACK_FORBIDDEN');
+expect(winRollback.includes('databaseRestored') && winRollback.includes('$false'), 'WINDOWS_ROLLBACK_DB_RESTORE_FORBIDDEN');
+expect(winRollback.includes('New-Item -ItemType Junction -Path $current -Target $previousRelease'), 'WINDOWS_CODE_POINTER_ROLLBACK_REQUIRED');
 
 expect(envExample.includes('PV_LOCAL_AGENT_API_KEY=replace-me'), 'LOCAL_AGENT_ENV_API_KEY_EXAMPLE_REQUIRED');
 expect(!/PFX|P12|AEAT_CERT|PRIVATE_KEY/i.test(envExample), 'LOCAL_AGENT_ENV_FISCAL_SECRET_FORBIDDEN');
 
-forbidsSensitiveMaterial(linuxUnit + linuxInstall + linuxUninstall, 'LINUX');
-forbidsSensitiveMaterial(macRunner + macPlist + macInstall + macUninstall, 'MACOS');
-forbidsSensitiveMaterial(winRunner + winInstall + winUninstall, 'WINDOWS');
+forbidsSensitiveMaterial(linuxUnit + linuxInstall + linuxUninstall + linuxUpgrade + linuxRollback, 'LINUX');
+forbidsSensitiveMaterial(macRunner + macPlist + macInstall + macUninstall + macUpgrade + macRollback, 'MACOS');
+forbidsSensitiveMaterial(winRunner + winInstall + winUninstall + winUpgrade + winRollback, 'WINDOWS');
 
 for (const item of [
-  ['LINUX', linuxInstall + linuxUninstall],
-  ['MACOS', macInstall + macUninstall],
-  ['WINDOWS', winInstall + winUninstall],
+  ['LINUX', linuxInstall + linuxUninstall + linuxUpgrade + linuxRollback],
+  ['MACOS', macInstall + macUninstall + macUpgrade + macRollback],
+  ['WINDOWS', winInstall + winUninstall + winUpgrade + winRollback],
 ]) {
   expect(!/curl\s+.*\|\s*(?:sh|bash|powershell)|Invoke-Expression|iex\s/i.test(item[1]), item[0] + '_REMOTE_EXECUTION_FORBIDDEN');
 }
@@ -98,4 +120,7 @@ console.log(JSON.stringify({
   state_preserving_uninstall: true,
   windows_acl_hardened: true,
   third_party_service_wrapper: false,
+  upgrade_backup_required: true,
+  rollback_policy: 'code-only',
+  automatic_database_rollback: false,
 }, null, 2));
