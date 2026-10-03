@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validation:
     name: Contract and core validation
@@ -257,3 +261,25 @@ jobs:
           DB_DIALECT: ${{ matrix.dialect }}
           DB_IMAGE: ${{ matrix.image }}
         run: bash scripts/ci/local-agent-db-compatibility-smoke.sh
+
+
+  local-agent-sftp-compatibility:
+    name: Local Agent SFTP / OpenSSH
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install SFTP client
+        run: npm install --no-save --package-lock=false --ignore-scripts "ssh2-sftp-client@12.1.1"
+
+      - name: Real pinned read-only SFTP smoke
+        env:
+          SFTP_IMAGE: atmoz/sftp:alpine
+        run: bash scripts/ci/local-agent-sftp-compatibility-smoke.sh

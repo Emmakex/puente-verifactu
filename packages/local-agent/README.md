@@ -19,6 +19,7 @@ It is intentionally **not** a fiscal engine. The agent moves source data toward 
 - blocked state for non-retryable failures;
 - durable source checkpoints;
 - deterministic CSV/XLSX watch-folder discovery with streamed SHA-256 hashing;
+- pinned, non-destructive SFTP drop-folder ingress with durable receipts;
 - outbound HTTPS policy;
 - adapter manifest bound to `kairoseth/extensions/puente-verifactu`.
 
@@ -156,18 +157,55 @@ The repository does not bundle those vendor packages into the core runtime. The 
 
 CI compatibility evidence runs against PostgreSQL 16, MySQL 8.4, MariaDB 11.4 and SQL Server 2022. Production credentials still must be provisioned SELECT-only; the runtime guard is defense in depth.
 
+## SFTP drop-folder
+
+SFTP is an optional remote file ingress for systems that can only export files to a managed server. It is deliberately **non-destructive by default**:
+
+- only regular `.csv` / `.xlsx` files are downloaded;
+- the remote file is never renamed or deleted;
+- host-key verification is mandatory and pinned with SHA-256;
+- password/private-key credentials live only in Local Agent runtime configuration and are not written to manifests or receipts;
+- each remote identity (directory + filename + size + modification time) has a durable SQLite receipt, preventing repeated downloads across restarts;
+- downloaded bytes are size-checked and SHA-256 fingerprinted before being admitted to the local inbox;
+- SFTP receipts are transport deduplication; fiscal idempotency remains enforced independently by the durable row queue and Puente API;
+- the existing watch-folder pipeline still owns parsing, MappingProfile, preflight, issue, quarantine and row idempotency.
+
+A source SFTP account can therefore be provisioned with read-only filesystem permissions. CI proves this by reading a real SFTP source and verifying that an attempted remote upload is rejected.
+
+`createSftpConnectionConfig()` requires a pinned host fingerprint in either 64-character SHA-256 hex or OpenSSH `SHA256:...` format. The underlying SSH client is configured with `hostHash='sha256'` and a fail-closed verifier.
+
+## SFTP source
+
+The SFTP source is a non-destructive drop-folder adapter for legacy systems that can export CSV/XLSX to a remote server but cannot call the Puente API directly.
+
+Security and durability rules:
+
+- remote SSH host identity is pinned with a required SHA-256 host-key fingerprint;
+- password or private-key authentication is supported, but credentials are never written into queue payloads or manifests;
+- only regular `.csv` / `.xlsx` files are accepted;
+- remote files are read with `list()` + `get()` only; the adapter never renames, deletes or uploads source files;
+- remote source folders should be provisioned read-only for the Local Agent account;
+- file age and size limits are checked before download, listed/downloaded byte counts must match, and content SHA-256 defines the revision identity;
+- downloaded bytes are SHA-256 fingerprinted and handed to the existing private watch-folder pipeline;
+- each eligible file is downloaded and fingerprinted before deduplication; durable source receipts prevent staging the same content revision twice after restart;
+- `issueEnabled=true` remains an explicit fail-closed requirement.
+
+A deployment installs `ssh2-sftp-client@12.1.1` only when SFTP is needed. CI runs a real SFTP server, pins its generated Ed25519 host key, proves that the remote drop directory rejects uploads, downloads a CSV, hands it to the existing `mapped-source` pipeline and verifies that a second poll is idempotent.
+
+The first SFTP unit is intentionally inbound/read-only. Remote acknowledgements, deletes or moves are not performed because they would mutate the customer's source system.
+
 ## Gate
 
 ```bash
 npm run local-agent:smoke
 npm run local-agent:contract
+npm run local-agent:sftp:smoke # Docker + ssh2-sftp-client@12.1.1
 ```
 
 ## Not yet claimed
 
 The foundation does **not** claim:
 
-- SFTP support yet;
 - OS installer/daemon packaging yet;
 - unattended production readiness;
 - automatic source-file retention/pruning policy for archived watch-folder files.

@@ -117,6 +117,23 @@ async function smokeMysql(mysqlDialect) {
   }
 }
 
+async function connectSqlServerWithRetry(sql, config, { attempts = 30, delayMs = 1_000 } = {}) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const pool = new sql.ConnectionPool(config);
+    try {
+      return await pool.connect();
+    } catch (error) {
+      lastError = error;
+      try { await pool.close(); } catch {}
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError ?? new Error('SQL Server did not become connectable');
+}
+
 async function smokeSqlServer() {
   const imported = await import('mssql');
   const sql = imported.default ?? imported;
@@ -132,7 +149,7 @@ async function smokeSqlServer() {
     pool: { max: 2, min: 0 },
   };
 
-  const master = await new sql.ConnectionPool({ ...baseConfig, database: 'master' }).connect();
+  const master = await connectSqlServerWithRetry(sql, { ...baseConfig, database: 'master' });
   try {
     await master.request().query("IF DB_ID('pvtest') IS NULL CREATE DATABASE pvtest");
     await master.request().query("IF EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'pvreader') DROP LOGIN pvreader");
@@ -141,7 +158,7 @@ async function smokeSqlServer() {
     await master.close();
   }
 
-  const admin = await new sql.ConnectionPool({ ...baseConfig, database: 'pvtest' }).connect();
+  const admin = await connectSqlServerWithRetry(sql, { ...baseConfig, database: 'pvtest' });
   try {
     await admin.request().query("IF OBJECT_ID('dbo.pv_invoices', 'U') IS NOT NULL DROP TABLE dbo.pv_invoices");
     await admin.request().query('CREATE TABLE dbo.pv_invoices (id BIGINT PRIMARY KEY, invoice_number NVARCHAR(50) NOT NULL, total DECIMAL(12,2) NOT NULL)');
@@ -154,12 +171,12 @@ async function smokeSqlServer() {
     await admin.close();
   }
 
-  const reader = await new sql.ConnectionPool({
+  const reader = await connectSqlServerWithRetry(sql, {
     ...baseConfig,
     database: 'pvtest',
     user: 'pvreader',
     password: 'Kf9!Zq2#Lm7@',
-  }).connect();
+  }, { attempts: 10, delayMs: 500 });
 
   try {
     const driver = createSqlServerReadOnlyDriver({ pool: reader });
