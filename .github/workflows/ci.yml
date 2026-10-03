@@ -283,3 +283,116 @@ jobs:
         env:
           SFTP_IMAGE: atmoz/sftp:alpine
         run: bash scripts/ci/local-agent-sftp-compatibility-smoke.sh
+
+
+  local-agent-portable-build:
+    name: Local Agent portable bundle / exact SHA
+    needs: validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      PV_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact source commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PV_SOURCE_COMMIT }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Verify portable package contract
+        run: npm run local-agent:package:check
+        env:
+          PV_SOURCE_COMMIT: ${{ env.PV_SOURCE_COMMIT }}
+
+      - name: Build exact portable ZIP
+        run: npm run local-agent:package -- --source-commit "$PV_SOURCE_COMMIT" --output dist/kairoseth-local-agent.zip
+
+      - name: Upload exact portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kairoseth-local-agent-portable
+          path: |
+            dist/kairoseth-local-agent.zip
+            dist/kairoseth-local-agent.zip.sha256
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  local-agent-portable-native:
+    name: Local Agent portable / ${{ matrix.name }}
+    needs: local-agent-portable-build
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+          - name: Windows x64
+            runner: windows-2025
+            platform: win32
+            arch: x64
+          - name: macOS Intel x64
+            runner: macos-15-intel
+            platform: darwin
+            arch: x64
+          - name: macOS ARM64
+            runner: macos-15
+            platform: darwin
+            arch: arm64
+    env:
+      PV_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      PV_EXPECTED_PLATFORM: ${{ matrix.platform }}
+      PV_EXPECTED_ARCH: ${{ matrix.arch }}
+    steps:
+      - name: Checkout exact source commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PV_SOURCE_COMMIT }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Download exact portable ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: kairoseth-local-agent-portable
+          path: artifact
+
+      - name: Extract portable ZIP on Linux/macOS
+        if: runner.os != 'Windows'
+        run: |
+          rm -rf .tmp/local-agent-bundle
+          mkdir -p .tmp/local-agent-bundle
+          unzip -q artifact/kairoseth-local-agent.zip -d .tmp/local-agent-bundle
+
+      - name: Extract portable ZIP on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force .tmp/local-agent-bundle -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force .tmp/local-agent-bundle | Out-Null
+          Expand-Archive -LiteralPath artifact/kairoseth-local-agent.zip -DestinationPath .tmp/local-agent-bundle -Force
+
+      - name: Install exact runtime dependencies
+        working-directory: .tmp/local-agent-bundle/kairoseth-local-agent
+        run: npm install --omit=dev --ignore-scripts --package-lock=false
+
+      - name: Native status + doctor smoke
+        run: >
+          npm run local-agent:portable:smoke --
+          --artifact artifact/kairoseth-local-agent.zip
+          --checksum artifact/kairoseth-local-agent.zip.sha256
+          --bundle-root .tmp/local-agent-bundle/kairoseth-local-agent
+          --source-commit "$PV_SOURCE_COMMIT"
+          --platform "$PV_EXPECTED_PLATFORM"
+          --arch "$PV_EXPECTED_ARCH"
