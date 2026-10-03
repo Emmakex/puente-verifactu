@@ -105,8 +105,10 @@ final class PVFPrestaShopInvoicePresentation
             throw new RuntimeException('Puente VeriFactu could not render the invoice QR code.');
         }
 
-        $prefix = Tools::safeOutput((string) $presentation['qr']['prefixText']);
-        $verification = Tools::safeOutput((string) $presentation['verificationText']);
+        // Both literals are accepted only after exact allowlist validation in normalize().
+        // Keep UTF-8 intact so TCPDF receives the official wording without HTML entity drift.
+        $prefix = (string) $presentation['qr']['prefixText'];
+        $verification = (string) $presentation['verificationText'];
         $image = 'data:image/png;base64,' . base64_encode($png);
 
         return '<table style="width:100%; margin-top:4mm;"><tr><td style="width:45%;"></td>'
