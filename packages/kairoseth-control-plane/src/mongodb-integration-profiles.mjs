@@ -55,6 +55,24 @@ function documentId(organizationId, profileId) {
     .digest('hex');
 }
 
+function assertNoForbiddenAuthority(value, path = 'constants') {
+  if (!value || typeof value !== 'object') return;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertNoForbiddenAuthority(item, `${path}.${index}`));
+    return;
+  }
+  for (const [key, nested] of Object.entries(value)) {
+    if (FORBIDDEN_CONSTANT_KEYS.has(key)) {
+      throw fail(
+        'VF_INTEGRATION_MAPPING_AUTHORITY_FORBIDDEN',
+        `MappingProfile.${path}.${key} is controlled by Kairoseth`,
+        400,
+      );
+    }
+    assertNoForbiddenAuthority(nested, `${path}.${key}`);
+  }
+}
+
 function sanitizeMappingProfile(profile) {
   if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
     throw fail('VF_INTEGRATION_MAPPING_REQUIRED', 'mappingProfile is required', 400);
@@ -69,16 +87,7 @@ function sanitizeMappingProfile(profile) {
     );
   }
 
-  for (const key of Object.keys(profile.constants ?? {})) {
-    if (FORBIDDEN_CONSTANT_KEYS.has(key)) {
-      throw fail(
-        'VF_INTEGRATION_MAPPING_AUTHORITY_FORBIDDEN',
-        `MappingProfile.constants.${key} is controlled by Kairoseth`,
-        400,
-      );
-    }
-  }
-
+  assertNoForbiddenAuthority(profile.constants ?? {});
   return structuredClone(profile);
 }
 
