@@ -67,6 +67,15 @@ function binaryBody(request) {
   throw error;
 }
 
+function requirePermission(context, permission) {
+  if (!context?.permissions?.includes(permission)) {
+    throw Object.assign(new Error(`Permission ${permission} is required`), {
+      code: 'VF_API_FORBIDDEN',
+      status: 403,
+    });
+  }
+}
+
 function decodedHeader(headers, name, fallback = '') {
   const value = header(headers, name);
   if (value == null) return fallback;
@@ -86,7 +95,14 @@ async function mappedProfile(resolveMappingProfile, context, profileId) {
   return profile;
 }
 
-export function createApiHandler({ bridge, authenticate, resolveMappingProfile, resolveWebhookSecret, imports } = {}) {
+export function createApiHandler({
+  bridge,
+  authenticate,
+  resolveMappingProfile,
+  resolveWebhookSecret,
+  imports,
+  localAgents = null,
+} = {}) {
   if (!bridge) throw new TypeError('bridge is required');
   if (typeof authenticate !== 'function') throw new TypeError('authenticate is required');
 
@@ -96,6 +112,65 @@ export function createApiHandler({ bridge, authenticate, resolveMappingProfile, 
       const context = await authenticate(request);
       const method = String(request.method ?? 'GET').toUpperCase();
       const path = String(request.path ?? '/').split('?')[0];
+
+      if (path === '/v1/control-plane/local-agents') {
+        if (!localAgents) {
+          throw Object.assign(new Error('Local Agent control plane is unavailable'), {
+            code: 'VF_LOCAL_AGENT_CONTROL_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requirePermission(context, 'agents:manage');
+
+        if (method === 'GET') {
+          return json(200, {
+            schemaVersion: 1,
+            installations: localAgents.list(),
+          }, correlationId);
+        }
+        if (method === 'POST') {
+          return json(201, localAgents.provision(parseJsonBody(request)), correlationId);
+        }
+        if (method === 'PATCH') {
+          return json(200, localAgents.setControl(parseJsonBody(request)), correlationId);
+        }
+        throw Object.assign(new Error('Method not allowed'), {
+          code: 'VF_API_METHOD_NOT_ALLOWED',
+          status: 405,
+        });
+      }
+
+      if (method === 'POST' && path === '/v1/control-plane/local-agents/rotate-credential') {
+        if (!localAgents) {
+          throw Object.assign(new Error('Local Agent control plane is unavailable'), {
+            code: 'VF_LOCAL_AGENT_CONTROL_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requirePermission(context, 'agents:manage');
+        return json(200, localAgents.rotateCredential(parseJsonBody(request)), correlationId);
+      }
+
+      if (method === 'POST' && path === '/v1/control-plane/local-agents/revoke') {
+        if (!localAgents) {
+          throw Object.assign(new Error('Local Agent control plane is unavailable'), {
+            code: 'VF_LOCAL_AGENT_CONTROL_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requirePermission(context, 'agents:manage');
+        return json(200, localAgents.revoke(parseJsonBody(request)), correlationId);
+      }
+
+      if (method === 'POST' && path === '/v1/local-agent/heartbeat') {
+        if (!localAgents) {
+          throw Object.assign(new Error('Local Agent control plane is unavailable'), {
+            code: 'VF_LOCAL_AGENT_CONTROL_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        return json(200, localAgents.heartbeat(context, parseJsonBody(request)), correlationId);
+      }
 
       if (method === 'POST' && path === '/v1/imports/inspect') {
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
