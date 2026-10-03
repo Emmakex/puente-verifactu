@@ -210,6 +210,7 @@ Contrato interno:
 - la evidencia referencia el checklist previo a la declaración responsable, pero no lo presenta como documento firmado ni como certificación AEAT.
 - la declaración responsable se genera desde un fichero privado del productor, fuera de Git, y el runtime la expone de manera autenticada en `GET /declaracion-responsable`;
 - un deployment candidato debe configurar `PV_RESPONSIBLE_DECLARATION_PATH`; si falta o el fichero no es legible, la ruta falla cerrada y no simula una declaración inexistente.
+- `npm run release:finalize` une la evidencia del commit candidato con la declaración privada mediante SHA-256, sin incorporar su contenido al bundle ni al repositorio.
 
 Comandos:
 
