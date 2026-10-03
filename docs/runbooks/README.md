@@ -9,7 +9,7 @@ Estos runbooks cubren el perfil soportado actualmente: una instancia de Puente V
 3. Nunca restaurar una base de datos sobre una instancia en ejecución.
 4. Antes de un cambio destructivo, crear y verificar un backup.
 5. No copiar certificados, claves privadas, tokens, NIF, XML fiscales ni payloads completos en tickets, chats o logs.
-6. El gate externo AEAT #6 sigue bloqueando release y piloto fiscal real.
+6. El gate externo AEAT #6 está cerrado; cualquier piloto fiscal real sigue requiriendo el candidato exacto, declaración aprobada, backup real, observabilidad limpia y el gate de readiness.
 
 ## Orden de actuación ante incidente
 
@@ -26,6 +26,7 @@ Estos runbooks cubren el perfil soportado actualmente: una instancia de Puente V
 - `aeat-incident-reconciliation.md` — indisponibilidad AEAT y resultados inciertos.
 - `backup-restore.md` — backup, verificación, restore y reconciliación posterior.
 - `credential-rotation.md` — rotación de Bearer/Basic y credencial `ops:read`.
+- `pilot-progressive.md` — aprobación privada, evidencia del entorno, stop conditions y apertura controlada del piloto.
 
 ## Señales operativas
 
