@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "kind": "kairoseth-extension-product",
+  "ecosystem": "kairoseth",
+  "catalog": "extensions",
+  "product_id": "puente-verifactu",
+  "slug": "puente-verifactu",
+  "name": "Puente VeriFactu",
+  "version": "0.1.0",
+  "status": "release_candidate",
+  "entry_model": "capability-first",
+  "core": {
+    "shared": true,
+    "fiscal_engine": "single",
+    "mode": "VERI*FACTU"
+  },
+  "channels": [
+    "native_plugin",
+    "rest_api",
+    "webhook",
+    "file_upload",
+    "database_read",
+    "watch_folder",
+    "sftp",
+    "local_agent",
+    "manual"
+  ],
+  "native_connectors": [
+    "woocommerce",
+    "prestashop"
+  ],
+  "principles": {
+    "one_product_many_adapters": true,
+    "adapters_are_not_products": true,
+    "server_side_fiscal_authority": true,
+    "capability_first_onboarding": true
+  },
+  "technical_identity": {
+    "name": "Puente VeriFactu",
+    "slug": "puente-verifactu",
+    "repository": "Emmakex/puente-verifactu"
+  },
+  "commercial_facade": {
+    "enabled": true,
+    "status": "naming_pending",
+    "pattern_reference": "Puente DeCA -> Kairoseth Cargo",
+    "canonical_route_template": "/products/{commercial_slug}",
+    "technical_route": "/products/puente-verifactu",
+    "redirect_technical_route_when_named": true,
+    "commercial_families": [
+      "web",
+      "connect",
+      "api"
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "kind": "puente-verifactu-adapter-manifest",
+  "id": "reference-api",
+  "channel": "api",
+  "transport": "https-json",
+  "mode": "push",
+  "mapping": "server-side",
+  "capabilities": {
+    "preflight": true,
+    "issue": true,
+    "status": true,
+    "sync": true,
+    "rectification": true,
+    "presentation_return": true,
+    "batch": false,
+    "offline_queue": false,
+    "source_read_only": false
+  },
+  "security": {
+    "secrets_server_side": true,
+    "aeat_certificate_server_side": true,
+    "tenant_server_authoritative": true
+  },
+  "product": {
+    "ecosystem": "kairoseth",
+    "catalog": "extensions",
+    "product_id": "puente-verifactu"
+  }
+}

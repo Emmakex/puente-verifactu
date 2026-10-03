@@ -181,3 +181,19 @@ Regla: **finish before advancing**, con la excepción controlada de ADR-0003 par
 ## Posterior
 
 Conectores ERP/CRM adicionales, portal multiempresa, herramientas para asesorías y evaluación separada de NO VERI*FACTU.
+
+## Expansión universal de adapters — post-candidato v0.1.0
+
+- [x] Matriz de escenarios ERP/CRM/software propio/Excel/legacy documentada.
+- [x] Universal Adapter Manifest v1.
+- [x] Selector capability-first inicial.
+- [x] Gate CI del manifest de referencia.
+- [ ] Productizar emisión por lotes CSV/XLSX.
+- [ ] Manifest/capabilities integrado en onboarding visual.
+- [ ] Starter kits HTTP/JSON para software propio.
+- [ ] Agente local v1: watch-folder + checkpoint + cola offline.
+- [ ] Adaptadores DB read-only: PostgreSQL/MySQL-MariaDB/SQL Server.
+- [ ] SFTP/drop-folder.
+- [ ] Formulario manual universal.
+
+**Regla:** esta expansión no modifica el motor fiscal. El piloto/release v0.1.0 mantiene sus propios gates y no se da por cerrado por el avance de adapters.
