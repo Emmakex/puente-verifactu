@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const ZIP_ROOT = 'kairoseth-local-agent';
 const NODE_REQUIREMENT = '>=22.13.0';
+const UPGRADE_NODE_REQUIREMENT = '>=22.16.0';
 
 export const LOCAL_AGENT_RUNTIME_DEPENDENCIES = Object.freeze({
   pg: '8.23.1',
@@ -30,13 +31,19 @@ const SOURCE_FILES = Object.freeze([
   'packages/local-agent/service/linux/kairoseth-local-agent.service.template',
   'packages/local-agent/service/linux/install.sh',
   'packages/local-agent/service/linux/uninstall.sh',
+  'packages/local-agent/service/linux/upgrade.sh',
+  'packages/local-agent/service/linux/rollback.sh',
   'packages/local-agent/service/macos/run.sh.template',
   'packages/local-agent/service/macos/com.kairoseth.local-agent.plist.template',
   'packages/local-agent/service/macos/install.sh',
   'packages/local-agent/service/macos/uninstall.sh',
+  'packages/local-agent/service/macos/upgrade.sh',
+  'packages/local-agent/service/macos/rollback.sh',
   'packages/local-agent/service/windows/run.ps1',
   'packages/local-agent/service/windows/install.ps1',
   'packages/local-agent/service/windows/uninstall.ps1',
+  'packages/local-agent/service/windows/upgrade.ps1',
+  'packages/local-agent/service/windows/rollback.ps1',
 ]);
 
 const CRC_TABLE = Array.from({ length: 256 }, (_, value) => {
@@ -247,6 +254,14 @@ export async function buildLocalAgentPortableZip({ sourceCommit } = {}) {
     version,
     sourceCommit: commit,
     requiredNode: NODE_REQUIREMENT,
+    upgradeRequiredNode: UPGRADE_NODE_REQUIREMENT,
+    stateCompatibility: Object.freeze({
+      current: 1,
+      minReadable: 1,
+      maxReadable: 1,
+      backupRequired: true,
+      automaticDatabaseRollback: false,
+    }),
     runtimeDependencies: LOCAL_AGENT_RUNTIME_DEPENDENCIES,
     architecture: 'any-node22',
     contentFingerprint,

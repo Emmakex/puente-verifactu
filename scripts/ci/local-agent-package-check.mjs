@@ -11,6 +11,14 @@ assert.equal(first.sha256, second.sha256, 'portable bundle must be byte reproduc
 assert.deepEqual(first.buffer, second.buffer, 'portable bundle bytes must be identical');
 assert.equal(first.manifest.sourceCommit, sourceCommit.toLowerCase());
 assert.equal(first.manifest.requiredNode, '>=22.13.0');
+assert.equal(first.manifest.upgradeRequiredNode, '>=22.16.0');
+assert.deepEqual(first.manifest.stateCompatibility, {
+  current: 1,
+  minReadable: 1,
+  maxReadable: 1,
+  backupRequired: true,
+  automaticDatabaseRollback: false,
+});
 assert.equal(first.manifest.architecture, 'any-node22');
 assert.deepEqual(first.manifest.runtimeDependencies, LOCAL_AGENT_RUNTIME_DEPENDENCIES);
 
@@ -25,8 +33,14 @@ assert.ok(names.includes('kairoseth-local-agent/connectors/file-import/src/file-
 assert.ok(names.includes('kairoseth-local-agent/config/local-agent.example.json'));
 assert.ok(names.includes('kairoseth-local-agent/config/local-agent.env.example'));
 assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/linux/install.sh'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/linux/upgrade.sh'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/linux/rollback.sh'));
 assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/macos/install.sh'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/macos/upgrade.sh'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/macos/rollback.sh'));
 assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/windows/install.ps1'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/windows/upgrade.ps1'));
+assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/service/windows/rollback.ps1'));
 assert.ok(names.includes('kairoseth-local-agent/bundle-manifest.json'));
 
 for (const name of names) {

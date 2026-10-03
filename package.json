@@ -64,6 +64,8 @@
     "local-agent:package": "node scripts/release/package-local-agent.mjs",
     "local-agent:package:check": "node scripts/ci/local-agent-package-check.mjs",
     "local-agent:portable:smoke": "node scripts/ci/local-agent-portable-native-smoke.mjs",
-    "local-agent:service:check": "node scripts/ci/local-agent-service-install-contract.mjs"
+    "local-agent:service:check": "node scripts/ci/local-agent-service-install-contract.mjs",
+    "local-agent:upgrade:smoke": "node --test packages/local-agent/test/upgrade.test.mjs",
+    "local-agent:upgrade:prepare": "node packages/local-agent/src/upgrade-cli.mjs prepare"
   }
 }

@@ -2,6 +2,7 @@ import { chmodSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { sha256, stableStringify } from '../../core/src/idempotency.mjs';
+import { LOCAL_AGENT_STATE_SCHEMA } from './state-schema.mjs';
 
 function parseJson(value) {
   return value == null ? null : JSON.parse(value);
@@ -75,6 +76,15 @@ export class LocalAgentStore {
   }
 
   migrate() {
+    const currentUserVersion = Number(this.db.prepare('PRAGMA user_version').get()?.user_version ?? 0);
+    if (currentUserVersion > LOCAL_AGENT_STATE_SCHEMA) {
+      throw Object.assign(new Error('Local Agent SQLite state schema is newer than this runtime'), {
+        code: 'VF_LOCAL_AGENT_STATE_SCHEMA_INCOMPATIBLE',
+        installed: currentUserVersion,
+        supported: LOCAL_AGENT_STATE_SCHEMA,
+      });
+    }
+
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS local_agent_jobs (
         id TEXT PRIMARY KEY,
@@ -116,6 +126,8 @@ export class LocalAgentStore {
         created_at_ms INTEGER NOT NULL,
         PRIMARY KEY(source_id, source_key)
       ) STRICT;
+
+      PRAGMA user_version = ${LOCAL_AGENT_STATE_SCHEMA};
     `);
   }
 
