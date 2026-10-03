@@ -4,6 +4,21 @@
 
 Muchos negocios ya facturan desde WordPress/WooCommerce, PrestaShop, ERPs, CRMs o aplicaciones propias. Reescribir cada sistema para cumplir con VERI*FACTU multiplica coste y riesgo. Puente VeriFactu desacopla la plataforma de negocio de la lógica fiscal y de comunicación con AEAT.
 
+## Posición de producto
+
+Puente VeriFactu es **una extensión del catálogo Kairoseth Extensions**. Existe un único producto, `Puente VeriFactu`, y sus conectores/adapters son modalidades de integración del mismo producto.
+
+La estructura de referencia es:
+
+```text
+Kairoseth
+└── Extensions
+    └── Puente VeriFactu
+        └── adapters: Woo / Presta / API / Webhook / Excel / DB / SFTP / Local Agent / Manual
+```
+
+La ficha de producto, activación y onboarding viven conceptualmente bajo Kairoseth. Este repositorio implementa el motor y los adapters de la extensión.
+
 ## Propuesta
 
 Un servicio/núcleo reusable que:
