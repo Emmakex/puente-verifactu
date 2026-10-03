@@ -3,8 +3,9 @@ import { chmod, mkdir, readFile, stat } from 'node:fs/promises';
 import { basename, join, resolve } from 'node:path';
 import { loadLocalAgentConfig } from './config.mjs';
 import { acquireLocalAgentLock } from './runtime.mjs';
+import { LOCAL_AGENT_STATE_SCHEMA } from './state-schema.mjs';
 
-export const LOCAL_AGENT_STATE_SCHEMA = 1;
+export { LOCAL_AGENT_STATE_SCHEMA };
 export const LOCAL_AGENT_UPGRADE_MIN_NODE = '22.16.0';
 
 function fail(code, message, details = {}) {
