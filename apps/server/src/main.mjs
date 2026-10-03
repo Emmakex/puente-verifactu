@@ -22,6 +22,10 @@ const backupManifestPath = process.env.PV_BACKUP_MANIFEST_PATH?.trim()
 const responsibleDeclarationPath = process.env.PV_RESPONSIBLE_DECLARATION_PATH?.trim()
   ? resolve(process.env.PV_RESPONSIBLE_DECLARATION_PATH.trim())
   : null;
+const presentationEnvironment = process.env.PV_AEAT_ENVIRONMENT?.trim() || 'test';
+if (!['test', 'production'].includes(presentationEnvironment)) {
+  throw new TypeError('PV_AEAT_ENVIRONMENT must be test or production');
+}
 
 const runtime = createPuenteRuntime({
   databasePath,
@@ -29,6 +33,7 @@ const runtime = createPuenteRuntime({
   integrationConfig,
   backupManifestPath,
   responsibleDeclarationPath,
+  presentationEnvironment,
   sif: {
     systemId: process.env.PV_SIF_SYSTEM_ID,
     installationNumber: process.env.PV_SIF_INSTALLATION_NUMBER,
@@ -52,6 +57,7 @@ console.log(JSON.stringify({
   mode: 'single-node-sqlite',
   backupMonitoringConfigured: backupManifestPath != null,
   responsibleDeclarationConfigured: responsibleDeclarationPath != null,
+  presentationEnvironment,
   aeatLiveSend: false,
 }));
 
