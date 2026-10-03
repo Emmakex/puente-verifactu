@@ -11,6 +11,14 @@ assert.equal(first.sha256, second.sha256, 'portable bundle must be byte reproduc
 assert.deepEqual(first.buffer, second.buffer, 'portable bundle bytes must be identical');
 assert.equal(first.manifest.sourceCommit, sourceCommit.toLowerCase());
 assert.equal(first.manifest.requiredNode, '>=22.13.0');
+assert.equal(first.manifest.upgradeRequiredNode, '>=22.16.0');
+assert.deepEqual(first.manifest.stateCompatibility, {
+  current: 1,
+  minReadable: 1,
+  maxReadable: 1,
+  backupRequired: true,
+  automaticDatabaseRollback: false,
+});
 assert.equal(first.manifest.architecture, 'any-node22');
 assert.deepEqual(first.manifest.runtimeDependencies, LOCAL_AGENT_RUNTIME_DEPENDENCIES);
 
