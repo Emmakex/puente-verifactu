@@ -13,6 +13,7 @@ expect(product.infrastructure?.hosting_provider === 'hostinger', 'KAIROSETH_HOST
 expect(product.infrastructure?.primary_database === 'mongodb', 'KAIROSETH_PRIMARY_DATABASE_MUST_BE_MONGODB');
 expect(product.infrastructure?.control_plane_persistence === 'mongodb', 'KAIROSETH_CONTROL_PLANE_MUST_USE_MONGODB');
 expect(product.infrastructure?.local_agent_registry === 'mongodb-injected', 'KAIROSETH_AGENT_REGISTRY_MUST_USE_MONGODB');
+expect(product.infrastructure?.onboarding_profiles === 'mongodb-injected', 'KAIROSETH_ONBOARDING_PROFILES_MUST_USE_MONGODB');
 expect(adapter.includes('database.collection'), 'KAIROSETH_MONGODB_DATABASE_INJECTION_REQUIRED');
 expect(!/from ['"]mongodb['"]|require\(['"]mongodb['"]\)|new\s+MongoClient\s*\(/.test(adapter), 'KAIROSETH_MONGODB_CLIENT_MUST_BE_INJECTED');
 expect(!/MONGODB_URI|MONGO_URI|process\.env|mongodb\+srv:|mongodb:\/\//.test(adapter), 'KAIROSETH_MONGODB_CONNECTION_SECRET_FORBIDDEN');
