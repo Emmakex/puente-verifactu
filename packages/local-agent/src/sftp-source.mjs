@@ -111,6 +111,7 @@ export function createSftpConnectionConfig({
   passphrase,
   hostKeySha256,
   readyTimeout = 20_000,
+  serverHostKeyAlgorithms,
 } = {}) {
   const normalizedHost = text(host, 'host');
   const normalizedUsername = text(username, 'username');
@@ -126,6 +127,14 @@ export function createSftpConnectionConfig({
   if (password == null && privateKey == null) {
     throw fail('VF_LOCAL_AGENT_SFTP_AUTH_REQUIRED', 'password or privateKey is required');
   }
+  if (
+    serverHostKeyAlgorithms != null
+    && (!Array.isArray(serverHostKeyAlgorithms)
+      || serverHostKeyAlgorithms.length === 0
+      || serverHostKeyAlgorithms.some((value) => !String(value ?? '').trim()))
+  ) {
+    throw fail('VF_LOCAL_AGENT_SFTP_INPUT_INVALID', 'serverHostKeyAlgorithms must be a non-empty array');
+  }
 
   const config = {
     host: normalizedHost,
@@ -135,6 +144,11 @@ export function createSftpConnectionConfig({
     hostHash: 'sha256',
     hostVerifier: createPinnedSftpHostVerifier(hostKeySha256),
   };
+  if (serverHostKeyAlgorithms != null) {
+    config.algorithms = {
+      serverHostKey: serverHostKeyAlgorithms.map((value) => String(value).trim()),
+    };
+  }
   if (password != null) config.password = String(password);
   if (privateKey != null) config.privateKey = privateKey;
   if (passphrase != null) config.passphrase = String(passphrase);
