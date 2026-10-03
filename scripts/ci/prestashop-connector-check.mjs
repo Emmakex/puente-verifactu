@@ -11,6 +11,8 @@ const paths = {
   automation: 'connectors/prestashop/classes/PVFPrestaShopAutomation.php',
   breakdown: 'connectors/prestashop/classes/PVFPrestaShopTaxBreakdown.php',
   adminStatus: 'connectors/prestashop/classes/PVFPrestaShopAdminStatus.php',
+  presentation: 'connectors/prestashop/classes/PVFPrestaShopInvoicePresentation.php',
+  compatibility: 'connectors/prestashop/classes/PVFPrestaShopCompatibility.php',
   mapping: 'connectors/prestashop/examples/mapping-profile.json',
   refundMapping: 'connectors/prestashop/examples/refund-mapping-profile.json',
   fixtures: 'connectors/prestashop/fixtures/tax-breakdown-v1.json',
@@ -121,7 +123,10 @@ for (const [path, content] of [
   [paths.adminStatus, statusFile],
   [paths.upgradeStatus, upgradeStatusFile],
   [paths.upgradeRectifications, upgradeRectificationsFile],
-  [paths.upgradeAutomation, upgradeAutomationFile]
+  [paths.upgradeAutomation, upgradeAutomationFile],
+  [paths.presentation, presentationFile],
+  [paths.compatibility, compatibilityFile],
+  [paths.upgradePresentation, upgradePresentationFile]
 ]) {
   if (/certificado|certificate|SOAP|RegistroAlta|RegistroAnulacion/i.test(content)) {
     failures.push({ code: 'PRESTA_FISCAL_LOGIC_LEAK', path });
