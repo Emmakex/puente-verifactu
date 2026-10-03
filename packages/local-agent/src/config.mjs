@@ -15,6 +15,9 @@ const FORBIDDEN_SECRET_KEYS = new Set([
   'aeatCertificate',
   'pfx',
   'privateKeyPem',
+  'token',
+  'bearerToken',
+  'clientSecret',
 ]);
 
 function fail(code, message, details = {}) {
