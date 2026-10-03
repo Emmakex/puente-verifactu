@@ -26,7 +26,7 @@ Versión `0.5.0` con flujo manual seguro, automatización **opt-in** por tienda 
 - smoke real en PrestaShop 1.7.8.11, 8.1.7 y 8.2.7;
 - seis escenarios nativos Contract Suite v2 ejecutados en cada versión real para factura y rectificativa;
 - ZIP reproducible con allowlist de runtime, SHA-256 y layout compatible con instaladores legacy;
-- presentación VERI*FACTU de la factura nativa: consume metadatos de presentación emitidos por el servidor, persiste la URL QR validada y renderiza `QR tributario:`, QR `QRCODE,M` y el literal de factura verificable mediante `displayPDFInvoice`;
+- presentación VERI*FACTU de factura y rectificativa nativas: consume metadatos de presentación emitidos por el servidor, persiste la URL QR validada y renderiza `QR tributario:`, QR `QRCODE,M` y el literal de factura verificable mediante `displayPDFInvoice` y `displayPDFOrderSlip`;
 - upgrade real `0.4.0 → 0.5.0` que preserva estado existente, añade `presentation_json`, registra `displayPDFInvoice` y mantiene ambos switches automáticos en OFF.
 
 La automatización no sustituye el modo manual: simplemente reutiliza los mismos invariantes de preflight, idempotencia y estado local cuando el comercio decide activarla.
@@ -51,7 +51,7 @@ El módulo tampoco decide `invoiceType`, `R1–R5`, tipo de rectificación `S/I`
 
 Las tarjetas de estado son **local-only**: al abrir la ficha de un pedido consultan exclusivamente `pvf_order_sync` y `pvf_order_slip_sync`. No ejecutan peticiones remotas a Puente VeriFactu ni a AEAT.
 
-La presentación QR también es **server-authored**: PrestaShop no reconstruye NIF, URL AEAT ni literales regulatorios. Tras `issue` o `reconcile`, el módulo valida y persiste el bloque `presentation` devuelto por Puente VeriFactu. El PDF usa exclusivamente esa copia validada; si existe un `recordId` pero falta o es inválida la presentación, el render falla cerrado en vez de inventar un QR.
+La presentación QR también es **server-authored**: PrestaShop no reconstruye NIF, URL AEAT ni literales regulatorios. Tras `issue` o `reconcile`, el módulo valida y persiste el bloque `presentation` devuelto por Puente VeriFactu, tanto para la factura original como para cada rectificativa. Los PDF usan exclusivamente esas copias validadas; si existe un `recordId` pero falta o es inválida la presentación, el render falla cerrado en vez de inventar un QR.
 
 ## Factura original
 
@@ -150,9 +150,9 @@ Rectificativas:
 - única por `id_shop + id_order_slip`;
 - permite múltiples abonos independientes asociados al mismo pedido.
 
-La tabla principal `pvf_order_sync` añade en 0.5.0 `presentation_json`, que contiene únicamente los metadatos de presentación devueltos por el servidor necesarios para reproducir el QR/textos de la factura. No contiene certificado, clave privada ni lógica fiscal AEAT. La tabla rectificativa mantiene su estado mínimo previo.
+Las tablas `pvf_order_sync` y `pvf_order_slip_sync` añaden en 0.5.0 `presentation_json`, que contiene únicamente los metadatos de presentación devueltos por el servidor necesarios para reproducir el QR/textos de la factura o rectificativa. No contiene certificado, clave privada ni lógica fiscal AEAT.
 
-Ambas tablas conservan `record_id`, idempotencia, estado, último error y fecha de actualización.
+Ambas tablas conservan además `record_id`, idempotencia, estado, último error y fecha de actualización.
 
 ## Semáforo en la ficha del pedido
 
@@ -202,8 +202,8 @@ El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, 
 3. conserva una rectificativa ya sincronizada;
 4. despliega el ZIP 0.4.0;
 5. ejecuta `prestashop:module upgrade puenteverifactu`;
-6. exige registro de `displayPDFInvoice` además de conservar los hooks existentes;
-7. exige la nueva columna `presentation_json` sin perder la fila previa;
+6. exige registro de `displayPDFInvoice` y `displayPDFOrderSlip` además de conservar los hooks existentes;
+7. exige `presentation_json` en factura y rectificativa sin perder las filas previas;
 8. confirma que factura y rectificativa conservan `recordId`, idempotencia y estado;
 9. exige que ambos switches automáticos continúen en `OFF`.
 
