@@ -7,8 +7,9 @@ final class PV_Woo_Connector {
     const META_STATUS      = '_pv_status';
     const META_LAST_ERROR  = '_pv_last_error';
     const META_SYNCED_AT   = '_pv_last_synced_at';
-    const META_PAYLOAD_SHA = '_pv_payload_sha256';
-    const GROUP            = 'puente-verifactu';
+    const META_PAYLOAD_SHA  = '_pv_payload_sha256';
+    const META_PRESENTATION = '_pv_presentation_v1';
+    const GROUP             = 'puente-verifactu';
     const MAX_ATTEMPTS     = 5;
 
     private static $instance;
@@ -34,6 +35,7 @@ final class PV_Woo_Connector {
         add_action( 'woocommerce_order_action_pv_woo_send', array( $this, 'manual_send' ) );
         add_action( 'woocommerce_order_action_pv_woo_reconcile', array( $this, 'manual_reconcile' ) );
         add_action( 'woocommerce_order_action_pv_woo_refunds', array( $this, 'manual_refunds' ) );
+        add_filter( 'pv_woo_invoice_presentation', array( 'PV_Woo_Invoice_Presentation', 'filter' ), 10, 2 );
     }
 
     public function status_changed( $order_id, $from, $to, $order ) {
@@ -251,6 +253,16 @@ final class PV_Woo_Connector {
         $status = sanitize_key( isset( $result['status'] ) ? $result['status'] : 'unknown' );
         $order->update_meta_data( self::META_STATUS, $status );
         $order->update_meta_data( self::META_SYNCED_AT, gmdate( 'c' ) );
+
+        if ( isset( $result['presentation'] ) ) {
+            $presentation = PV_Woo_Invoice_Presentation::store( $order, $result );
+            if ( is_wp_error( $presentation ) ) {
+                $order->update_meta_data( self::META_LAST_ERROR, sanitize_text_field( $presentation->get_error_code() . ': ' . $presentation->get_error_message() ) );
+                $order->save();
+                return;
+            }
+        }
+
         $order->delete_meta_data( self::META_LAST_ERROR );
         $order->save();
     }
@@ -311,8 +323,25 @@ final class PV_Woo_Connector {
         $order->update_meta_data( self::META_STATUS, sanitize_key( isset( $result['status'] ) ? $result['status'] : 'fiscalized' ) );
         $order->update_meta_data( self::META_SYNCED_AT, gmdate( 'c' ) );
         $order->update_meta_data( self::META_PAYLOAD_SHA, hash( 'sha256', wp_json_encode( $payload ) ) );
+
+        $presentation = PV_Woo_Invoice_Presentation::store( $order, $result );
+        if ( is_wp_error( $presentation ) ) {
+            $order->update_meta_data( self::META_LAST_ERROR, sanitize_text_field( $presentation->get_error_code() . ': ' . $presentation->get_error_message() ) );
+            $order->update_meta_data( self::META_STATUS, 'blocked' );
+            $order->save();
+            return;
+        }
+
         $order->delete_meta_data( self::META_LAST_ERROR );
         $order->save();
+
+        /**
+         * Neutral integration point for any invoice renderer.
+         *
+         * Consumers receive only the normalized presentation contract and
+         * the WooCommerce order object; no provider-specific dependency.
+         */
+        do_action( 'pv_woo_invoice_presentation_updated', $order, $presentation );
     }
 
     private function idempotency_key( WC_Order $order ) {
