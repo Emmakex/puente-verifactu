@@ -9,6 +9,8 @@ const runtimeSource = readFileSync('packages/local-agent/src/runtime.mjs', 'utf8
 const configSource = readFileSync('packages/local-agent/src/config.mjs', 'utf8');
 const cliSource = readFileSync('packages/local-agent/src/cli.mjs', 'utf8');
 const exampleConfig = JSON.parse(readFileSync('config/local-agent.example.json', 'utf8'));
+const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
+const versionSource = readFileSync('packages/local-agent/src/version.mjs', 'utf8');
 
 const failures = [];
 function expect(value, code) {
@@ -40,6 +42,8 @@ expect(exampleConfig.schemaVersion === 1, 'LOCAL_AGENT_CONFIG_SCHEMA_INVALID');
 expect(exampleConfig.source?.issueEnabled === false, 'LOCAL_AGENT_EXAMPLE_MUST_FAIL_CLOSED');
 expect(typeof exampleConfig.bridge?.apiKeyEnv === 'string', 'LOCAL_AGENT_API_KEY_ENV_REQUIRED');
 expect(exampleConfig.bridge?.apiKey == null, 'LOCAL_AGENT_INLINE_API_KEY_FORBIDDEN');
+expect(exampleConfig.runtime?.heartbeatIntervalMs === 60000, 'LOCAL_AGENT_HEARTBEAT_INTERVAL_EXAMPLE_INVALID');
+expect(versionSource.includes(`LOCAL_AGENT_VERSION = '${packageJson.version}'`), 'LOCAL_AGENT_VERSION_MUST_MATCH_PACKAGE');
 
 if (failures.length) {
   console.error(JSON.stringify({
@@ -61,4 +65,5 @@ console.log(JSON.stringify({
   outbound_only_design: true,
   runtime_cli: true,
   config_fail_closed: true,
+  heartbeat_control_plane: true,
 }, null, 2));
