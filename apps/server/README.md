@@ -171,6 +171,40 @@ Endpoint operacional protegido:
 
 El snapshot incluye salud SQLite, contadores/edades del outbox AEAT, antigüedad de backup configurado y alertas `VF_OBS_*`. No devuelve NIF, facturas, payloads, job IDs, tenants, secretos ni rutas locales. Ver `docs/operations-observability.md`.
 
+## Kairoseth Local Agent control plane
+
+The reference runtime exposes management routes for a trusted Kairoseth server credential with `agents:manage`:
+
+- `POST /v1/control-plane/local-agents` — provision an installation and return its bearer token once;
+- `GET /v1/control-plane/local-agents` — list sanitized installation state;
+- `PATCH /v1/control-plane/local-agents` — set label / desired version / update policy;
+- `POST /v1/control-plane/local-agents/rotate-credential` — rotate the bearer token;
+- `POST /v1/control-plane/local-agents/revoke` — revoke the installation credential;
+- `POST /v1/local-agent/heartbeat` — agent-only heartbeat.
+
+Only the SHA-256 digest of the generated Local Agent token is persisted. List/status APIs never return token hashes or reusable credentials.
+
+The Local Agent heartbeat identity is derived from authentication. Tenant/install/source identity in the heartbeat body is rejected.
+
+The SQLite registry is a **reference single-node implementation**, not a separate production Kairoseth identity or tenant database. The control-plane service validates an injectable registry contract and `createPuenteRuntime({ localAgentRegistryStore })` can bind Kairoseth's shared production persistence.
+
+A Kairoseth management credential example:
+
+```json
+{
+  "id": "kairoseth-agent-manager",
+  "type": "bearer",
+  "tokenSha256": "<64-hex>",
+  "organizationId": "kairoseth-control",
+  "installationId": "control-plane",
+  "sourceSystem": "kairoseth",
+  "rateLimitPerMinute": 600,
+  "permissions": ["agents:manage"]
+}
+```
+
+No Local Agent management route moves AEAT certificates, fiscal rules or tenant authority out of Kairoseth.
+
 ## Rate limiting
 
 Se aplica por `credentialId`; cada credencial define `rateLimitPerMinute`, incluida la credencial operacional. En este perfil single-node el contador vive en memoria. Un deployment multi-réplica deberá sustituirlo por rate limiting compartido en Fase 6.
