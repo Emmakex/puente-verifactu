@@ -60,7 +60,46 @@ final class PVFPrestaShopInvoicePresentation
             throw new RuntimeException('Puente VeriFactu presentation metadata is invalid.');
         }
 
-        $presentation = self::normalize($decoded);
+        return self::renderPresentation(self::normalize($decoded));
+    }
+
+    public static function renderForOrderSlip(Module $module, array $params)
+    {
+        $slip = isset($params['object']) ? $params['object'] : null;
+        if (!$slip instanceof OrderSlip) {
+            return '';
+        }
+
+        $order = new Order((int) $slip->id_order);
+        if (!Validate::isLoadedObject($order)) {
+            return '';
+        }
+
+        $row = Db::getInstance()->getRow(
+            'SELECT record_id,presentation_json FROM ' . _DB_PREFIX_ . 'pvf_order_slip_sync'
+            . ' WHERE id_shop = ' . (int) $order->id_shop
+            . ' AND id_order_slip = ' . (int) $slip->id
+        );
+
+        if (!is_array($row) || trim((string) $row['record_id']) === '') {
+            return '';
+        }
+
+        $raw = isset($row['presentation_json']) ? trim((string) $row['presentation_json']) : '';
+        if ($raw === '') {
+            throw new RuntimeException('Puente VeriFactu presentation metadata is missing for this fiscalized corrective invoice.');
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            throw new RuntimeException('Puente VeriFactu corrective presentation metadata is invalid.');
+        }
+
+        return self::renderPresentation(self::normalize($decoded));
+    }
+
+    private static function renderPresentation(array $presentation)
+    {
         $png = self::qrPng((string) $presentation['qr']['url']);
         if ($png === '') {
             throw new RuntimeException('Puente VeriFactu could not render the invoice QR code.');
@@ -102,6 +141,11 @@ final class PVFPrestaShopInvoicePresentation
         }
         if (!isset($qr['errorCorrection']) || (string) $qr['errorCorrection'] !== 'M') {
             throw new RuntimeException('Puente VeriFactu QR error correction is invalid.');
+        }
+        if ((int) (isset($qr['minSizeMm']) ? $qr['minSizeMm'] : 0) !== 30
+            || (int) (isset($qr['maxSizeMm']) ? $qr['maxSizeMm'] : 0) !== 40
+            || (int) (isset($qr['minQuietZoneMm']) ? $qr['minQuietZoneMm'] : 0) < 2) {
+            throw new RuntimeException('Puente VeriFactu QR physical presentation contract is invalid.');
         }
 
         $verification = isset($presentation['verificationText']) ? trim((string) $presentation['verificationText']) : '';
@@ -150,6 +194,17 @@ final class PVFPrestaShopInvoicePresentation
             if (!isset($query[$key]) || trim((string) $query[$key]) === '') {
                 return false;
             }
+        }
+
+        $allowed = array('nif', 'numserie', 'fecha', 'importe', 'idioma');
+        foreach (array_keys($query) as $key) {
+            if (!in_array((string) $key, $allowed, true)) {
+                return false;
+            }
+        }
+        if (isset($query['idioma'])
+            && !in_array(strtolower((string) $query['idioma']), array('gl', 'ca', 'eu', 'es', 'va', 'en'), true)) {
+            return false;
         }
 
         return true;
