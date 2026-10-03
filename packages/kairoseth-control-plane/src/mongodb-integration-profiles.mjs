@@ -108,6 +108,11 @@ function publicDocument(doc) {
       : Object.freeze(structuredClone(doc.mappingProfile)),
     mappingProfileId: doc.mappingProfile?.id ?? null,
     webhookSecretConfigured: Boolean(doc.webhookSecretRef),
+    authBinding: Object.freeze({
+      provider: doc.authBinding?.provider ?? 'kairoseth',
+      status: doc.authBinding?.status ?? 'unbound',
+      credentialId: doc.authBinding?.credentialId ?? null,
+    }),
     createdAt: Number(doc.createdAt),
     updatedAt: Number(doc.updatedAt),
   });
@@ -192,6 +197,11 @@ export class MongoKairosethIntegrationProfileStore {
       webhookSecretRef: record.webhookSecretRef == null
         ? null
         : requiredId(record.webhookSecretRef, 'webhookSecretRef'),
+      authBinding: {
+        provider: 'kairoseth',
+        status: 'unbound',
+        credentialId: null,
+      },
       createdAt: record.now,
       updatedAt: record.now,
     };
@@ -301,6 +311,39 @@ export class MongoKairosethIntegrationProfileStore {
     );
     if (result.matchedCount !== 1) {
       throw fail('VF_INTEGRATION_PROFILE_NOT_FOUND', 'Integration profile not found or disabled', 404);
+    }
+    return this.get(organizationId, profileId);
+  }
+
+  async setAuthBinding({
+    organizationId,
+    profileId,
+    credentialId,
+    status,
+    now,
+  }) {
+    const normalizedStatus = String(status ?? '');
+    if (!['active', 'revoked'].includes(normalizedStatus)) {
+      throw fail('VF_INTEGRATION_AUTH_BINDING_INVALID', 'auth binding status is invalid', 400);
+    }
+    const result = await this.collection.updateOne(
+      {
+        organizationId: requiredId(organizationId, 'organizationId'),
+        profileId: requiredId(profileId, 'profileId', PROFILE_RE),
+      },
+      {
+        $set: {
+          authBinding: {
+            provider: 'kairoseth',
+            status: normalizedStatus,
+            credentialId: requiredId(credentialId, 'credentialId'),
+          },
+          updatedAt: now,
+        },
+      },
+    );
+    if (result.matchedCount !== 1) {
+      throw fail('VF_INTEGRATION_PROFILE_NOT_FOUND', 'Integration profile not found', 404);
     }
     return this.get(organizationId, profileId);
   }
