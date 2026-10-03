@@ -40,6 +40,12 @@ const SECURITY_FLAGS = Object.freeze([
   'tenant_server_authoritative',
 ]);
 
+const PRODUCT_BINDING = Object.freeze({
+  ecosystem: 'kairoseth',
+  catalog: 'extensions',
+  product_id: 'puente-verifactu',
+});
+
 function fail(code, message, details = {}) {
   return Object.assign(new Error(message), { code, details });
 }
@@ -76,6 +82,14 @@ export function validateUniversalAdapterManifest(input) {
     throw fail('VF_ADAPTER_MANIFEST_INVALID', 'Unsupported adapter manifest schema/kind');
   }
 
+  if (input?.product?.ecosystem !== PRODUCT_BINDING.ecosystem
+    || input?.product?.catalog !== PRODUCT_BINDING.catalog
+    || input?.product?.product_id !== PRODUCT_BINDING.product_id) {
+    throw fail('VF_ADAPTER_MANIFEST_PRODUCT_MISMATCH', 'Adapter must belong to Kairoseth Extensions / Puente VeriFactu', {
+      expected: PRODUCT_BINDING,
+    });
+  }
+
   const capabilities = {};
   for (const key of REQUIRED_CAPABILITIES) {
     capabilities[key] = booleanField(input.capabilities, key, true);
@@ -104,6 +118,7 @@ export function validateUniversalAdapterManifest(input) {
     transport: enumValue(input.transport, 'transport', ADAPTER_TRANSPORTS),
     mode: enumValue(input.mode, 'mode', ADAPTER_MODES),
     mapping: enumValue(input.mapping, 'mapping', ADAPTER_MAPPINGS),
+    product: Object.freeze({ ...PRODUCT_BINDING }),
     capabilities: Object.freeze(capabilities),
     security: Object.freeze(security),
   });
