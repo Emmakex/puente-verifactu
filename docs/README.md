@@ -7,6 +7,7 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `product-scope.md` | Problema, usuarios, alcance MVP y exclusiones |
 | `kairoseth-extension-product.md` | Posición de Puente VeriFactu dentro de Kairoseth Extensions y regla un producto/múltiples adapters |
 | `kairoseth-commercial-facade.md` | Separación motor técnico/faceta comercial siguiendo Puente DeCA → Kairoseth Cargo |
+| `commercial-naming-research.md` | Investigación de mercado, SEO, colisiones preliminares y shortlist para la faceta comercial |
 | `architecture.md` | Arquitectura, componentes, límites y flujos |
 | `integration-strategy.md` | Principio Camaleón y cinco niveles de integración |
 | `onboarding-integration.md` | Onboarding universal orientado a autónomos y pymes |
