@@ -210,6 +210,14 @@ export class MongoKairosethIntegrationProfileStore {
     return doc ? structuredClone(doc) : null;
   }
 
+  async findByOnboarding(organizationId, onboardingProfileId) {
+    const doc = await this.collection.findOne({
+      organizationId: requiredId(organizationId, 'organizationId'),
+      onboardingProfileId: requiredId(onboardingProfileId, 'onboardingProfileId'),
+    });
+    return doc ? publicDocument(doc) : null;
+  }
+
   async findForContext({ organizationId, installationId, profileId }) {
     const doc = await this.collection.findOne({
       organizationId: requiredId(organizationId, 'organizationId'),
