@@ -18,6 +18,9 @@ La aprobación privada no es una firma electrónica de la declaración ni sustit
 
 ## Política inicial
 
+Campos obligatorios de la política: `stop_on_warning=true`, `stop_on_rejection=true`, `stop_on_reconciliation_required=true`, `stop_on_blocked=true` y `rollback_mode=code-first-no-automatic-db-restore`.
+
+
 `config/pilot-policy.example.json` propone una primera ventana conservadora de hasta 5 operaciones o 120 minutos. Son límites internos de ingeniería, no límites establecidos por AEAT.
 
 Cualquier warning, rechazo, reconciliación pendiente o bloqueo obliga a detener la ventana y revisar antes de continuar.
