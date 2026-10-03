@@ -185,9 +185,9 @@ Security and durability rules:
 - only regular `.csv` / `.xlsx` files are accepted;
 - remote files are read with `list()` + `get()` only; the adapter never renames, deletes or uploads source files;
 - remote source folders should be provisioned read-only for the Local Agent account;
-- file age and size limits are checked before download, and listed/downloaded byte counts must match;
+- file age and size limits are checked before download, listed/downloaded byte counts must match, and content SHA-256 defines the revision identity;
 - downloaded bytes are SHA-256 fingerprinted and handed to the existing private watch-folder pipeline;
-- durable source receipts prevent re-downloading the same remote revision after restart;
+- each eligible file is downloaded and fingerprinted before deduplication; durable source receipts prevent staging the same content revision twice after restart;
 - `issueEnabled=true` remains an explicit fail-closed requirement.
 
 A deployment installs `ssh2-sftp-client@12.1.1` only when SFTP is needed. CI runs a real SFTP server, pins its generated Ed25519 host key, proves that the remote drop directory rejects uploads, downloads a CSV, hands it to the existing `mapped-source` pipeline and verifies that a second poll is idempotent.
