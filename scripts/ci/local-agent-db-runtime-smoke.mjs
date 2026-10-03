@@ -136,7 +136,7 @@ async function smokeSqlServer() {
   try {
     await master.request().query("IF DB_ID('pvtest') IS NULL CREATE DATABASE pvtest");
     await master.request().query("IF EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'pvreader') DROP LOGIN pvreader");
-    await master.request().query("CREATE LOGIN pvreader WITH PASSWORD = 'PvReader!2026'");
+    await master.request().query("CREATE LOGIN pvreader WITH PASSWORD = 'Kf9!Zq2#Lm7@'");
   } finally {
     await master.close();
   }
@@ -158,7 +158,7 @@ async function smokeSqlServer() {
     ...baseConfig,
     database: 'pvtest',
     user: 'pvreader',
-    password: 'PvReader!2026',
+    password: 'Kf9!Zq2#Lm7@',
   }).connect();
 
   try {
