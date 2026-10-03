@@ -249,6 +249,6 @@ Si una actualización de WooCommerce rompe temporalmente el conector, el negocio
 
 ## Estado dentro de Fase 5
 
-El bloque WooCommerce está técnicamente cerrado y su aceptación transversal también: factura ordinaria, refunds rectificativos, semáforo, packaging, conversión EUR server-side y Connector Contract Suite v2 están cubiertos en la matriz real. Fase 5 queda cerrada junto con PrestaShop `0.4.0`.
+El bloque WooCommerce está técnicamente cerrado y su aceptación transversal también: factura ordinaria, refunds rectificativos, semáforo, packaging, conversión EUR server-side y Connector Contract Suite v2 están cubiertos en la matriz real. Fase 5 queda cerrada y la versión `0.3.0` añade en Fase 6 el contrato neutral de presentación VERI*FACTU sin depender de un proveedor PDF.
 
 El gate externo AEAT #6 está cerrado. El cierre actual de Fase 6 valida la presentación QR/textos y el piloto progresivo antes de publicación.
