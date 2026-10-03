@@ -3,7 +3,7 @@
  * Plugin Name: Puente VeriFactu for WooCommerce
  * Plugin URI: https://github.com/Emmakex/puente-verifactu
  * Description: Connects WooCommerce orders to Puente VeriFactu without implementing AEAT fiscal logic inside WordPress.
- * Version: 0.2.0
+ * Version: 0.3.0
  * Author: Kairoseth Extensions
  * Text Domain: puente-verifactu-woocommerce
  * Domain Path: /languages
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PV_WOO_VERSION', '0.2.0' );
+define( 'PV_WOO_VERSION', '0.3.0' );
 define( 'PV_WOO_FILE', __FILE__ );
 define( 'PV_WOO_PATH', plugin_dir_path( __FILE__ ) );
 
@@ -52,6 +52,7 @@ add_action(
         require_once PV_WOO_PATH . 'includes/class-pv-woo-order-payload.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-refund-payload.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-admin-status.php';
+        require_once PV_WOO_PATH . 'includes/class-pv-woo-invoice-presentation.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-connector.php';
 
         PV_Woo_Connector::instance()->boot();
