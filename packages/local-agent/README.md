@@ -125,10 +125,14 @@ The source contract requires:
 Example:
 
 ```js
-const driver = createReadOnlyDatabaseDriver({
-  dialect: 'postgresql',
-  verifyReadOnly: async () => verifyDatabaseRole(),
-  fetchPage: async ({ query, cursor, limit }) => fetchRows(query, [cursor, limit]),
+const driver = createPostgresReadOnlyDriver({
+  connection: {
+    host: '127.0.0.1',
+    database: 'erp',
+    user: 'puente_reader',
+    password: process.env.PV_DB_PASSWORD,
+    ssl: false,
+  },
 });
 
 await pollDatabaseSource({
@@ -146,20 +150,39 @@ Each row becomes one durable `mapped-source` job. The source key is derived from
 
 The checkpoint is **transport/source progress only**. It is not a fiscal record and never replaces server-side idempotency.
 
-This layer intentionally does not bundle vendor client libraries yet. Runtime-tested PostgreSQL/MySQL/MariaDB/SQL Server drivers remain a separate compatibility unit; no database/version is claimed compatible until that evidence exists.
+### PostgreSQL runtime driver
+
+`createPostgresReadOnlyDriver()` is the first vendor runtime implementation. It keeps `pg` optional so the core repository and ecommerce connectors do not inherit a database client they do not use.
+
+The PostgreSQL driver:
+
+- opens a fresh outbound database connection per verification/page operation;
+- starts every verification and extraction inside `BEGIN READ ONLY`;
+- verifies `transaction_read_only=on` before the generic source contract accepts it;
+- applies a bounded `statement_timeout`;
+- binds cursor and page size as PostgreSQL parameters (`$1`, `$2`) rather than interpolating source values;
+- closes the client in success and failure paths;
+- normalizes connection failures without including credentials in the public error message.
+
+Production should still use a dedicated database account with only `CONNECT`, schema `USAGE`, and `SELECT` on the required views/tables. Transaction-level read-only is an additional enforcement layer, not a reason to grant write privileges.
+
+The repository does not install `pg` globally. PostgreSQL deployments install `pg@8` alongside the Local Agent. CI installs it only inside the PostgreSQL compatibility job.
+
+Compatibility evidence is executed against real PostgreSQL 14, 16 and 18 service containers. MySQL/MariaDB and SQL Server remain separate compatibility units until their runtime drivers and CI matrices land.
 
 ## Gate
 
 ```bash
 npm run local-agent:smoke
 npm run local-agent:contract
+npm run local-agent:postgres:smoke # requires a PostgreSQL test service + pg@8
 ```
 
 ## Not yet claimed
 
 The foundation does **not** claim:
 
-- PostgreSQL/MySQL/SQL Server compatibility yet;
+- MySQL/MariaDB/SQL Server runtime compatibility yet;
 - SFTP support yet;
 - OS installer/daemon packaging yet;
 - unattended production readiness;
