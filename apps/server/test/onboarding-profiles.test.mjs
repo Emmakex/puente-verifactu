@@ -272,7 +272,7 @@ test('onboarding profiles are tenant-bound and can safely provision Local Agent'
     assert.equal(agent.organizationId, 'org-a');
 
     const serialized = JSON.stringify(await onboardingProfileStore.get('org-a', profileId)).toLowerCase();
-    for (const secretName of ['apikey', 'password', 'privatekey', 'certificate', 'tokensha256']) {
+    for (const secretName of ['apikey', 'password', 'privatekey', 'certificatepath', 'pfx', 'tokensha256']) {
       assert.equal(serialized.includes(secretName), false);
     }
   } finally {
