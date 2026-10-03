@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "kind": "puente-verifactu-adapter-manifest",
+  "id": "local-agent-v1",
+  "product": {
+    "ecosystem": "kairoseth",
+    "catalog": "extensions",
+    "product_id": "puente-verifactu"
+  },
+  "channel": "local_agent",
+  "transport": "local-agent",
+  "mode": "hybrid",
+  "mapping": "server-side",
+  "capabilities": {
+    "preflight": true,
+    "issue": true,
+    "status": true,
+    "sync": true,
+    "rectification": true,
+    "presentation_return": true,
+    "batch": true,
+    "offline_queue": true,
+    "source_read_only": true
+  },
+  "security": {
+    "secrets_server_side": true,
+    "aeat_certificate_server_side": true,
+    "tenant_server_authoritative": true
+  }
+}
