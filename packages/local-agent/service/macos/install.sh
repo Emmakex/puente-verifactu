@@ -33,6 +33,7 @@ done
 [[ -n "$SERVICE_USER" && "$SERVICE_USER" != "root" ]] || { echo "--service-user must be a non-root local account" >&2; exit 2; }
 id "$SERVICE_USER" >/dev/null
 [[ -d "$BUNDLE_DIR" && -f "$BUNDLE_DIR/bundle-manifest.json" && -f "$CONFIG_SOURCE" && -f "$ENV_SOURCE" ]] || { usage; exit 2; }
+BUNDLE_DIR="$(cd "$BUNDLE_DIR" && pwd -P)"
 command -v node >/dev/null
 command -v npm >/dev/null
 command -v launchctl >/dev/null
