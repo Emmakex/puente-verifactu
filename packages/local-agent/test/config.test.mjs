@@ -73,7 +73,7 @@ test('Local Agent config forbids inline credentials and write-capable database S
   );
 });
 
-test('Local Agent secrets are resolved from environment references only', () => {
+test('Local Agent secrets are resolved from environment references only', async () => {
   const config = validateLocalAgentConfig(baseConfig({
     source: {
       kind: 'database',
