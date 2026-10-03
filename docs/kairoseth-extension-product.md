@@ -121,6 +121,7 @@ La superficie productiva de esta extensión debe respetar la infraestructura rea
 
 - hosting: **Hostinger**;
 - persistencia de plataforma/control plane: **MongoDB**;
+- Auth data-plane: **Kairoseth**, inyectado mediante bridge; Puente no mantiene un auth store paralelo;
 - tenant/organization authority: Kairoseth;
 - secretos y certificado: backend de Kairoseth;
 - Local Agent: edge connector sin autoridad fiscal.
