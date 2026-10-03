@@ -108,7 +108,9 @@ async function saveManifest(path, manifest) {
 async function archivePair(layout, manifestPath, manifest, targetState) {
   const sourceFile = join(layout.processing, manifest.stored_name);
   const targetDir = targetState === 'completed' ? layout.processed : layout.error;
-  const fileDestination = await uniqueDestination(targetDir, manifest.original_name);
+  const fileDestination = manifest.archived_name
+    ? join(targetDir, safeName(manifest.archived_name))
+    : await uniqueDestination(targetDir, manifest.original_name);
   const manifestDestination = `${fileDestination}${MANIFEST_SUFFIX}`;
 
   const updated = {
@@ -118,8 +120,21 @@ async function archivePair(layout, manifestPath, manifest, targetState) {
     updated_at: new Date().toISOString(),
   };
   await saveManifest(manifestPath, updated);
-  await rename(sourceFile, fileDestination);
-  await rename(manifestPath, manifestDestination);
+
+  if (await exists(sourceFile)) {
+    if (await exists(fileDestination)) {
+      throw fail('VF_LOCAL_AGENT_WATCH_ARCHIVE_CONFLICT', 'Watch-folder archive destination already exists', {
+        batchId: manifest.batch_id,
+      });
+    }
+    await rename(sourceFile, fileDestination);
+  } else if (!(await exists(fileDestination))) {
+    throw fail('VF_LOCAL_AGENT_WATCH_SOURCE_MISSING', 'Watch-folder source disappeared before archive could finish', {
+      batchId: manifest.batch_id,
+    });
+  }
+
+  if (!(await exists(manifestDestination))) await rename(manifestPath, manifestDestination);
   return publicManifest(updated);
 }
 
