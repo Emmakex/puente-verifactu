@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { DEFAULT_NATIVE_CONNECTORS } from '../../packages/kairoseth-control-plane/src/capability-onboarding.mjs';
 
 const product = JSON.parse(readFileSync('config/kairoseth-extension.json', 'utf8'));
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
@@ -47,6 +48,10 @@ expect(Array.isArray(product.channels) && product.channels.includes('file_upload
 expect(Array.isArray(product.native_connectors)
   && product.native_connectors.includes('woocommerce')
   && product.native_connectors.includes('prestashop'), 'KAIROSETH_NATIVE_CONNECTORS_MISSING');
+expect(
+  JSON.stringify([...product.native_connectors].sort()) === JSON.stringify([...DEFAULT_NATIVE_CONNECTORS].sort()),
+  'KAIROSETH_ONBOARDING_NATIVE_CONNECTORS_DRIFT'
+);
 
 expect(adapter.product?.ecosystem === 'kairoseth', 'ADAPTER_PRODUCT_ECOSYSTEM_MISSING');
 expect(adapter.product?.catalog === 'extensions', 'ADAPTER_PRODUCT_CATALOG_MISSING');
