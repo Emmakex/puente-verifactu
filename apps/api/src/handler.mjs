@@ -343,6 +343,72 @@ export function createApiHandler({
         );
       }
 
+      const integrationCredentialMatch = path.match(
+        /^\/v1\/control-plane\/integration-profiles\/(int_[a-f0-9]{32})\/credential$/,
+      );
+      if (method === 'POST' && integrationCredentialMatch) {
+        if (!integrationProfiles) {
+          throw Object.assign(new Error('Kairoseth integration profile store is unavailable'), {
+            code: 'VF_INTEGRATION_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+        return json(
+          201,
+          await integrationProfiles.provisionCredential(
+            context,
+            integrationCredentialMatch[1],
+            parseJsonBody(request),
+          ),
+          correlationId,
+        );
+      }
+
+      const integrationCredentialRotateMatch = path.match(
+        /^\/v1\/control-plane\/integration-profiles\/(int_[a-f0-9]{32})\/credential\/rotate$/,
+      );
+      if (method === 'POST' && integrationCredentialRotateMatch) {
+        if (!integrationProfiles) {
+          throw Object.assign(new Error('Kairoseth integration profile store is unavailable'), {
+            code: 'VF_INTEGRATION_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+        return json(
+          200,
+          await integrationProfiles.rotateCredential(
+            context,
+            integrationCredentialRotateMatch[1],
+            parseJsonBody(request),
+          ),
+          correlationId,
+        );
+      }
+
+      const integrationCredentialRevokeMatch = path.match(
+        /^\/v1\/control-plane\/integration-profiles\/(int_[a-f0-9]{32})\/credential\/revoke$/,
+      );
+      if (method === 'POST' && integrationCredentialRevokeMatch) {
+        if (!integrationProfiles) {
+          throw Object.assign(new Error('Kairoseth integration profile store is unavailable'), {
+            code: 'VF_INTEGRATION_PROFILE_STORE_UNAVAILABLE',
+            status: 503,
+          });
+        }
+        requireAnyPermission(context, ['onboarding:manage', 'agents:manage']);
+        return json(
+          200,
+          await integrationProfiles.revokeCredential(
+            context,
+            integrationCredentialRevokeMatch[1],
+            parseJsonBody(request),
+          ),
+          correlationId,
+        );
+      }
+
       const integrationDisableMatch = path.match(
         /^\/v1\/control-plane\/integration-profiles\/(int_[a-f0-9]{32})\/disable$/,
       );
