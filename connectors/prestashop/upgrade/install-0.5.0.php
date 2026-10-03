@@ -12,11 +12,14 @@ function upgrade_module_0_5_0($module)
 
     foreach (array('pvf_order_sync', 'pvf_order_slip_sync') as $suffix) {
         $table = _DB_PREFIX_ . $suffix;
-        $column = Db::getInstance()->getRow(
-            "SHOW COLUMNS FROM `" . bqSQL($table) . "` LIKE 'presentation_json'"
+        $columnCount = (int) Db::getInstance()->getValue(
+            "SELECT COUNT(*) FROM information_schema.columns"
+            . " WHERE table_schema = DATABASE()"
+            . " AND table_name = '" . pSQL($table) . "'"
+            . " AND column_name = 'presentation_json'"
         );
 
-        if (!is_array($column)) {
+        if ($columnCount !== 1) {
             $sql = 'ALTER TABLE `' . bqSQL($table) . '` ADD `presentation_json` TEXT NULL AFTER `status`';
             if (!Db::getInstance()->execute($sql)) {
                 return false;
