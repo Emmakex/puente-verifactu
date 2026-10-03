@@ -26,7 +26,7 @@ Versión `0.5.0` con flujo manual seguro, automatización **opt-in** por tienda,
 - smoke real en PrestaShop 1.7.8.11, 8.1.7 y 8.2.7;
 - seis escenarios nativos Contract Suite v2 ejecutados en cada versión real para factura y rectificativa;
 - ZIP reproducible con allowlist de runtime, SHA-256 y layout compatible con instaladores legacy;
-- upgrade real `0.3.0 → 0.4.0` que preserva estado existente, registra los hooks automáticos y mantiene ambos switches en OFF.
+- upgrade real `0.4.0 → 0.5.0` que preserva estado existente, añade persistencia de presentación y registra el hook PDF solo cuando la capacidad existe.
 
 La automatización no sustituye el modo manual: simplemente reutiliza los mismos invariantes de preflight, idempotencia y estado local cuando el comercio decide activarla.
 
@@ -49,7 +49,7 @@ La matriz de CI instala el **ZIP reproducible de distribución** dentro de tiend
 - PrestaShop **8.1.7** / PHP **8.1**;
 - PrestaShop **8.2.7** / PHP **8.1**.
 
-Cada job comprueba arranque real, instalación y activación del módulo `0.5.0`, tablas de sincronización, hooks nativos, factura, payload principal, semáforo operativo y creación de un `OrderSlip` real. También demuestra que los hooks automáticos registrados **no crean estado ni intentan procesar operaciones mientras sus switches permanecen desactivados** y ejecuta los seis escenarios transversales de reconciliación/idempotencia de Connector Contract Suite v2. Esta matriz no implica soporte para PrestaShop 9.
+Cada job comprueba arranque real, instalación y activación del módulo `0.5.0`, tablas de sincronización, hooks nativos, factura, payload principal, semáforo operativo y creación de un `OrderSlip` real. También demuestra que los hooks automáticos registrados **no crean estado ni intentan procesar operaciones mientras sus switches permanecen desactivados** y ejecuta los seis escenarios transversales de reconciliación/idempotencia de Connector Contract Suite v2. Esta matriz refleja únicamente las versiones ejecutadas en CI; versiones posteriores se evalúan por capacidades en runtime y no mediante ramas de versión.
 
 Los datasets Flashlight usados por la prueba runtime tienen una línea al 0 %. Para que esa limitación no deje sin probar IVA positivo, CI ejecuta además `npm run prestashop:rectification-fixtures`, que usa la misma validación del runtime con 21 %, 10 %, 4 %, redondeos admisibles y desajustes que deben bloquearse.
 
@@ -108,7 +108,7 @@ En **Configurar** existen dos switches independientes por tienda:
 - **Automatic invoices**;
 - **Automatic corrective credit slips**.
 
-Ambos se instalan y se migran con valor `OFF`. Una actualización desde 0.3.0 no comienza a procesar operaciones por sí sola.
+Ambos se instalan y se migran con valor `OFF`. Las actualizaciones conservan esa decisión del comercio y no activan automatización por sí solas.
 
 ### Facturas automáticas
 
@@ -201,12 +201,12 @@ El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, 
 
 ## Upgrade validado
 
-`scripts/ci/prestashop-upgrade-smoke.sh` valida en PrestaShop 8.2.7 el salto **`0.3.0 → 0.4.0`**:
+`scripts/ci/prestashop-upgrade-smoke.sh` valida en PrestaShop 8.2.7 el salto **`0.4.0 → 0.5.0`**:
 
-1. instala una baseline 0.3.0 sin hooks automáticos;
+1. instala una baseline 0.4.0 con estado e hooks automáticos existentes;
 2. conserva una factura principal ya sincronizada;
 3. conserva una rectificativa ya sincronizada;
-4. despliega el ZIP 0.4.0;
+4. elimina de la baseline sintética la columna/hook de presentación y despliega el ZIP 0.5.0;
 5. ejecuta `prestashop:module upgrade puenteverifactu`;
 6. exige registro de ambos hooks automáticos;
 7. confirma que factura y rectificativa conservan `recordId`, idempotencia y estado;
@@ -220,7 +220,7 @@ El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, 
 - `npm run prestashop:package:check`: ZIP reproducible 0.5.0.
 - `npm run native:contract:v2`: contrato transversal compartido con WooCommerce.
 - `scripts/ci/prestashop-compatibility-smoke.sh`: instalación real, hooks, defaults OFF, factura, `OrderSlip` real y escenarios v2 en las tres versiones.
-- `scripts/ci/prestashop-upgrade-smoke.sh`: migración 0.3.0 → 0.4.0 preservando estado y manteniendo la automatización desactivada.
+- `scripts/ci/prestashop-upgrade-smoke.sh`: migración 0.4.0 → 0.5.0 preservando estado, añadiendo `presentation_json` y manteniendo la automatización desactivada.
 
 ## Límites conocidos
 
@@ -232,6 +232,6 @@ El ZIP contiene exclusivamente runtime, README y migraciones. Excluye ejemplos, 
 
 ## Estado dentro de Fase 5
 
-PrestaShop `0.4.0` queda técnicamente cerrado junto con WooCommerce: reconciliación/fallback, rectificativas, packaging, upgrade, automatización opt-in y Connector Contract Suite v2 están cubiertos en matrices reales. La aceptación transversal de Fase 5 está cerrada.
+PrestaShop `0.5.0` conserva el cierre funcional de Fase 5 y añade en Fase 6 la presentación VERI*FACTU, persistencia neutral y compatibilidad capability-first.
 
 El gate externo AEAT #6 está cerrado. La v0.5.0 del conector entra en el cierre de Fase 6 para validar presentación QR/textos y piloto progresivo antes de publicación.
