@@ -34,15 +34,23 @@ if (-not (Test-Path $release)) {
   & $npm --prefix $release install --omit=dev --ignore-scripts --package-lock=false
   if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
 }
-if (Test-Path $current) { Remove-Item -Recurse -Force $current }
+if (Test-Path $current) {
+  & cmd.exe /c rmdir "$current"
+  if ($LASTEXITCODE -ne 0) { throw 'Could not replace current release junction' }
+}
 New-Item -ItemType Junction -Path $current -Target $release | Out-Null
 
 if ($ReplaceConfig -or -not (Test-Path $configFile)) { Copy-Item -Force $ConfigSource $configFile }
 Copy-Item -Force $EnvSource $envFile
 Copy-Item -Force (Join-Path $current 'packages\local-agent\service\windows\run.ps1') $runner
 
-foreach ($path in @($configRoot, $dataDir, $runner)) {
+foreach ($path in @($configRoot, $dataDir)) {
   & icacls.exe $path /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Could not harden ACL: $path" }
+}
+foreach ($path in @($configFile, $envFile, $runner)) {
+  & icacls.exe $path /inheritance:r /grant:r '*S-1-5-18:F' '*S-1-5-32-544:F' | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Could not harden file ACL: $path" }
 }
 
 if ($Register -or $Start) {
