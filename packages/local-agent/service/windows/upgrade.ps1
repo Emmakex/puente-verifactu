@@ -99,9 +99,9 @@ try {
   } | ConvertTo-Json -Compress
 }
 catch {
-  if ($activated -and (Test-Path $previousRelease)) {
+  if ((Test-Path $previousRelease) -and ($activated -or -not (Test-Path $current))) {
     if (Test-Path $current) { & cmd.exe /c rmdir "$current" | Out-Null }
-    New-Item -ItemType Junction -Path $current -Target $previousRelease -Force | Out-Null
+    New-Item -ItemType Junction -Path $current -Target $previousRelease | Out-Null
   }
   if ($wasRunning) {
     Start-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
