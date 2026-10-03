@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { posix } from 'node:path';
 import { buildLocalAgentPortableZip, LOCAL_AGENT_RUNTIME_DEPENDENCIES } from '../release/package-local-agent.mjs';
 
 const sourceCommit = process.env.PV_SOURCE_COMMIT || '0123456789abcdef0123456789abcdef01234567';
@@ -19,6 +20,7 @@ assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/src/cli.mjs
 assert.ok(names.includes('kairoseth-local-agent/packages/local-agent/src/runtime.mjs'));
 assert.ok(names.includes('kairoseth-local-agent/packages/core/src/idempotency.mjs'));
 assert.ok(names.includes('kairoseth-local-agent/packages/sdk/src/client.mjs'));
+assert.ok(names.includes('kairoseth-local-agent/packages/contracts/src/constants.mjs'));
 assert.ok(names.includes('kairoseth-local-agent/connectors/file-import/src/file-reader.mjs'));
 assert.ok(names.includes('kairoseth-local-agent/config/local-agent.example.json'));
 assert.ok(names.includes('kairoseth-local-agent/bundle-manifest.json'));
@@ -34,6 +36,22 @@ const pkg = JSON.parse(pkgEntry.data.toString('utf8'));
 assert.equal(pkg.engines.node, '>=22.13.0');
 assert.deepEqual(pkg.dependencies, LOCAL_AGENT_RUNTIME_DEPENDENCIES);
 assert.equal(pkg.bin['kairoseth-local-agent'], 'bin/kairoseth-local-agent.mjs');
+
+const bundled = new Set(names);
+for (const entry of first.entries.filter((item) => item.name.endsWith('.mjs'))) {
+  const source = entry.data.toString('utf8');
+  const specifiers = [
+    ...source.matchAll(/(?:from\s+|import\s*\()(['"])(\.\.?\/[^'"]+)\1/g),
+  ].map((match) => match[2]);
+
+  for (const specifier of specifiers) {
+    const resolved = posix.normalize(posix.join(posix.dirname(entry.name), specifier));
+    assert.ok(
+      bundled.has(resolved),
+      `missing bundled relative import: ${entry.name} -> ${specifier} (${resolved})`,
+    );
+  }
+}
 
 const manifestEntry = first.entries.find((entry) => entry.name.endsWith('/bundle-manifest.json'));
 assert.deepEqual(JSON.parse(manifestEntry.data.toString('utf8')), first.manifest);
