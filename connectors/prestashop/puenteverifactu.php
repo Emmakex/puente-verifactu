@@ -28,7 +28,7 @@ class PuenteVerifactu extends Module
         $this->author = 'Kairoseth Extensions';
         $this->need_instance = 0;
         $this->bootstrap = true;
-        $this->ps_versions_compliancy = array('min' => '1.7.8.0', 'max' => '8.99.99');
+        $this->ps_versions_compliancy = array('min' => '1.7.8.0', 'max' => '99.99.99');
 
         parent::__construct();
 
