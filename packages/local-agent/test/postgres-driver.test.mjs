@@ -90,7 +90,10 @@ test('PostgreSQL driver fails closed if transaction_read_only is not on', async 
     pgModule: pg.module,
   });
 
-  assert.equal(await driver.assertReadOnly(), false);
+  await assert.rejects(
+    () => driver.assertReadOnly(),
+    (error) => error.code === 'VF_LOCAL_AGENT_DB_READ_ONLY_REQUIRED' && error.retryable === false,
+  );
 });
 
 test('PostgreSQL connection failures are normalized without leaking connection details', async () => {
