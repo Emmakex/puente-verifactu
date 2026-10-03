@@ -18,6 +18,7 @@ function expectedIdentity(profile) {
     organizationId: requiredId(profile?.organizationId, 'organizationId'),
     installationId: requiredId(profile?.installationId, 'installationId'),
     sourceSystem: requiredId(profile?.adapter, 'sourceSystem'),
+    profileId: requiredId(profile?.profileId, 'profileId'),
   });
 }
 
@@ -78,6 +79,7 @@ function normalizeResolvedContext(result) {
     organizationId: requiredId(result.organizationId, 'provider.organizationId'),
     installationId: requiredId(result.installationId, 'provider.installationId'),
     sourceSystem: requiredId(result.sourceSystem, 'provider.sourceSystem'),
+    profileId: requiredId(result.profileId, 'provider.profileId'),
     authType: 'kairoseth-bearer',
     credentialKind: 'kairoseth-data-plane',
     rateLimitPerMinute: rate,
