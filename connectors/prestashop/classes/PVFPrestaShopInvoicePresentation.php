@@ -69,6 +69,21 @@ final class PVFPrestaShopInvoicePresentation
         return $decoded;
     }
 
+    public static function rendererAvailable()
+    {
+        if (class_exists('TCPDF2DBarcode', false)) {
+            return true;
+        }
+
+        foreach (self::tcpdfCandidates() as $path) {
+            if ($path !== '' && is_file($path)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static function renderPdfHtml(array $presentation)
     {
         $url = (string) $presentation['qr_url'];
@@ -117,12 +132,7 @@ final class PVFPrestaShopInvoicePresentation
             return;
         }
 
-        $candidates = array(
-            _PS_ROOT_DIR_ . '/vendor/tecnickcom/tcpdf/tcpdf_barcodes_2d.php',
-            defined('_PS_TOOL_DIR_') ? _PS_TOOL_DIR_ . 'tcpdf/tcpdf_barcodes_2d.php' : '',
-            defined('_PS_TOOL_DIR_') ? _PS_TOOL_DIR_ . 'tcpdf/2dbarcodes.php' : '',
-        );
-        foreach ($candidates as $path) {
+        foreach (self::tcpdfCandidates() as $path) {
             if ($path !== '' && is_file($path)) {
                 require_once $path;
                 if (class_exists('TCPDF2DBarcode', false)) {
@@ -131,6 +141,15 @@ final class PVFPrestaShopInvoicePresentation
             }
         }
 
-        throw new RuntimeException('PrestaShop TCPDF QR renderer is unavailable.');
+        throw new RuntimeException('PrestaShop QR renderer is unavailable.');
+    }
+
+    private static function tcpdfCandidates()
+    {
+        return array(
+            defined('_PS_ROOT_DIR_') ? _PS_ROOT_DIR_ . '/vendor/tecnickcom/tcpdf/tcpdf_barcodes_2d.php' : '',
+            defined('_PS_TOOL_DIR_') ? _PS_TOOL_DIR_ . 'tcpdf/tcpdf_barcodes_2d.php' : '',
+            defined('_PS_TOOL_DIR_') ? _PS_TOOL_DIR_ . 'tcpdf/2dbarcodes.php' : '',
+        );
     }
 }
