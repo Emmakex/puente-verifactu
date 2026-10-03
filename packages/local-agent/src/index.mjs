@@ -10,3 +10,4 @@ export {
   createReadOnlyDatabaseDriver,
   pollDatabaseSource,
 } from './database-source.mjs';
+export { createPostgresReadOnlyDriver } from './postgres-driver.mjs';
