@@ -410,7 +410,13 @@ export class SqliteLocalAgentRegistryStore {
         record.updatePolicy,
       );
     } catch (error) {
-      throw constraintError(error, 'VF_LOCAL_AGENT_INSTALLATION_EXISTS', 'Local Agent installation already exists');
+      const normalized = constraintError(
+        error,
+        'VF_LOCAL_AGENT_INSTALLATION_EXISTS',
+        'Local Agent installation already exists',
+      );
+      if (normalized?.code === 'VF_LOCAL_AGENT_INSTALLATION_EXISTS') normalized.status = 409;
+      throw normalized;
     }
     return this.get(record.organizationId, record.installationId);
   }
