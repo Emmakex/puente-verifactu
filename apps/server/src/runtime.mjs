@@ -10,6 +10,7 @@ import { createIntegrationResolvers } from './integration-config.mjs';
 import { createPuenteHttpServer } from './http-server.mjs';
 import { createOperationalObserver } from './observability.mjs';
 import { KairosethLocalAgentControlPlane } from './local-agent-control-plane.mjs';
+import { KairosethOnboardingControlPlane } from './onboarding-control-plane.mjs';
 import { DEFAULT_NATIVE_CONNECTORS, resolveKairosethIntegrationStrategy } from '../../../packages/kairoseth-control-plane/src/capability-onboarding.mjs';
 import { FixedWindowRateLimiter } from './rate-limit.mjs';
 
@@ -34,6 +35,7 @@ export function createPuenteRuntime({
   presentationEnvironment = 'test',
   observabilityThresholds = {},
   localAgentRegistryStore = null,
+  onboardingProfileStore = null,
   supportedNativeConnectors = DEFAULT_NATIVE_CONNECTORS,
 } = {}) {
   const normalizedSif = {
@@ -69,6 +71,17 @@ export function createPuenteRuntime({
     store: localAgentRegistryStore ?? persistence.localAgentRegistry,
     clock: observabilityClock,
   });
+  const resolveOnboardingStrategy = (input) => resolveKairosethIntegrationStrategy(input, {
+    supportedNativeConnectors,
+  });
+  const onboardingProfiles = onboardingProfileStore
+    ? new KairosethOnboardingControlPlane({
+        store: onboardingProfileStore,
+        localAgents,
+        resolveStrategy: resolveOnboardingStrategy,
+        clock: observabilityClock,
+      })
+    : null;
   const authenticateHttp = createHttpAuthenticator(authConfig, {
     resolveBearerDigest: (digest) => localAgents.authenticateBearerDigest(digest),
   });
@@ -79,9 +92,8 @@ export function createPuenteRuntime({
     resolveMappingProfile: resolvers.resolveMappingProfile,
     resolveWebhookSecret: resolvers.resolveWebhookSecret,
     localAgents,
-    resolveOnboardingStrategy: (input) => resolveKairosethIntegrationStrategy(input, {
-      supportedNativeConnectors,
-    }),
+    onboardingProfiles,
+    resolveOnboardingStrategy,
   });
   const operationalObserver = createOperationalObserver({
     persistence,
@@ -111,6 +123,7 @@ export function createPuenteRuntime({
     bridge,
     imports,
     localAgents,
+    onboardingProfiles,
     persistence,
     operationalObserver,
     recoveredReservations: Number(recoveredReservations),
