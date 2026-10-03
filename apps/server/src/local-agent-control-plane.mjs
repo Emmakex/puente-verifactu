@@ -113,6 +113,15 @@ export class KairosethLocalAgentControlPlane {
     });
   }
 
+  async get(organizationId, installationId) {
+    const record = await this.store.get(
+      requiredId(organizationId, 'organizationId'),
+      requiredId(installationId, 'installationId'),
+    );
+    if (!record) return null;
+    return publicState(record, this.clock(), this.offlineAfterMs);
+  }
+
   async provision(input = {}) {
     const organizationId = requiredId(input.organizationId, 'organizationId');
     const installationId = requiredId(input.installationId, 'installationId');
