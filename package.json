@@ -57,6 +57,7 @@
     "adapter:contract": "node scripts/ci/universal-adapter-contract.mjs",
     "kairoseth:extension:check": "node scripts/ci/kairoseth-extension-product-check.mjs",
     "local-agent:contract": "node scripts/ci/local-agent-contract.mjs",
-    "local-agent:smoke": "node --test packages/local-agent/test/*.test.mjs"
+    "local-agent:smoke": "node --test packages/local-agent/test/*.test.mjs",
+    "local-agent:postgres:smoke": "node scripts/ci/postgres-local-agent-smoke.mjs"
   }
 }
