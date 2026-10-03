@@ -146,7 +146,15 @@ Each row becomes one durable `mapped-source` job. The source key is derived from
 
 The checkpoint is **transport/source progress only**. It is not a fiscal record and never replaces server-side idempotency.
 
-This layer intentionally does not bundle vendor client libraries yet. Runtime-tested PostgreSQL/MySQL/MariaDB/SQL Server drivers remain a separate compatibility unit; no database/version is claimed compatible until that evidence exists.
+Vendor adapters are provided for:
+
+- PostgreSQL through a `pg` pool, with every verification and extraction query inside `BEGIN READ ONLY`;
+- MySQL/MariaDB through a `mysql2/promise` pool, with `START TRANSACTION READ ONLY`;
+- SQL Server through an `mssql` pool, with a permission/role probe plus a SELECT-only source query contract.
+
+The repository does not bundle those vendor packages into the core runtime. The Local Agent packaging layer installs only the driver required by the customer.
+
+CI compatibility evidence runs against PostgreSQL 16, MySQL 8.4, MariaDB 11.4 and SQL Server 2022. Production credentials still must be provisioned SELECT-only; the runtime guard is defense in depth.
 
 ## Gate
 
@@ -159,7 +167,6 @@ npm run local-agent:contract
 
 The foundation does **not** claim:
 
-- PostgreSQL/MySQL/SQL Server compatibility yet;
 - SFTP support yet;
 - OS installer/daemon packaging yet;
 - unattended production readiness;

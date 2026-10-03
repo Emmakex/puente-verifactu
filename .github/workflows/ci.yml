@@ -214,3 +214,46 @@ jobs:
           PRESTASHOP_VERSION: '8.2.7'
           PRESTASHOP_PHP: '8.1'
         run: bash scripts/ci/prestashop-upgrade-smoke.sh
+
+
+  local-agent-database-compatibility:
+    name: Local Agent DB / ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: PostgreSQL 16
+            dialect: postgresql
+            image: postgres:16
+            client: pg@8
+          - name: MySQL 8.4
+            dialect: mysql
+            image: mysql:8.4
+            client: mysql2@3
+          - name: MariaDB 11.4
+            dialect: mariadb
+            image: mariadb:11.4
+            client: mysql2@3
+          - name: SQL Server 2022
+            dialect: sqlserver
+            image: mcr.microsoft.com/mssql/server:2022-latest
+            client: mssql@11
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install database client
+        run: npm install --no-save --package-lock=false --ignore-scripts "${{ matrix.client }}"
+
+      - name: Real read-only database smoke
+        env:
+          DB_DIALECT: ${{ matrix.dialect }}
+          DB_IMAGE: ${{ matrix.image }}
+        run: bash scripts/ci/local-agent-db-compatibility-smoke.sh
