@@ -77,7 +77,21 @@ Both routes run preflight before issue.
 - changing file contents creates a new source revision;
 - unrelated extensions are ignored.
 
-This foundation **does not yet send the file automatically**. The next U3 unit connects queued `watch-file` jobs to the existing CSV/XLSX parser, MappingProfile and preflight flow, then adds processed/error quarantine.
+The watch-folder ingest layer now stages stable CSV/XLSX files, parses them with the existing read-only file connector, fans rows out as durable `mapped-source` jobs, runs the server-side MappingProfile through preflight before issue, and archives the original source file only after all row jobs reach a terminal state.
+
+Issuance is fail-closed by default: `ingestWatchFolder()` refuses to move or enqueue files unless `issueEnabled=true` is explicitly configured.
+
+Folder lifecycle:
+
+```text
+inbox/
+  -> processing/
+       -> row jobs -> server preflight -> issue
+       -> completed batch -> processed/
+       -> blocked batch   -> error/
+```
+
+The processing manifest stores only batch/job identifiers and file metadata, not raw row contents. Raw source rows live in the local SQLite queue while they are needed for delivery.
 
 ## Checkpoints
 
@@ -104,7 +118,7 @@ The foundation does **not** claim:
 - PostgreSQL/MySQL/SQL Server compatibility yet;
 - SFTP support yet;
 - OS installer/daemon packaging yet;
-- automatic folder quarantine yet;
-- unattended production readiness.
+- unattended production readiness;
+- automatic local retention/pruning policy for completed queue payloads.
 
 Those capabilities stay on the U3/U4 roadmap until implementation and evidence exist.

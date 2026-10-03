@@ -248,8 +248,9 @@ Todos los canales deben cumplir:
 - [x] discovery watch-folder CSV/XLSX con SHA-256;
 - [x] política de HTTPS saliente;
 - [x] manifest Local Agent + gate CI;
-- [ ] watch-folder -> parser/mapping/preflight -> issue;
-- [ ] processed/error quarantine;
+- [x] watch-folder -> parser -> mapped-source -> server-side mapping/preflight -> issue;
+- [x] processed/error quarantine por batch;
+- [x] opt-in explícito antes de permitir emisión desde watch-folder;
 - [ ] DB read-only;
 - [ ] empaquetado/servicio por sistema operativo.
 

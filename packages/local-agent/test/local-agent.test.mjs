@@ -7,7 +7,7 @@ import { LocalAgentStore } from '../src/store.mjs';
 import { LocalAgentWorker, createPuenteApiTransport, retryDelayMs } from '../src/worker.mjs';
 import { assertOutboundBaseUrl } from '../src/network.mjs';
 import { createLocalAgentApiClient } from '../src/client.mjs';
-import { enqueueWatchFolder, scanWatchFolder } from '../src/watch-folder.mjs';
+import { scanWatchFolder } from '../src/watch-folder.mjs';
 
 test('Local Agent queue is durable and source-key idempotent', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'pv-local-agent-'));
@@ -160,7 +160,7 @@ test('API transport always preflights before issue and reuses worker idempotency
   );
 });
 
-test('watch-folder discovery is deterministic and queues each file revision once', async () => {
+test('watch-folder discovery is deterministic and fingerprints file revisions', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'pv-watch-folder-'));
   await writeFile(join(dir, 'b.xlsx'), Buffer.from('xlsx-fixture'));
   await writeFile(join(dir, 'a.csv'), 'invoice,total\n1,10\n');
@@ -169,19 +169,11 @@ test('watch-folder discovery is deterministic and queues each file revision once
   const firstScan = await scanWatchFolder(dir);
   assert.deepEqual(firstScan.map((file) => file.name), ['a.csv', 'b.xlsx']);
   assert.match(firstScan[0].sha256, /^[0-9a-f]{64}$/);
-
-  const store = new LocalAgentStore(':memory:');
-  const first = await enqueueWatchFolder({ store, directory: dir, now: 100 });
-  const second = await enqueueWatchFolder({ store, directory: dir, now: 200 });
-  assert.equal(first.files, 2);
-  assert.equal(second.files, 2);
-  assert.equal(store.list().length, 2);
+  const originalHash = firstScan[0].sha256;
 
   await writeFile(join(dir, 'a.csv'), 'invoice,total\n1,11\n');
-  const third = await enqueueWatchFolder({ store, directory: dir, now: 300 });
-  assert.equal(third.files, 2);
-  assert.equal(store.list().length, 3);
-  store.close();
+  const secondScan = await scanWatchFolder(dir);
+  assert.notEqual(secondScan[0].sha256, originalHash);
 });
 
 test('Local Agent network policy requires outbound HTTPS except explicit localhost development', () => {

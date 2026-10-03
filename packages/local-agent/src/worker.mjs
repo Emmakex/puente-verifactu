@@ -20,6 +20,25 @@ function normalizeTransportError(error) {
   return error;
 }
 
+function assertPreflightPassed(report) {
+  if (report?.ok === true) return report;
+  throw Object.assign(new Error('Puente preflight rejected the Local Agent operation'), {
+    code: 'VF_LOCAL_AGENT_PREFLIGHT_FAILED',
+    retryable: false,
+    status: 422,
+    details: {
+      summary: report?.summary ?? null,
+      errors: Array.isArray(report?.errors) ? report.errors.slice(0, 20) : [],
+      rows: Array.isArray(report?.rows)
+        ? report.rows.filter((row) => row?.status === 'invalid').slice(0, 20).map((row) => ({
+            row: row.row ?? null,
+            errors: Array.isArray(row.errors) ? row.errors.slice(0, 10) : [],
+          }))
+        : [],
+    },
+  });
+}
+
 export function retryDelayMs(attempt) {
   const normalized = Math.max(1, Number(attempt) || 1);
   return Math.min(15 * 60_000, 5_000 * (2 ** Math.min(8, normalized - 1)));
@@ -103,11 +122,11 @@ export function createPuenteApiTransport(client) {
   return async function transport(payload, { idempotencyKey } = {}) {
     try {
       if (payload?.kind === 'invoice-intent') {
-        await client.preflight(payload.intent);
+        assertPreflightPassed(await client.preflight(payload.intent));
         return await client.issue(payload.intent, { idempotencyKey });
       }
       if (payload?.kind === 'mapped-source') {
-        await client.preflightMapped(payload.profileId, payload.source);
+        assertPreflightPassed(await client.preflightMapped(payload.profileId, payload.source));
         return await client.issueMapped(payload.profileId, payload.source, { idempotencyKey });
       }
       throw Object.assign(new Error('Unsupported Local Agent payload kind'), {
