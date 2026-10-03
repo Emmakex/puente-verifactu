@@ -15,6 +15,7 @@ Un autónomo o pyme debe poder empezar desde el nivel técnico que ya tenga:
 3. **API universal:** REST con contrato canónico versionado.
 4. **SDK:** integración para desarrolladores sin conocer XML AEAT.
 5. **Conector nativo:** WordPress/WooCommerce, PrestaShop y sistemas prioritarios, validados con una suite contractual común.
+6. **Legacy/local:** agente read-only para base de datos, watch-folder/SFTP o software de escritorio cuando no exista una API moderna.
 
 Todos los caminos terminan en el mismo modelo canónico y el mismo motor fiscal. Ningún conector replica la lógica regulatoria.
 
