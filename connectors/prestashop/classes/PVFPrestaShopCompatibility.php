@@ -15,9 +15,24 @@ final class PVFPrestaShopCompatibility
 {
     public static function hookAvailable($hookName)
     {
-        return class_exists('Hook')
+        $hookName = (string) $hookName;
+
+        if (class_exists('Hook')
             && method_exists('Hook', 'getIdByName')
-            && (int) Hook::getIdByName((string) $hookName) > 0;
+            && (int) Hook::getIdByName($hookName) > 0) {
+            return true;
+        }
+
+        // displayPDF<Template> hooks are dynamic in PrestaShop. They may not
+        // exist in the hook table until a module registers them, even though
+        // the corresponding PDF template capability is present in core.
+        $dynamicPdfTemplates = array(
+            'displayPDFInvoice' => 'HTMLTemplateInvoice',
+            'displayPDFOrderSlip' => 'HTMLTemplateOrderSlip',
+        );
+
+        return isset($dynamicPdfTemplates[$hookName])
+            && class_exists($dynamicPdfTemplates[$hookName]);
     }
 
     public static function registerAvailableHooks(Module $module, array $hookNames)
