@@ -53,7 +53,7 @@ sudo bash "$UNINSTALLER" >/tmp/pv-linux-uninstall.json
 [[ ! -e /etc/systemd/system/kairoseth-local-agent.service ]]
 [[ -f /etc/kairoseth-local-agent/agent.json ]]
 [[ -f /etc/kairoseth-local-agent/agent.env ]]
-[[ -f /var/lib/kairoseth-local-agent/state-marker ]]
+sudo test -f /var/lib/kairoseth-local-agent/state-marker
 sudo grep -q '"marker":"first"' /etc/kairoseth-local-agent/agent.json
 sudo grep -q 'state-survives' /var/lib/kairoseth-local-agent/state-marker
 
