@@ -52,6 +52,7 @@ add_action(
         require_once PV_WOO_PATH . 'includes/class-pv-woo-order-payload.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-refund-payload.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-admin-status.php';
+        require_once PV_WOO_PATH . 'includes/class-pv-woo-invoice-presentation.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-connector.php';
 
         PV_Woo_Connector::instance()->boot();
