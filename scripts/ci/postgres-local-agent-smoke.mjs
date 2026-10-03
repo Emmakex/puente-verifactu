@@ -25,11 +25,11 @@ await admin.connect();
 
 try {
   await admin.query('DROP TABLE IF EXISTS pv_local_agent_invoices');
-  await admin.query(`DO $$ BEGIN
-    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${readerUser}') THEN
-      DROP ROLE ${readerUser};
-    END IF;
-  END $$`);
+  const staleRole = await admin.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [readerUser]);
+  if (staleRole.rowCount > 0) {
+    await admin.query(`DROP OWNED BY ${readerUser}`);
+    await admin.query(`DROP ROLE ${readerUser}`);
+  }
   await admin.query(`CREATE ROLE ${readerUser} LOGIN PASSWORD '${readerPassword}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION`);
   await admin.query('CREATE TABLE pv_local_agent_invoices (id BIGINT PRIMARY KEY, invoice_no TEXT NOT NULL, total NUMERIC(12,2) NOT NULL)');
   await admin.query("INSERT INTO pv_local_agent_invoices (id, invoice_no, total) VALUES (1, 'F-1', 10.50), (2, 'F-2', 20.75), (3, 'F-3', 30.10)");
@@ -116,6 +116,10 @@ try {
   }
 } finally {
   await admin.query('DROP TABLE IF EXISTS pv_local_agent_invoices');
-  await admin.query(`DROP ROLE IF EXISTS ${readerUser}`);
+  const existingRole = await admin.query('SELECT 1 FROM pg_roles WHERE rolname = $1', [readerUser]);
+  if (existingRole.rowCount > 0) {
+    await admin.query(`DROP OWNED BY ${readerUser}`);
+    await admin.query(`DROP ROLE ${readerUser}`);
+  }
   await admin.end();
 }
