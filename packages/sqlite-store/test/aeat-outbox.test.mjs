@@ -150,3 +150,88 @@ test('an active lease prevents a second worker from dispatching the same job', a
     persistence.close();
   }
 });
+
+
+test('AEAT outbox worker supports a fully asynchronous store contract', async () => {
+  const jobs = new Map();
+  const asyncStore = {
+    async enqueue(input, { id = 'async-job', availableAt = 0, now = 0 } = {}) {
+      const job = {
+        id,
+        payload: structuredClone(input),
+        state: 'pending',
+        attempts: 0,
+        availableAt,
+        lastResult: null,
+        leaseOwner: null,
+        leaseUntil: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      jobs.set(id, job);
+      return structuredClone(job);
+    },
+    async get(id) {
+      return jobs.has(id) ? structuredClone(jobs.get(id)) : null;
+    },
+    async list() {
+      return [...jobs.values()].map((job) => structuredClone(job));
+    },
+    async recoverExpired() { return 0; },
+    async claim(id, { owner, now, leaseMs }) {
+      const job = jobs.get(id);
+      if (!job || job.state !== 'pending' || job.availableAt > now) return null;
+      const claimed = {
+        ...job,
+        state: 'processing',
+        attempts: job.attempts + 1,
+        leaseOwner: owner,
+        leaseUntil: now + leaseMs,
+        updatedAt: now,
+      };
+      jobs.set(id, claimed);
+      return structuredClone(claimed);
+    },
+    async settle(id, { owner, state, availableAt = null, lastResult = null, now = 0 }) {
+      const job = jobs.get(id);
+      if (!job || job.state !== 'processing' || job.leaseOwner !== owner) {
+        throw Object.assign(new Error('lease lost'), { code: 'VF_AEAT_OUTBOX_LEASE_LOST' });
+      }
+      const settled = {
+        ...job,
+        state,
+        availableAt: availableAt ?? job.availableAt,
+        lastResult,
+        leaseOwner: null,
+        leaseUntil: null,
+        updatedAt: now,
+      };
+      jobs.set(id, settled);
+      return structuredClone(settled);
+    },
+  };
+
+  await asyncStore.enqueue(payload, { id: 'async-aeat-1', availableAt: 0, now: 0 });
+  let calls = 0;
+  const worker = new AeatOutboxWorker({
+    outbox: asyncStore,
+    adapter: {
+      async submit() {
+        calls += 1;
+        return {
+          kind: 'aeat_response',
+          status: 'accepted',
+          retryable: false,
+          records: [{ status: 'accepted' }],
+        };
+      },
+    },
+    clock: () => 1000,
+    workerId: 'async-worker',
+  });
+
+  const result = await worker.run('async-aeat-1');
+  assert.equal(result.state, 'completed');
+  assert.equal(result.attempts, 1);
+  assert.equal(calls, 1);
+});
