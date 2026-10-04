@@ -786,9 +786,15 @@ test('native connector profiles can provision Kairoseth data-plane credentials',
   assert.equal(provisioned.profile.authBinding.status, 'active');
   assert.equal(provisioned.profile.authBinding.provider, 'kairoseth');
   assert.match(provisioned.credential.token, /^kairoseth_data_plane_/);
-  assert.equal(provisioned.credential.sourceSystem, 'woocommerce');
-  assert.equal(provisioned.credential.profileId, profileId);
   assert.equal(provisioned.credentialShownOnce, true);
+
+  const resolved = await provider.resolveBearerDigest(
+    hashBearerToken(provisioned.credential.token),
+  );
+  assert.equal(resolved.organizationId, 'org-native');
+  assert.equal(resolved.installationId, 'int-native-01');
+  assert.equal(resolved.sourceSystem, 'woocommerce');
+  assert.equal(resolved.profileId, profileId);
 
   const persisted = await store.getInternal('org-native', profileId);
   assert.equal(persisted.authBinding.credentialId, provisioned.credential.credentialId);
