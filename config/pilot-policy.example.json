@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "puente-verifactu-pilot-policy",
-  "deployment_profile": "sqlite-single-node",
+  "deployment_profile": "kairoseth-hostinger-mongodb",
   "max_operations": 5,
   "max_duration_minutes": 120,
   "stop_on_warning": true,
