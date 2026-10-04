@@ -471,16 +471,32 @@ try {
       { token: onboardingToken },
     );
     assert.equal(onboardingAfterRestart.response.status, 200);
-    assert.equal(onboardingAfterRestart.payload.profiles.length, 1);
-    assert.equal(onboardingAfterRestart.payload.profiles[0].profileId, onboardingProfileId);
-    assert.equal(onboardingAfterRestart.payload.profiles[0].localAgent.status, 'provisioned');
+    assert.equal(onboardingAfterRestart.payload.profiles.length, 2);
+    const localProfileAfterRestart = onboardingAfterRestart.payload.profiles.find(
+      (item) => item.profileId === onboardingProfileId,
+    );
+    const apiProfileAfterRestart = onboardingAfterRestart.payload.profiles.find(
+      (item) => item.profileId === apiOnboardingProfileId,
+    );
+    assert.ok(localProfileAfterRestart);
+    assert.ok(apiProfileAfterRestart);
+    assert.equal(localProfileAfterRestart.localAgent.status, 'provisioned');
     assert.equal(
-      onboardingAfterRestart.payload.profiles[0].integrationDraft.integrationProfileId,
+      localProfileAfterRestart.integrationDraft.integrationProfileId,
       integrationProfileId,
     );
     assert.equal(
-      onboardingAfterRestart.payload.profiles[0].integrationDraft.mappingProfileId,
+      localProfileAfterRestart.integrationDraft.mappingProfileId,
       integrationProfileId,
+    );
+    assert.equal(apiProfileAfterRestart.strategy.channel, 'rest_api');
+    assert.equal(
+      apiProfileAfterRestart.integrationDraft.integrationProfileId,
+      apiIntegrationProfileId,
+    );
+    assert.equal(
+      apiProfileAfterRestart.integrationDraft.mappingProfileId,
+      apiIntegrationProfileId,
     );
 
     const onboardingAgentHeartbeat = await request(second.baseUrl, '/v1/local-agent/heartbeat', {
