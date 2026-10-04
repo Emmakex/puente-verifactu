@@ -13,13 +13,33 @@ trap cleanup EXIT
 case "$dialect" in
   postgresql)
     image="${DB_IMAGE:-postgres:16}"
-    port="${DB_PORT:-5432}"
-    docker run -d --name "$name" -e POSTGRES_PASSWORD=root -p "${port}:5432" "$image" >/dev/null
+    requested_port="${DB_PORT:-}"
+    if [ -n "$requested_port" ]; then
+      docker run -d --name "$name" -e POSTGRES_PASSWORD=root -p "127.0.0.1:${requested_port}:5432" "$image" >/dev/null
+      port="$requested_port"
+    else
+      docker run -d --name "$name" -e POSTGRES_PASSWORD=root -p "127.0.0.1::5432" "$image" >/dev/null
+      port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "5432/tcp") 0).HostPort}}' "$name")"
+    fi
+
+    postgres_ready=0
     for _ in $(seq 1 60); do
-      if docker exec "$name" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+      if docker exec "$name" pg_isready -U postgres -d postgres >/dev/null 2>&1; then
+        postgres_ready=1
+        break
+      fi
+      if ! docker inspect --format '{{.State.Running}}' "$name" 2>/dev/null | grep -qx true; then
+        break
+      fi
       sleep 1
     done
-    docker exec "$name" pg_isready -U postgres >/dev/null
+    if [ "$postgres_ready" -ne 1 ]; then
+      echo "PostgreSQL did not become ready" >&2
+      docker ps -a --filter "name=^/${name}$" >&2 || true
+      docker logs "$name" >&2 || true
+      exit 1
+    fi
+    echo "PostgreSQL smoke endpoint: 127.0.0.1:${port}" >&2
     ;;
   mysql)
     image="${DB_IMAGE:-mysql:8.4}"
