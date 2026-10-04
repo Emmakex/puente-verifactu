@@ -368,6 +368,10 @@ async function renderSourceOptions() {
         const recommendation = visualRecommendation(strategy, state.locale);
         result.hidden = false;
         result.textContent = `${recommendation.title} — ${recommendation.summary}`;
+        if (recommendation.channel === 'manual') {
+          window.location.assign('/manual.html');
+          return;
+        }
         setStatus(recommendation.requiresLocalAgent
           ? (state.locale === 'en' ? 'This option will use Kairoseth Local Agent.' : 'Esta opción utilizará Kairoseth Local Agent.')
           : '');

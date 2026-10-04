@@ -213,10 +213,10 @@ Conectores ERP/CRM adicionales, portal multiempresa, herramientas para asesoría
 - [x] Local Agent v1: bundle reproducible + instalación nativa + upgrade/rollback en Linux, Windows y macOS (#67, #68, #69).
 - [x] Adaptadores DB read-only: PostgreSQL/MySQL-MariaDB/SQL Server con CI real (#61, #62).
 - [x] SFTP/drop-folder read-only/no destructivo con host-key pinning (#64).
-- [ ] Formulario manual universal.
+- [x] Formulario manual universal: payload neutral, mapping server-side, preflight obligatorio, confirmación humana, idempotencia estable y estado/QR.
 
-**Pendientes reales de expansión antes de considerar el producto funcionalmente completo:**
+**Estado de expansión universal:** cerrado para el alcance declarado de v0.1.0. Todos los escenarios capability-first prometidos disponen de un canal seguro que termina en el mismo preflight/core.
 
-- formulario manual universal con el mismo preflight/core.
+**Siguiente camino crítico:** congelar candidato final (#43), regenerar evidencia/declaración para el SHA definitivo y ejecutar el piloto progresivo (#53).
 
-**Regla:** esta expansión no modifica el motor fiscal. El piloto/release v0.1.0 mantiene sus propios gates y no se da por cerrado por el avance de adapters. El pricing/billing queda fuera del camino crítico hasta completar estos pendientes de producto y el piloto.
+**Regla:** esta expansión no modifica el motor fiscal. El pricing/billing continúa fuera del camino crítico hasta cerrar el piloto.

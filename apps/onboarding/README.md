@@ -1,6 +1,6 @@
 # Onboarding Wizard
 
-Interfaz customer-facing ES/EN para conectar archivos CSV/XLSX mediante el **Principio Camaleón**.
+Interfaz customer-facing ES/EN para resolver el canal de entrada mediante el **Principio Camaleón**, incluyendo CSV/XLSX y captura manual universal.
 
 El usuario no ve rutas internas del modelo canónico como interfaz principal y no necesita conocer XML, SOAP, hashes ni certificados AEAT.
 
@@ -35,6 +35,23 @@ La respuesta incluye `channel`, `commercialFamily`, `deploymentMode`, `requiresL
 Un nombre de software no soportado no determina la estrategia: si el sistema expone API, webhook u otra capacidad válida, se usa esa capacidad. Esto mantiene el onboarding **capability-first, no brand-first**.
 
 El fallback manual es únicamente una superficie de captura dentro de Kairoseth; usa el mismo preflight y motor fiscal server-side y no constituye un segundo motor fiscal.
+
+## Captura manual universal v1
+
+Cuando el resolver devuelve `channel=manual`, la UI abre `/manual.html`.
+
+El navegador envía un payload neutral a:
+
+- `POST /v1/manual/preflight`;
+- `POST /v1/manual/fiscal-records`.
+
+El backend transforma ese payload a `InvoiceIntent v1`, fija la clasificación del perfil manual soportado y deriva tenant/instalación desde la autenticación. El cliente no puede enviar `organizationId`, `installationId`, `sourceSystem`, certificado, entorno AEAT ni clasificación fiscal interna.
+
+La UX exige preflight + confirmación humana antes de emitir. La ruta de emisión repite además el preflight server-side para que la validación no dependa del JavaScript.
+
+El alcance manual v1 queda deliberadamente limitado a operaciones interiores sujetas en EUR con IVA 21/10/4, una línea de desglose y F1/F2/R1-R5. Cualquier régimen más complejo falla cerrado y debe usar una integración configurada.
+
+Contrato completo: `docs/manual-capture-v1.md`.
 
 ## Perfiles persistentes U6.3
 
