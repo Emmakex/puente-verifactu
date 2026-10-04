@@ -57,3 +57,10 @@ export {
   createMongoKairosethFiscalAuthProvider,
   mongoFiscalDataPlaneAuthIndexes,
 } from './mongodb-fiscal-auth.mjs';
+
+
+export {
+  applyKairosethMongoIndexes,
+  kairosethMongoIndexPlan,
+  verifyKairosethMongoIndexes,
+} from './mongodb-infrastructure.mjs';
