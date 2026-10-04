@@ -14,7 +14,7 @@ Hasta cerrar el producto y su piloto, el orden obligatorio es:
 
 Quedan **deferidos** durante este tramo: pricing, cuotas, checkout, billing self-service y nuevas mejoras CRM/comerciales. La foundation comercial ya existente no se elimina, pero no compite por prioridad con el cierre técnico.
 
-Camino crítico tras este cierre de persistencia: **gaps universales restantes de #55 → cierre #43 → piloto #53**. U10/#84 está cerrado en #90 y #91 se cierra con el runtime productivo MongoDB-only.
+Camino crítico actual: **cierre #43 → piloto #53**. #55 ya está cerrado con el formulario manual universal y el perfil productivo Kairoseth funciona sobre Hostinger + MongoDB sin SQLite.
 
 ## Fase 0 — Foundation ✅
 
@@ -185,11 +185,11 @@ Camino crítico tras este cierre de persistencia: **gaps universales restantes d
 - [x] Acceso rápido e individualizado a la declaración responsable dentro del runtime mediante ruta autenticada y fichero privado de deployment.
 - [x] Bundle final sanitizado de candidato: liga evidencia de release + SHA-256 de la declaración privada sin incluir datos personales, y falla si commit/CI/versión/blockers no coinciden.
 - [ ] Cierre regulatorio final de una versión candidata: generar evidencia de release para el commit candidato final y preparar/aprobar la declaración responsable definitiva de esa versión.
-- [ ] Perfil HA/multi-réplica con store/locking/rate limiting compartidos **solo si el despliegue real lo requiere**; para el perfil `sqlite-single-node` actual figura como `not_applicable` y no bloquea el desarrollo interno.
-- [x] Tooling de readiness del piloto: bundle exacto + aprobación privada + backup lifecycle + snapshot operacional + stop conditions + recibo sanitizado.
+- [ ] Perfil HA/multi-réplica con store/locking/rate limiting compartidos **solo si el despliegue real lo requiere**; para el candidato `kairoseth-hostinger-mongodb` figura como `not_applicable` mientras el deployment real mantenga una sola réplica escritora.
+- [x] Tooling de readiness del piloto: bundle exacto + aprobación privada + snapshot `kairoseth-mongodb` + evidencia de backup gestionado/restore drill + stop conditions + recibo sanitizado.
 - [ ] Piloto progresivo con rollback y monitorización activa.
 
-**Estado:** Fase 6 en curso con seis gates internos implementados para el perfil single-node y el gate externo AEAT #6 ya cerrado. La configuración puede avanzar a `release_candidate`, pero eso no autoriza publicación: todavía deben generarse la evidencia de release del commit candidato final y la declaración responsable definitiva, además de completar el piloto progresivo con los controles previstos.
+**Estado:** Fase 6 en curso con los gates internos aplicables al perfil productivo `kairoseth-hostinger-mongodb` implementados y el gate externo AEAT #6 ya cerrado. `release_candidate` no autoriza publicación: todavía deben congelarse el SHA final, regenerarse la evidencia/bundle de ese mismo SHA, aprobarse privadamente la declaración responsable y completarse el piloto progresivo.
 
 **Gate de entrada a release/piloto:** Fase 3 externa cerrada (#6), evidencia de release correspondiente al mismo commit candidato, revisión regulatoria vigente, declaración responsable final de esa versión y todos los gates aplicables al perfil de despliegue con evidencia real del entorno seleccionado.
 
