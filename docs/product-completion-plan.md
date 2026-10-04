@@ -104,7 +104,7 @@ Después del último cambio funcional:
 - CI completo verde sobre ese SHA;
 - regenerar release evidence para ese SHA y ese perfil;
 - regenerar bundle sanitizado;
-- preparar la declaración responsable definitiva vinculada a esa versión;
+- regenerar la declaración responsable definitiva vinculada a esa versión y al perfil Kairoseth Hostinger + MongoDB; cualquier borrador anterior que describa SQLite single-node queda obsoleto;
 - dejar la aprobación explícita como gate humano privado, nunca automatizado.
 
 Ninguna evidencia ligada a un SHA anterior ni al perfil `sqlite-single-node` autoriza el release nuevo.
