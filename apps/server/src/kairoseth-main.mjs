@@ -218,8 +218,8 @@ async function main() {
   }
 
   const service = await buildKairosethProductionService(process.env);
-  const host = String(process.env.PV_HOST ?? '127.0.0.1').trim();
-  const port = integer(process.env.PV_PORT ?? process.env.PORT, 8787, 'PV_PORT', 1, 65535);
+  const host = String(process.env.PV_HOST ?? '0.0.0.0').trim();
+  const port = integer(process.env.PV_PORT ?? process.env.PORT, 3000, 'PV_PORT', 1, 65535);
   let closing = false;
 
   const shutdown = async (signal) => {
