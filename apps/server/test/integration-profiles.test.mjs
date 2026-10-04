@@ -296,7 +296,7 @@ test('dynamic Mongo integration profile wins over static config and stamps serve
     assert.equal(preflight.body.preview.number, '1');
     assert.equal(preflight.body.preview.organizationId, 'org-dynamic');
     assert.equal(preflight.body.preview.installationId, 'install-dynamic');
-    assert.equal(preflight.body.preview.sourceSystem, 'dynamic-api');
+    assert.equal(preflight.body.preview.sourceSystem, 'universal-rest');
 
     const list = await jsonRequest(baseUrl, managerToken, '/v1/control-plane/integration-profiles');
     assert.equal(list.response.status, 200);
