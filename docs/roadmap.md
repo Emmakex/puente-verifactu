@@ -205,7 +205,7 @@ Conectores ERP/CRM adicionales, portal multiempresa, herramientas para asesoría
 - [x] Gate CI del manifest de referencia.
 - [x] Productizar emisión por lotes CSV/XLSX: endpoint explícito post-preflight, validación all-or-nothing previa al inicio e idempotencia estable por sesión/fila para retry seguro.
 - [x] Manifest/capabilities integrado en onboarding visual (#88).
-- [ ] Starter kits HTTP/JSON para software propio.
+- [x] Starter kits HTTP/JSON para software propio: Node.js, Python, PHP y cURL con lifecycle preflight/create/status/rectify/cancel y gate CI.
 - [x] Local Agent v1 foundation: SQLite privado + cola offline + leases/recovery + checkpoint + discovery watch-folder + HTTPS saliente.
 - [x] Local Agent v1 ingest: watch-folder -> parser -> MappingProfile server-side -> preflight -> issue + processed/error quarantine.
 - [x] Local Agent v1 data minimization: redacción de payload/result terminal preservando idempotencia y recordId.
@@ -217,7 +217,6 @@ Conectores ERP/CRM adicionales, portal multiempresa, herramientas para asesoría
 
 **Pendientes reales de expansión antes de considerar el producto funcionalmente completo:**
 
-- starter kits HTTP/JSON y ejemplos para software propio;
 - formulario manual universal con el mismo preflight/core;
 - política explícita de retención de archivos `processed/error` del Local Agent.
 
