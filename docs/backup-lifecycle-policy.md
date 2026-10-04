@@ -1,6 +1,8 @@
-# Política de ciclo de vida de backups — perfil single-node
+# Política de ciclo de vida de backups — perfil SQLite standalone
 
-Esta política complementa el backup/restore SQLite ya implementado. Su objetivo es que un backup no cuente como protección real hasta que exista evidencia verificable de copia remota cifrada y de un restore drill reciente.
+Esta política complementa el backup/restore SQLite del perfil `standalone`. Su objetivo es que un backup no cuente como protección real hasta que exista evidencia verificable de copia remota cifrada y de un restore drill reciente.
+
+**No es el gate de backup del candidato productivo Kairoseth v0.1.0.** El perfil `kairoseth-hostinger-mongodb` usa backup MongoDB gestionado e inyectado por la plataforma; su contrato de evidencia está en `docs/kairoseth-backup-evidence.md`.
 
 ## Principios
 
@@ -10,7 +12,7 @@ Esta política complementa el backup/restore SQLite ya implementado. Su objetivo
 - La copia remota debe verificarse por checksum después de subirla y registrar evidencia mínima no sensible.
 - La retención se calcula como plan; Puente VeriFactu **no borra backups automáticamente**.
 - Un restore drill restaura a un directorio temporal, verifica checksum e integridad SQLite y elimina la copia temporal.
-- El gate AEAT #6 sigue siendo independiente y continúa bloqueando release/piloto fiscal real.
+- El gate AEAT #6 es independiente. Para el candidato Kairoseth, este tooling SQLite se conserva como referencia standalone y no acredita el backup productivo MongoDB.
 
 ## Política por defecto v1
 
