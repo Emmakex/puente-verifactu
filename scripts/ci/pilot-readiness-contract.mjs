@@ -163,6 +163,8 @@ await writeFile(staleBackupPath, JSON.stringify({
   deploymentProfile: 'kairoseth-hostinger-mongodb',
   status: 'ok',
   provider: 'fixture-managed-backup',
+  containsSecrets: false,
+  containsFiscalData: false,
   newestBackup: {
     createdAt: '2026-09-30T00:00:00Z',
     sha256: backupSha,
