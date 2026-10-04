@@ -1,0 +1,13 @@
+{
+  "profileId": "int_11111111111111111111111111111111",
+  "source": {
+    "source_invoice_id": "erp:invoice:2026-100",
+    "invoice_number": "2026-100",
+    "invoice_date": "2026-10-04",
+    "description": "Servicio profesional",
+    "tax_base": "100.00",
+    "vat_rate": "21",
+    "vat_amount": "21.00",
+    "total": "121.00"
+  }
+}
