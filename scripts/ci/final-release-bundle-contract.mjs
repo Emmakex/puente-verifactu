@@ -26,6 +26,7 @@ const declaration = [
   '# DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN',
   ...[...'abcdefghijkl'].map((letter) => `**${letter}) Campo obligatorio:** valor válido`),
   'Puente VeriFactu versión 0.1.0',
+  'Perfil productivo: Kairoseth en Hostinger + MongoDB. Incluye Kairoseth Local Agent.',
   'Productor Ejemplo',
   '00000000T',
   'Calle Ejemplo 1',
@@ -59,6 +60,26 @@ const persisted = JSON.parse(await readFile(outputPath, 'utf8'));
 assert.deepEqual(persisted, bundle);
 assert.equal((await stat(outputPath)).mode & 0o777, 0o600);
 
+
+const staleDeclarationPath = join(dir, 'declaration-stale-sqlite.md');
+await writeFile(staleDeclarationPath, [
+  '# DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN',
+  ...[...'abcdefghijkl'].map((letter) => `**${letter}) Campo obligatorio:** valor válido`),
+  'Puente VeriFactu versión 0.1.0',
+  'Perfil de despliegue: SQLite single-node.',
+  'Productor Ejemplo',
+  '00000000T',
+  'Calle Ejemplo 1',
+  '3 de octubre de 2026',
+].join('\n'));
+await assert.rejects(
+  () => buildFinalReleaseBundle({
+    releaseEvidencePath: releasePath,
+    declarationPath: staleDeclarationPath,
+    expectedCommit: commit,
+  }),
+  (error) => error.code === 'VF_FINAL_RELEASE_DECLARATION_PROFILE_MISMATCH',
+);
 
 const missingAgentPath = join(dir, 'release-evidence-missing-agent.json');
 await writeFile(missingAgentPath, JSON.stringify({
