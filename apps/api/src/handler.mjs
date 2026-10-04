@@ -561,6 +561,27 @@ export function createApiHandler({
         return json(resource.duplicate ? 200 : 202, resource, correlationId);
       }
 
+      const recordStatusMatch = path.match(
+        /^\/v1\/fiscal-records\/(fr_[a-f0-9]+)\/status$/,
+      );
+      if (method === 'GET' && recordStatusMatch) {
+        return json(200, bridge.status(recordStatusMatch[1], context), correlationId);
+      }
+
+      const recordCancelMatch = path.match(
+        /^\/v1\/fiscal-records\/(fr_[a-f0-9]+)\/cancel$/,
+      );
+      if (method === 'POST' && recordCancelMatch) {
+        const idempotencyKey = header(request.headers, 'idempotency-key');
+        const resource = await bridge.cancel(
+          recordCancelMatch[1],
+          parseJsonBody(request),
+          context,
+          { idempotencyKey },
+        );
+        return json(resource.duplicate ? 200 : 202, resource, correlationId);
+      }
+
       const recordMatch = path.match(/^\/v1\/fiscal-records\/(fr_[a-f0-9]+)$/);
       if (method === 'GET' && recordMatch) return json(200, bridge.get(recordMatch[1], context), correlationId);
 
