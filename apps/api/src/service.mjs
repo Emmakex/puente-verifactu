@@ -158,6 +158,15 @@ export class UniversalBridgeService {
     };
   }
 
+  publicResource(resource) {
+    const presented = this.withPresentation(resource);
+    if (!presented) return presented;
+    return Object.freeze({
+      ...presented,
+      delivery: sanitizeDeliveryStatus(presented.delivery),
+    });
+  }
+
   assertPresentationIntent(intent) {
     try {
       buildVerifactuInvoicePresentation({
@@ -230,7 +239,7 @@ export class UniversalBridgeService {
 
     if (reservation.duplicate) {
       if (!reservation.existing.recordId) throw apiError('VF_API_IDEMPOTENCY_IN_PROGRESS', 'The same request is already being processed', 409);
-      return { ...this.withPresentation(this.store.get(reservation.existing.recordId)), duplicate: true };
+      return { ...this.publicResource(this.store.get(reservation.existing.recordId)), duplicate: true };
     }
 
     try {
@@ -257,7 +266,7 @@ export class UniversalBridgeService {
         delivery,
       });
       this.store.complete(requestKey, intent, recordId);
-      return { ...resource, duplicate: fiscalized.duplicate };
+      return { ...this.publicResource(resource), duplicate: fiscalized.duplicate };
     } catch (error) {
       this.store.release(requestKey, intent);
       throw error;
@@ -291,7 +300,7 @@ export class UniversalBridgeService {
 
   get(recordId, context) {
     const record = this.assertResourceAccess(this.store.get(recordId), context);
-    return this.withPresentation(record);
+    return this.publicResource(record);
   }
 
   status(recordId, context) {
@@ -373,7 +382,7 @@ export class UniversalBridgeService {
       if (fiscalized.duplicate && existingResource) {
         this.assertResourceAccess(existingResource, context);
         this.store.complete(requestKey, requestPayload, cancellationRecordId);
-        return { ...this.withPresentation(existingResource), duplicate: true };
+        return { ...this.publicResource(existingResource), duplicate: true };
       }
 
       let status = 'fiscalized';
@@ -405,7 +414,7 @@ export class UniversalBridgeService {
         delivery,
       });
       this.store.complete(requestKey, requestPayload, cancellationRecordId);
-      return { ...resource, duplicate: fiscalized.duplicate };
+      return { ...this.publicResource(resource), duplicate: fiscalized.duplicate };
     } catch (error) {
       this.store.release(requestKey, requestPayload);
       throw error;
