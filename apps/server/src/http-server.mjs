@@ -135,8 +135,21 @@ function normalizedApiResponse(response, rate) {
     'x-ratelimit-remaining': String(rate.remaining),
     'x-ratelimit-reset': String(Math.ceil(rate.resetAt / 1000)),
   };
+  if (response?.rawBody != null) {
+    return {
+      status: response?.status ?? 500,
+      headers,
+      rawBody: response.rawBody,
+      payload: null,
+    };
+  }
   const payload = response?.body ?? {};
-  return { status: response?.status ?? 500, headers, payload };
+  return {
+    status: response?.status ?? 500,
+    headers,
+    rawBody: null,
+    payload,
+  };
 }
 
 function rateHeaders(rate) {
@@ -232,7 +245,11 @@ export function createPuenteHttpServer({
         authContext,
       });
       const normalized = normalizedApiResponse(response, rate);
-      sendJson(res, normalized.status, normalized.payload, normalized.headers);
+      if (normalized.rawBody != null) {
+        send(res, normalized.status, normalized.rawBody, normalized.headers);
+      } else {
+        sendJson(res, normalized.status, normalized.payload, normalized.headers);
+      }
     } catch (error) {
       const status = Number.isInteger(error?.status) ? error.status : 500;
       sendJson(res, status, errorEnvelope(
