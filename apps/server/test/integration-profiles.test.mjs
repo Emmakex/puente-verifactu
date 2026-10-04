@@ -228,6 +228,8 @@ async function jsonRequest(baseUrl, token, path, { method = 'GET', body } = {}) 
 
 test('dynamic Mongo integration profile wins over static config and stamps server identity', async () => {
   const store = new MemoryIntegrationProfileStore();
+  const scopedToken = 'kairoseth_scoped_dynamic_' + 'x'.repeat(32);
+  const scopedCredentialId = 'dynamic-kcred-1';
   await store.create({
     profileId: dynamicProfileId,
     organizationId: 'org-dynamic',
@@ -243,7 +245,7 @@ test('dynamic Mongo integration profile wins over static config and stamps serve
     authBinding: {
       provider: 'kairoseth',
       status: 'active',
-      credentialId: 'data-plane',
+      credentialId: scopedCredentialId,
     },
     now: 1,
   });
@@ -252,6 +254,21 @@ test('dynamic Mongo integration profile wins over static config and stamps serve
     databasePath: ':memory:',
     authConfig: authConfig(),
     integrationProfileStore: store,
+    kairosethAuthProvider: {
+      resolveBearerDigest: async (digest) => (
+        digest === hashBearerToken(scopedToken)
+          ? {
+              credentialId: scopedCredentialId,
+              organizationId: 'org-dynamic',
+              installationId: 'install-dynamic',
+              sourceSystem: 'universal-rest',
+              profileId: dynamicProfileId,
+              rateLimitPerMinute: 500,
+              permissions: [],
+            }
+          : null
+      ),
+    },
     integrationConfig: {
       integrations: [{
         id: dynamicProfileId,
@@ -267,7 +284,7 @@ test('dynamic Mongo integration profile wins over static config and stamps serve
 
   try {
     const baseUrl = await listen(runtime);
-    const preflight = await jsonRequest(baseUrl, apiToken, '/v1/preflight', {
+    const preflight = await jsonRequest(baseUrl, scopedToken, '/v1/preflight', {
       method: 'POST',
       body: {
         profileId: dynamicProfileId,
@@ -441,6 +458,8 @@ test('webhook secret references stay opaque and resolve only through Kairoseth',
       credentialId: 'cred-webhook',
       organizationId: 'org-dynamic',
       installationId: 'install-dynamic',
+      sourceSystem: 'universal-webhook',
+      profileId: dynamicProfileId,
     },
     profileId: dynamicProfileId,
   });
