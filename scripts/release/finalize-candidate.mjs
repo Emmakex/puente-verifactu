@@ -17,6 +17,8 @@ function required(value, name) {
   return text;
 }
 
+const PRODUCTIVE_DEPLOYMENT_PROFILE = 'kairoseth-hostinger-mongodb';
+
 function sha256(buffer) {
   return createHash('sha256').update(buffer).digest('hex');
 }
@@ -95,6 +97,11 @@ export async function buildFinalReleaseBundle({
   }
 
   const version = required(release?.product?.version, 'release.product.version');
+  if (release?.product?.deployment_profile !== PRODUCTIVE_DEPLOYMENT_PROFILE) {
+    const error = new Error(`Release evidence must target ${PRODUCTIVE_DEPLOYMENT_PROFILE}`);
+    error.code = 'VF_FINAL_RELEASE_PROFILE_MISMATCH';
+    throw error;
+  }
   ensureDeclaration(declaration, version);
 
   const bundle = {
