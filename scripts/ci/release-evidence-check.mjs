@@ -8,10 +8,36 @@ import { buildReleaseEvidence } from '../release/release-evidence.mjs';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const gates = JSON.parse(await readFile(join(REPO_ROOT, 'config/release-gates.json'), 'utf8'));
 const registry = JSON.parse(await readFile(join(REPO_ROOT, 'config/regulatory-sources.json'), 'utf8'));
+const pilotPolicy = JSON.parse(
+  await readFile(join(REPO_ROOT, 'config/pilot-policy.example.json'), 'utf8'),
+);
+
+const releaseCriticalFiles = [
+  'config/release-gates.json',
+  'config/pilot-policy.example.json',
+  'scripts/release/responsible-declaration.mjs',
+  'scripts/release/pilot-readiness.mjs',
+  'docs/release/declaracion-responsable-template.md',
+  'docs/runbooks/pilot-progressive.md',
+];
+
+for (const path of releaseCriticalFiles) {
+  const content = await readFile(join(REPO_ROOT, path), 'utf8');
+  assert.equal(
+    content.includes('sqlite-single-node'),
+    false,
+    `Release-critical file must not target obsolete sqlite-single-node profile: ${path}`,
+  );
+}
 
 assert.equal(gates.schema_version, 1);
 assert.equal(gates.deployment_profile, 'kairoseth-hostinger-mongodb');
 assert.equal(gates.release_status, 'release_candidate');
+assert.equal(pilotPolicy.deployment_profile, 'kairoseth-hostinger-mongodb');
+assert.equal(
+  pilotPolicy.backup_evidence_kind,
+  'kairoseth-managed-mongodb-backup-evidence',
+);
 
 const aeatGate = gates.blockers.find((blocker) => blocker.id === 'AEAT_EXTERNAL_GATE_6');
 assert.ok(aeatGate, 'AEAT external gate #6 must be represented');
@@ -81,6 +107,7 @@ console.log(JSON.stringify({
   schema_version: 1,
   status: 'ok',
   release_status: evidence.release.status,
+  deployment_profile: evidence.product.deployment_profile,
   regulatory_reviewed_at: registry.reviewed_at,
   aeat_artifacts_verified_at: AEAT_ARTIFACTS.verifiedAt,
   regulatory_review_max_age_days: registry.expires_after_days,
