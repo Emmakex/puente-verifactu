@@ -31,19 +31,28 @@ Kairoseth Platform
       ↓
 Extensions
       ↓
-<nombre comercial>
-      ├── Web
-      ├── Connect
-      └── API
+Kairoseth Fiscal
+      ├── Fiscal Web
+      ├── Fiscal Connect
+      └── Fiscal API
 ```
 
-El nombre comercial definitivo y su slug se fijarán en Kairoseth Platform; **no se renombra el motor técnico ni el repositorio**.
+El nombre comercial seleccionado es **Kairoseth Fiscal** y su slug canónico es `kairoseth-fiscal`. **No se renombra el motor técnico ni el repositorio**. La superficie comercial permanece en acceso controlado mientras se completa release/piloto y se aprueban pricing, entitlements y billing.
+
+## Estado comercial
+
+- nombre: **Kairoseth Fiscal**;
+- slug: `kairoseth-fiscal`;
+- posicionamiento: **VeriFactu para cualquier software**;
+- promesa principal: **Conecta tu software con VeriFactu sin cambiar de sistema**;
+- disponibilidad: acceso controlado / release candidate;
+- billing self-service: deshabilitado hasta aprobación de precios, límites y entitlements.
 
 ## Gama comercial
 
 Se replica el patrón de Kairoseth Cargo:
 
-### Web
+### Fiscal Web
 
 Para autónomos/pymes que trabajan manualmente o con Excel/CSV.
 
@@ -55,7 +64,7 @@ Incluye:
 - estado y errores comprensibles;
 - fallback manual.
 
-### Connect
+### Fiscal Connect
 
 Para negocios con ecommerce, ERP o CRM conectable.
 
@@ -66,7 +75,7 @@ Incluye:
 - webhook;
 - Local Agent / DB / SFTP cuando corresponda.
 
-### API
+### Fiscal API
 
 Para ERP/TMS/CRM/software propio y partners técnicos.
 
@@ -105,11 +114,11 @@ El nombre comercial solo afecta a:
 Se mantiene el patrón DeCA:
 
 ```text
-/products/<slug-comercial>        -> URL canónica comercial
+/products/kairoseth-fiscal       -> URL canónica comercial
 /products/puente-verifactu        -> redirección permanente a la comercial
 ```
 
-La redirección solo se implementará en Kairoseth Platform cuando se haya fijado el nombre/slug comercial definitivo.
+La redirección ya forma parte de Kairoseth Platform. `puente-verifactu` continúa siendo el identificador técnico y `kairoseth-fiscal` la URL pública/canónica.
 
 ## SEO
 

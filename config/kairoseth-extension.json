@@ -42,7 +42,7 @@
   },
   "commercial_facade": {
     "enabled": true,
-    "status": "naming_pending",
+    "status": "selected_controlled_access",
     "pattern_reference": "Puente DeCA -> Kairoseth Cargo",
     "canonical_route_template": "/products/{commercial_slug}",
     "technical_route": "/products/puente-verifactu",
@@ -51,7 +51,13 @@
       "web",
       "connect",
       "api"
-    ]
+    ],
+    "commercial_name": "Kairoseth Fiscal",
+    "commercial_slug": "kairoseth-fiscal",
+    "canonical_route": "/products/kairoseth-fiscal",
+    "positioning": "VeriFactu para cualquier software",
+    "public_availability": "controlled_access",
+    "billing": "disabled_until_pricing_entitlements_and_acceptance_are_approved"
   },
   "infrastructure": {
     "control_plane": "kairoseth",
