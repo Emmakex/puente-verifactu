@@ -24,6 +24,7 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `local-agent-archive-retention.md` | Política fail-safe de retención/poda de archivos processed/error del Local Agent |
 | `csv-xlsx-durable-batches.md` | Confirmación, persistencia MongoDB, lease, reanudación y export de lotes CSV/XLSX |
 | `kairoseth-mongodb-runtime.md` | Perfil productivo Hostinger + MongoDB sin SQLite, stores inyectados, outbox, backup status y observabilidad |
+| `kairoseth-backup-evidence.md` | Evidencia sanitizada de backup/restore gestionado para el piloto Kairoseth + MongoDB |
 | `woocommerce-compatibility.md` | Matriz WP/Woo/PHP, HPOS y ZIP reproducible del conector WooCommerce |
 | `compliance.md` | Marco normativo, obligaciones y checklist de release |
 | `release-evidence.md` | Manifest reproducible, blockers, revisión regulatoria y fingerprints de release |
