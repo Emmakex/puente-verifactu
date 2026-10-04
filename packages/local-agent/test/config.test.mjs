@@ -36,8 +36,69 @@ test('Local Agent config resolves paths and remains fail-closed by default', () 
   assert.equal(config.dataDir, '/tmp/pv-config/data');
   assert.equal(config.source.root, '/tmp/pv-config/files');
   assert.equal(config.source.issueEnabled, false);
+  assert.deepEqual(config.source.archiveRetention, {
+    mode: 'keep',
+    processedDays: null,
+    errorDays: null,
+  });
   assert.equal(config.runtime.pollIntervalMs, 5_000);
   assert.equal(config.runtime.workerBatchSize, 50);
+});
+
+test('Local Agent archive retention is opt-in and requires explicit safe day limits', () => {
+  const enabled = validateLocalAgentConfig(baseConfig({
+    source: {
+      kind: 'watch-folder',
+      sourceId: 'watch',
+      profileId: 'watch-profile',
+      root: './files',
+      issueEnabled: false,
+      archiveRetention: {
+        mode: 'delete-source-after-days',
+        processedDays: 30,
+        errorDays: 90,
+      },
+    },
+  }));
+
+  assert.deepEqual(enabled.source.archiveRetention, {
+    mode: 'delete-source-after-days',
+    processedDays: 30,
+    errorDays: 90,
+  });
+
+  assert.throws(
+    () => validateLocalAgentConfig(baseConfig({
+      source: {
+        kind: 'watch-folder',
+        sourceId: 'watch',
+        profileId: 'watch-profile',
+        root: './files',
+        archiveRetention: {
+          mode: 'delete-source-after-days',
+          processedDays: 0,
+          errorDays: 90,
+        },
+      },
+    })),
+    (error) => error.code === 'VF_LOCAL_AGENT_CONFIG_INVALID',
+  );
+
+  assert.throws(
+    () => validateLocalAgentConfig(baseConfig({
+      source: {
+        kind: 'watch-folder',
+        sourceId: 'watch',
+        profileId: 'watch-profile',
+        root: './files',
+        archiveRetention: {
+          mode: 'delete-source-after-days',
+          processedDays: 30,
+        },
+      },
+    })),
+    (error) => error.code === 'VF_LOCAL_AGENT_CONFIG_INVALID',
+  );
 });
 
 test('Local Agent config forbids inline credentials and write-capable database SQL', () => {
