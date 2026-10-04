@@ -59,3 +59,34 @@ Aplica límites defensivos de tamaño, filas, columnas y entradas ZIP; no extrae
 ## Principio Camaleón
 
 El negocio no tiene que cambiar su Excel para adaptarse a Puente VeriFactu. El asistente propone cómo traducir las columnas existentes y el usuario solo confirma las equivalencias dudosas y completa los datos fiscales que no estén en el archivo.
+
+
+## Flujo durable Kairoseth
+
+En Kairoseth productivo, CSV/XLSX utiliza una confirmación explícita antes de cualquier efecto fiscal:
+
+```text
+POST /v1/imports/inspect
+  -> POST /v1/imports/{importId}/preflight
+  -> POST /v1/imports/{importId}/confirm
+  -> POST /v1/import-batches/{batchId}/issue
+  -> GET  /v1/import-batches/{batchId}
+  -> GET  /v1/import-batches/{batchId}/export
+```
+
+Reglas:
+
+- `inspect` y `preflight` no emiten nada;
+- `confirm` solo crea el batch si **todas** las filas pasan preflight;
+- la confirmación congela el `InvoiceIntent` exacto de cada fila;
+- el batch confirmado se persiste en MongoDB Kairoseth, aislado por organización + instalación;
+- el binario CSV/XLSX original no se guarda en MongoDB;
+- cada fila usa una `Idempotency-Key` estable derivada de `importId + row`;
+- la emisión adquiere un lease para impedir dos workers sobre el mismo batch;
+- una caída tras fiscalizar y antes de guardar el resultado se recupera reutilizando la misma idempotencia;
+- fallos retryable pueden reanudarse; fallos no retryable no se reintentan automáticamente;
+- el resultado público nunca devuelve el `InvoiceIntent` congelado ni XML/SOAP AEAT;
+- el export soporta JSON y `Accept: text/csv`.
+
+La antigua ruta directa `POST /v1/imports/{importId}/issue` queda bloqueada con
+`VF_IMPORT_CONFIRMATION_REQUIRED`; la confirmación es obligatoria.
