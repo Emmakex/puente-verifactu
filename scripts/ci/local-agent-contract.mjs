@@ -48,7 +48,7 @@ expect(exampleConfig.source?.archiveRetention?.mode === 'keep', 'LOCAL_AGENT_ARC
 expect(configSource.includes("'delete-source-after-days'"), 'LOCAL_AGENT_EXPLICIT_ARCHIVE_RETENTION_MODE_REQUIRED');
 expect(runtimeSource.includes('pruneWatchFolderArchives'), 'LOCAL_AGENT_ARCHIVE_RETENTION_RUNTIME_REQUIRED');
 expect(watchIngestSource.includes('await unlink(join(directory, entry.name))'), 'LOCAL_AGENT_ARCHIVE_SOURCE_PRUNE_REQUIRED');
-expect(watchIngestSource.includes('metadata_missing') === false, 'LOCAL_AGENT_ARCHIVE_RETENTION_MUST_NOT_LEAK_FILENAMES');
+expect(!watchIngestSource.includes('unlink(metadataPath)'), 'LOCAL_AGENT_ARCHIVE_METADATA_DELETE_FORBIDDEN');
 expect(versionSource.includes(`LOCAL_AGENT_VERSION = '${packageJson.version}'`), 'LOCAL_AGENT_VERSION_MUST_MATCH_PACKAGE');
 
 if (failures.length) {
