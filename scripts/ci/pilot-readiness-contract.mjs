@@ -33,6 +33,7 @@ await writeFile(approvalPath, JSON.stringify({
   schema_version: 1,
   kind: 'puente-verifactu-pilot-approval',
   candidate_commit: commit,
+  deployment_profile: 'kairoseth-hostinger-mongodb',
   declaration_sha256: declarationSha,
   declaration_approved: true,
   pilot_approved: true,
@@ -172,11 +173,36 @@ await assert.rejects(
   (error) => error.code === 'VF_PILOT_OPS_PROFILE_MISMATCH',
 );
 
+const wrongProfileApproval = join(dir, 'approval-wrong-profile.json');
+await writeFile(wrongProfileApproval, JSON.stringify({
+  schema_version: 1,
+  kind: 'puente-verifactu-pilot-approval',
+  candidate_commit: commit,
+  deployment_profile: 'sqlite-single-node',
+  declaration_sha256: declarationSha,
+  declaration_approved: true,
+  pilot_approved: true,
+  approved_at: '2026-10-03T12:00:00Z',
+}, null, 2));
+await assert.rejects(
+  () => buildPilotReadiness({
+    bundlePath,
+    approvalPath: wrongProfileApproval,
+    opsStatusPath: opsPath,
+    backupReportPath: backupPath,
+    policyPath,
+    expectedCommit: commit,
+    generatedAt: '2026-10-03T12:30:00Z',
+  }),
+  (error) => error.code === 'VF_PILOT_APPROVAL_PROFILE_MISMATCH',
+);
+
 const notApproved = join(dir, 'approval-no.json');
 await writeFile(notApproved, JSON.stringify({
   schema_version: 1,
   kind: 'puente-verifactu-pilot-approval',
   candidate_commit: commit,
+  deployment_profile: 'kairoseth-hostinger-mongodb',
   declaration_sha256: declarationSha,
   declaration_approved: false,
   pilot_approved: false,
