@@ -633,6 +633,30 @@ test('Kairoseth Auth provisions, rotates and revokes dynamic API credentials wit
     assert.equal(ownStatus.body.integrationProfileId, profileId);
     assert.equal(ownStatus.body.operation, 'issue');
 
+    const ownCancellation = await jsonRequest(
+      baseUrl,
+      firstToken,
+      `/v1/fiscal-records/${issued.body.recordId}/cancel`,
+      {
+        method: 'POST',
+        headers: { 'Idempotency-Key': 'dynamic-own-cancel' },
+        body: { sourceCancellationId: 'dynamic-cancel-1' },
+      },
+    );
+    assert.equal(ownCancellation.response.status, 202);
+    assert.equal(ownCancellation.body.integrationProfileId, profileId);
+    assert.equal(ownCancellation.body.installationId, 'int-api-01');
+    assert.equal(ownCancellation.body.sourceSystem, 'universal-rest');
+
+    const ownCancellationStatus = await jsonRequest(
+      baseUrl,
+      firstToken,
+      `/v1/fiscal-records/${ownCancellation.body.recordId}/status`,
+    );
+    assert.equal(ownCancellationStatus.response.status, 200);
+    assert.equal(ownCancellationStatus.body.operation, 'cancel');
+    assert.equal(ownCancellationStatus.body.integrationProfileId, profileId);
+
     const foreignProfileId = 'int_dddddddddddddddddddddddddddddddd';
     const foreign = await runtime.bridge.issueMapped(
       { ...source(), numero: '2' },
