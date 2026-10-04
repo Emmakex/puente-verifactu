@@ -41,6 +41,8 @@ export function createPuenteRuntime({
   integrationProfileStore = null,
   importSessionStore = null,
   importBatchStore = null,
+  fiscalRecordStore = null,
+  integrationDataStore = null,
   resolveIntegrationSecretReference = null,
   kairosethAuthProvider = null,
   supportedNativeConnectors = DEFAULT_NATIVE_CONNECTORS,
@@ -56,18 +58,25 @@ export function createPuenteRuntime({
       'importSessionStore and importBatchStore must be injected together',
     );
   }
+  if ((fiscalRecordStore == null) !== (integrationDataStore == null)) {
+    throw new TypeError(
+      'fiscalRecordStore and integrationDataStore must be injected together',
+    );
+  }
 
   const persistence = createSqlitePersistence({ path: requiredString(databasePath, 'databasePath') });
   // Single-node runtime recovery: after a process restart no in-flight HTTP request can still own
   // a pending reservation. Fiscal operations are independently idempotent, so a retry can safely
   // reconstruct the same durable API resource if the process stopped between fiscalization and completion.
-  const recoveredReservations = persistence.database.db
-    .prepare('DELETE FROM api_requests WHERE record_id IS NULL')
-    .run().changes;
+  const recoveredReservations = integrationDataStore
+    ? 0
+    : persistence.database.db
+      .prepare('DELETE FROM api_requests WHERE record_id IS NULL')
+      .run().changes;
 
   const fiscalService = new FiscalRecordService({
     sif: normalizedSif,
-    store: persistence.fiscalStore,
+    store: fiscalRecordStore ?? persistence.fiscalStore,
     clock,
   });
   const staticResolvers = createIntegrationResolvers(integrationConfig);
@@ -87,7 +96,7 @@ export function createPuenteRuntime({
   });
   const bridge = new FxAwareBridgeService({
     fiscalService,
-    store: persistence.integrationStore,
+    store: integrationDataStore ?? persistence.integrationStore,
     resolveEuroConversion: resolvers.resolveEuroConversion,
     presentationEnvironment,
   });

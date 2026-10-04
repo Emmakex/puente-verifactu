@@ -17,27 +17,52 @@ export class FiscalRecordService {
     return options?.generatedAt ?? timestampForZone(this.clock(), this.sif?.timeZone);
   }
 
+  async executeOperation({
+    chainKey,
+    operationKey,
+    payload,
+    createRecord,
+  }) {
+    const fingerprint = fiscalOperationFingerprint(payload);
+    if (typeof this.store?.executeOperation === 'function') {
+      return this.store.executeOperation({
+        chainKey,
+        operationKey,
+        fingerprint,
+        createRecord,
+      });
+    }
+
+    return this.store.transact(chainKey, ({ last, findOperation, append }) => {
+      const existing = findOperation(operationKey);
+      if (existing) {
+        if (existing.fingerprint !== fingerprint) {
+          throw conflict('Same fiscal operation identity received with different fiscal content');
+        }
+        return { record: existing.record, duplicate: true };
+      }
+      const record = createRecord(last);
+      append(record, { operationKey, operationPayload: payload });
+      return { record, duplicate: false };
+    });
+  }
+
   async issue(intent, options) {
     const chainKey = buildChainKey(intent.organizationId, this.sif);
     const operationKey = `issue\u001f${chainKey}\u001f${intent.installationId}\u001f${intent.sourceSystem}\u001f${intent.sourceInvoiceId}`;
     const { sourceMetadata: _ignored, ...fiscalIntent } = intent;
     const payload = { intent: fiscalIntent, euroAmounts: options?.euroAmounts ?? null };
 
-    return this.store.transact(chainKey, ({ last, findOperation, append }) => {
-      const existing = findOperation(operationKey);
-      const fingerprint = fiscalOperationFingerprint(payload);
-      if (existing) {
-        if (existing.fingerprint !== fingerprint) throw conflict('Same issue operation identity received with different fiscal content');
-        return { record: existing.record, duplicate: true };
-      }
-      const record = createAltaFiscalRecord(intent, {
+    return this.executeOperation({
+      chainKey,
+      operationKey,
+      payload,
+      createRecord: (previous) => createAltaFiscalRecord(intent, {
         ...options,
         generatedAt: this.generatedAt(options),
         sif: this.sif,
-        previous: last,
-      });
-      append(record, { operationKey, operationPayload: payload });
-      return { record, duplicate: false };
+        previous,
+      }),
     });
   }
 
@@ -47,21 +72,16 @@ export class FiscalRecordService {
     const operationKey = `cancel\u001f${chainKey}\u001f${request.sourceCancellationId}`;
     const payload = request;
 
-    return this.store.transact(chainKey, ({ last, findOperation, append }) => {
-      const existing = findOperation(operationKey);
-      const fingerprint = fiscalOperationFingerprint(payload);
-      if (existing) {
-        if (existing.fingerprint !== fingerprint) throw conflict('Same cancellation identity received with different content');
-        return { record: existing.record, duplicate: true };
-      }
-      const record = createAnulacionFiscalRecord(request, {
+    return this.executeOperation({
+      chainKey,
+      operationKey,
+      payload,
+      createRecord: (previous) => createAnulacionFiscalRecord(request, {
         ...options,
         generatedAt: this.generatedAt(options),
         sif: this.sif,
-        previous: last,
-      });
-      append(record, { operationKey, operationPayload: payload });
-      return { record, duplicate: false };
+        previous,
+      }),
     });
   }
 }

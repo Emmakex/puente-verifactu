@@ -76,6 +76,9 @@
     "integration_profiles": "mongodb-injected",
     "data_plane_auth": "kairoseth-injected",
     "import_sessions": "mongodb-injected-ttl",
-    "import_batches": "mongodb-injected-durable"
+    "import_batches": "mongodb-injected-durable",
+    "fiscal_records": "mongodb-injected-durable",
+    "api_records": "mongodb-injected-durable",
+    "api_idempotency": "mongodb-injected-lease"
   }
 }
