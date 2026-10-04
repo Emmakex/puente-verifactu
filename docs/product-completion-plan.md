@@ -99,13 +99,15 @@ Hecho:
 
 Después del último cambio funcional:
 
+- fijar el perfil productivo como `kairoseth-hostinger-mongodb`;
 - congelar SHA candidato;
-- CI completo verde;
-- regenerar release evidence para ese SHA;
+- CI completo verde sobre ese SHA;
+- regenerar release evidence para ese SHA y ese perfil;
 - regenerar bundle sanitizado;
-- preparar y aprobar declaración responsable definitiva de esa versión.
+- preparar la declaración responsable definitiva vinculada a esa versión;
+- dejar la aprobación explícita como gate humano privado, nunca automatizado.
 
-Ninguna evidencia ligada a un SHA anterior autoriza el release nuevo.
+Ninguna evidencia ligada a un SHA anterior ni al perfil `sqlite-single-node` autoriza el release nuevo.
 
 ### P4 — Piloto progresivo (#53)
 
@@ -113,7 +115,8 @@ Con el candidato congelado:
 
 - readiness gate;
 - aprobación privada;
-- backup lifecycle real;
+- snapshot operacional `kairoseth-mongodb`;
+- backup gestionado remoto/cifrado y restore drill con evidencia reciente;
 - observabilidad sin alertas críticas;
 - alcance progresivo;
 - stop conditions;
