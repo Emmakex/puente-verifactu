@@ -223,8 +223,8 @@ export class ImportSessionService {
     await this.store.purgeExpired(this.clock());
   }
 
-  async ensureCapacity() {
-    await this.store.ensureCapacity(this.maxSessions, this.clock());
+  async ensureCapacity(context = null) {
+    await this.store.ensureCapacity(this.maxSessions, this.clock(), context);
   }
 
   async inspect({
@@ -250,7 +250,7 @@ export class ImportSessionService {
         413,
       );
     }
-    await this.ensureCapacity();
+    await this.ensureCapacity(context);
 
     const table = parseImportFile(buffer, { filename, sheet, headerRow });
     const constants = addConfiguration(identityConstants(context), configuration);
@@ -380,6 +380,7 @@ export class ImportSessionService {
 
   async confirm(importId, context, input = {}) {
     this.requireBatchRuntime();
+    requireContext(context);
     if (!input || typeof input !== 'object' || Array.isArray(input)) {
       throw apiError('VF_IMPORT_CONFIRM_INPUT_INVALID', 'Confirmation body must be an object', 400);
     }
