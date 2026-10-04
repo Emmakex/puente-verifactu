@@ -337,3 +337,25 @@ test('runtime serves confirmed import batch CSV export as raw text', async () =>
     await runtime.close();
   }
 });
+
+
+test('runtime rejects partial Kairoseth fiscal data-plane persistence injection', () => {
+  assert.throws(
+    () => createPuenteRuntime({
+      databasePath: ':memory:',
+      authConfig: authConfig(),
+      sif: { systemId: 'PV', installationNumber: '001', timeZone: 'Europe/Madrid' },
+      fiscalRecordStore: {},
+    }),
+    /fiscalRecordStore and integrationDataStore must be injected together/,
+  );
+  assert.throws(
+    () => createPuenteRuntime({
+      databasePath: ':memory:',
+      authConfig: authConfig(),
+      sif: { systemId: 'PV', installationNumber: '001', timeZone: 'Europe/Madrid' },
+      integrationDataStore: {},
+    }),
+    /fiscalRecordStore and integrationDataStore must be injected together/,
+  );
+});
