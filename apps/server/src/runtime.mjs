@@ -72,6 +72,8 @@ export function createPuenteRuntime({
   fiscalRecordStore = null,
   integrationDataStore = null,
   aeatOutboxStore = null,
+  enqueueDelivery = null,
+  resolveDelivery = null,
   resolveIntegrationSecretReference = null,
   kairosethAuthProvider = null,
   supportedNativeConnectors = DEFAULT_NATIVE_CONNECTORS,
@@ -140,6 +142,12 @@ export function createPuenteRuntime({
       aeatOutboxStore,
       'aeatOutboxStore',
     );
+    if (typeof enqueueDelivery !== 'function') {
+      throw new TypeError('enqueueDelivery is required in kairoseth persistence mode');
+    }
+    if (typeof resolveDelivery !== 'function') {
+      throw new TypeError('resolveDelivery is required in kairoseth persistence mode');
+    }
     requiredInjectedStore(onboardingProfileStore, 'onboardingProfileStore');
     requiredInjectedStore(integrationProfileStore, 'integrationProfileStore');
     if (typeof resolveIntegrationSecretReference !== 'function') {
@@ -204,6 +212,8 @@ export function createPuenteRuntime({
     fiscalService,
     store: selectedIntegrationStore,
     resolveEuroConversion: resolvers.resolveEuroConversion,
+    enqueueDelivery,
+    resolveDelivery,
     presentationEnvironment,
   });
   const imports = new ImportSessionService({
