@@ -97,3 +97,61 @@ test('unsupported fixed field is rejected rather than written into canonical pro
     configuration: { ...configuration, organizationId: 'attacker-org' },
   }), { code: 'VF_IMPORT_CONFIGURATION_FIELD_INVALID' });
 });
+
+
+test('batch issuance is explicit, preflight-gated and idempotent per row', async () => {
+  const imports = new ImportSessionService();
+  const calls = [];
+  const seen = new Map();
+  const bridge = {
+    async issue(intent, receivedContext, { idempotencyKey }) {
+      calls.push({ intent, receivedContext, idempotencyKey });
+      if (seen.has(idempotencyKey)) return { ...seen.get(idempotencyKey), duplicate: true };
+      const resource = { recordId: `fr_${String(seen.size + 1).padStart(2, '0')}`, status: 'pending', duplicate: false };
+      seen.set(idempotencyKey, resource);
+      return resource;
+    },
+  };
+  const handler = createApiHandler({ bridge, imports, authenticate: async () => context });
+  const inspection = imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+
+  const first = await handler({
+    method: 'POST',
+    path: `/v1/imports/${inspection.importId}/issue`,
+    headers: { 'content-type': 'application/json' },
+    body: { configuration },
+  });
+  assert.equal(first.status, 202);
+  assert.deepEqual(first.body.summary, { rows: 1, issued: 1, duplicates: 0 });
+  assert.match(calls[0].idempotencyKey, new RegExp(`^${inspection.importId}:row:2$`));
+
+  const retry = await handler({
+    method: 'POST',
+    path: `/v1/imports/${inspection.importId}/issue`,
+    headers: { 'content-type': 'application/json' },
+    body: { configuration },
+  });
+  assert.equal(retry.status, 202);
+  assert.deepEqual(retry.body.summary, { rows: 1, issued: 0, duplicates: 1 });
+  assert.equal(retry.body.rows[0].recordId, first.body.rows[0].recordId);
+});
+
+test('batch issuance refuses a file with invalid rows before issuing anything', async () => {
+  const imports = new ImportSessionService();
+  let issueCalls = 0;
+  const handler = createApiHandler({
+    bridge: { async issue() { issueCalls += 1; return {}; } },
+    imports,
+    authenticate: async () => context,
+  });
+  const inspection = imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+  const response = await handler({
+    method: 'POST',
+    path: `/v1/imports/${inspection.importId}/issue`,
+    headers: { 'content-type': 'application/json' },
+    body: { configuration: { ...configuration, invoiceType: '' } },
+  });
+  assert.equal(response.status, 422);
+  assert.equal(response.body.error.code, 'VF_IMPORT_BATCH_PREFLIGHT_FAILED');
+  assert.equal(issueCalls, 0);
+});
