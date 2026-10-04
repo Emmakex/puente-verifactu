@@ -1,0 +1,13 @@
+{
+  "eventId": "evt_2026_0001",
+  "invoice": {
+    "id": "erp:invoice:2026-101",
+    "number": "2026-101",
+    "date": "2026-10-04",
+    "description": "Servicio enviado por webhook",
+    "base": "200.00",
+    "vatRate": "21",
+    "vatAmount": "42.00",
+    "total": "242.00"
+  }
+}
