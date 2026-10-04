@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "kind": "kairoseth-managed-mongodb-backup-evidence",
+  "deploymentProfile": "kairoseth-hostinger-mongodb",
+  "status": "ok",
+  "provider": "kairoseth-managed-mongodb-backup",
+  "backup": {
+    "createdAt": "2026-10-04T08:00:00.000Z",
+    "encryptedAtRest": true,
+    "reference": "backup-ref-example"
+  },
+  "restoreDrill": {
+    "performedAt": "2026-10-04T09:00:00.000Z",
+    "status": "ok",
+    "reference": "restore-drill-ref-example"
+  }
+}
