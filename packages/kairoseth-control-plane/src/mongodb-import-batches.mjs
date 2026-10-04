@@ -227,6 +227,127 @@ export class MongoKairosethImportBatchStore {
     const { _id, ...result } = doc;
     return structuredClone(result);
   }
+
+  async acquireLease({
+    batchId,
+    organizationId,
+    installationId,
+    leaseToken,
+    now,
+    expiresAt,
+  }) {
+    const doc = await this.collection.findOneAndUpdate(
+      {
+        batchId: String(batchId),
+        organizationId: String(organizationId),
+        installationId: String(installationId),
+        status: { $ne: 'completed' },
+        $or: [
+          { lease: null },
+          { lease: { $exists: false } },
+          { 'lease.expiresAt': { $lte: Number(now) } },
+        ],
+      },
+      {
+        $set: {
+          lease: {
+            token: String(leaseToken),
+            expiresAt: Number(expiresAt),
+          },
+          status: 'processing',
+          updatedAt: Number(now),
+        },
+      },
+      { returnDocument: 'after' },
+    );
+    if (!doc) return null;
+    const { _id, ...result } = doc;
+    return structuredClone(result);
+  }
+
+  async updateRow({
+    batchId,
+    organizationId,
+    installationId,
+    leaseToken,
+    row,
+    patch,
+    now,
+  }) {
+    assertNoBinary(patch, 'rowPatch');
+    const result = await this.collection.updateOne(
+      {
+        batchId: String(batchId),
+        organizationId: String(organizationId),
+        installationId: String(installationId),
+        'lease.token': String(leaseToken),
+      },
+      {
+        $set: {
+          'rows.$[target].status': patch.status,
+          'rows.$[target].recordId': patch.recordId ?? null,
+          'rows.$[target].fiscalStatus': patch.fiscalStatus ?? null,
+          'rows.$[target].duplicate': Boolean(patch.duplicate),
+          'rows.$[target].error': patch.error ?? null,
+          'rows.$[target].attempts': Number(patch.attempts ?? 0),
+          'rows.$[target].updatedAt': Number(now),
+          updatedAt: Number(now),
+        },
+      },
+      {
+        arrayFilters: [{ 'target.row': Number(row) }],
+      },
+    );
+    if (result.matchedCount !== 1) {
+      throw fail(
+        'VF_IMPORT_BATCH_LEASE_LOST',
+        'Import batch lease is not owned by this worker',
+        409,
+      );
+    }
+    if (result.modifiedCount !== 1) {
+      const batch = await this.get(batchId, { organizationId, installationId });
+      if (!batch?.rows?.some((item) => item.row === Number(row))) {
+        throw fail('VF_IMPORT_BATCH_ROW_NOT_FOUND', 'Import batch row not found', 404);
+      }
+    }
+    return this.get(batchId, { organizationId, installationId });
+  }
+
+  async releaseLease({
+    batchId,
+    organizationId,
+    installationId,
+    leaseToken,
+    status,
+    now,
+  }) {
+    const doc = await this.collection.findOneAndUpdate(
+      {
+        batchId: String(batchId),
+        organizationId: String(organizationId),
+        installationId: String(installationId),
+        'lease.token': String(leaseToken),
+      },
+      {
+        $set: {
+          lease: null,
+          status: String(status),
+          updatedAt: Number(now),
+        },
+      },
+      { returnDocument: 'after' },
+    );
+    if (!doc) {
+      throw fail(
+        'VF_IMPORT_BATCH_LEASE_LOST',
+        'Import batch lease is not owned by this worker',
+        409,
+      );
+    }
+    const { _id, ...result } = doc;
+    return structuredClone(result);
+  }
 }
 
 export function createMongoKairosethImportSessionStore(options) {
