@@ -1,6 +1,6 @@
 # Piloto progresivo v1
 
-Este gate prepara el piloto fiscal real del perfil `sqlite-single-node`. No activa envíos ni aprueba nada automáticamente.
+Este gate prepara el piloto fiscal real del perfil `kairoseth-hostinger-mongodb`. No activa envíos ni aprueba nada automáticamente.
 
 ## Principio
 
@@ -11,7 +11,7 @@ Un candidato solo puede obtener `pilot_ready` cuando coinciden, para el mismo co
 - snapshot operacional completamente `ok`;
 - cero `reconciliation_required`, cero `blocked` y cero leases expirados;
 - monitorización de backup configurada y en estado `ok`;
-- lifecycle real de backup en `ok`, incluido restore drill;
+- evidencia gestionada MongoDB en `ok`, cifrada en reposo, con backup reciente y restore drill reciente;
 - política de piloto con stop conditions obligatorias.
 
 La aprobación privada no es una firma electrónica de la declaración ni sustituye la responsabilidad del productor. Es una guarda operativa que impide iniciar el piloto por accidente.
@@ -21,11 +21,11 @@ La aprobación privada no es una firma electrónica de la declaración ni sustit
 Campos obligatorios de la política: `stop_on_warning=true`, `stop_on_rejection=true`, `stop_on_reconciliation_required=true`, `stop_on_blocked=true` y `rollback_mode=code-first-no-automatic-db-restore`.
 
 
-`config/pilot-policy.example.json` propone una primera ventana conservadora de hasta 5 operaciones o 120 minutos. Son límites internos de ingeniería, no límites establecidos por AEAT.
+`config/pilot-policy.example.json` propone una primera ventana conservadora de hasta 5 operaciones o 120 minutos, backup de antigüedad máxima 26 horas y restore drill de antigüedad máxima 90 días. Son límites internos de ingeniería, no límites establecidos por AEAT.
 
 Cualquier warning, rechazo, reconciliación pendiente o bloqueo obliga a detener la ventana y revisar antes de continuar.
 
-Rollback: **código primero, sin restore automático de la base**. Un restore solo procede si hay daño confirmado y siguiendo el runbook específico.
+Rollback: **código primero, sin restore automático de MongoDB**. Un restore solo procede si hay daño confirmado, mediante el procedimiento gestionado de Kairoseth/proveedor y tras revisar el estado fiscal posterior al punto de recuperación.
 
 ## Preparación privada
 
@@ -52,17 +52,21 @@ curl --fail --silent --show-error \
 chmod 600 "$HOME/.puente-verifactu/pilot/ops-status.json"
 ```
 
-El backup lifecycle debe ejecutarse contra evidencia real del deployment:
+El deployment Kairoseth debe producir evidencia real y sanitizada de su backup
+MongoDB gestionado. El contrato está en
+`config/kairoseth-backup-evidence.example.json` y se documenta en
+`docs/kairoseth-backup-evidence.md`.
+
+Guardar el recibo real fuera de Git:
 
 ```bash
-npm run backup:lifecycle:check -- \
-  --dir "$PV_BACKUP_DIR" \
-  --policy "$PV_BACKUP_POLICY" \
-  --remote-evidence "$PV_BACKUP_REMOTE_EVIDENCE" \
-  --restore-drill-evidence "$PV_RESTORE_DRILL_EVIDENCE" \
-  > "$HOME/.puente-verifactu/pilot/backup-report.json"
 chmod 600 "$HOME/.puente-verifactu/pilot/backup-report.json"
 ```
+
+El fichero debe provenir del procedimiento operativo de Kairoseth/proveedor y
+acreditar `status=ok`, cifrado en reposo, timestamp del backup, referencia opaca
+y restore drill correcto. No se considera evidencia válida copiar el ejemplo y
+cambiar manualmente `status` a `ok`.
 
 ## Gate
 
