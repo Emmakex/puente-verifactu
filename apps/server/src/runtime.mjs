@@ -51,6 +51,12 @@ export function createPuenteRuntime({
     timeZone: requiredString(sif?.timeZone, 'sif.timeZone'),
   };
 
+  if ((importSessionStore == null) !== (importBatchStore == null)) {
+    throw new TypeError(
+      'importSessionStore and importBatchStore must be injected together',
+    );
+  }
+
   const persistence = createSqlitePersistence({ path: requiredString(databasePath, 'databasePath') });
   // Single-node runtime recovery: after a process restart no in-flight HTTP request can still own
   // a pending reservation. Fiscal operations are independently idempotent, so a retry can safely
