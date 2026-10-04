@@ -67,6 +67,15 @@ function validatePolicy(policy) {
   if (!Number.isInteger(policy.max_duration_minutes) || policy.max_duration_minutes < 1) {
     throw pilotError('VF_PILOT_POLICY_DURATION_INVALID', 'max_duration_minutes must be a positive integer');
   }
+  if (!Number.isInteger(policy.max_backup_age_hours) || policy.max_backup_age_hours < 1) {
+    throw pilotError('VF_PILOT_POLICY_BACKUP_AGE_INVALID', 'max_backup_age_hours must be a positive integer');
+  }
+  if (!Number.isInteger(policy.max_restore_drill_age_days) || policy.max_restore_drill_age_days < 1) {
+    throw pilotError(
+      'VF_PILOT_POLICY_RESTORE_AGE_INVALID',
+      'max_restore_drill_age_days must be a positive integer',
+    );
+  }
   for (const key of [
     'stop_on_warning',
     'stop_on_rejection',
@@ -157,7 +166,7 @@ function validateOpsStatus(ops) {
   return ops;
 }
 
-function validateBackupReport(report) {
+function validateBackupReport(report, policy, referenceTime) {
   if (
     report?.schemaVersion !== 1
     || report?.kind !== 'kairoseth-managed-backup-readiness'
@@ -185,6 +194,24 @@ function validateBackupReport(report) {
       'VF_PILOT_RESTORE_DRILL_BACKUP_MISMATCH',
       'Restore drill must reference the validated candidate backup fingerprint',
     );
+  }
+
+  const now = Date.parse(referenceTime);
+  const backupCreated = Date.parse(String(report.newestBackup.createdAt ?? ''));
+  const drillPerformed = Date.parse(String(report.restoreDrill.performedAt ?? ''));
+  if (!Number.isFinite(now) || !Number.isFinite(backupCreated) || !Number.isFinite(drillPerformed)) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_TIMESTAMP_INVALID',
+      'Backup and restore drill timestamps must be valid ISO dates',
+    );
+  }
+  const backupAgeMs = Math.max(0, now - backupCreated);
+  const drillAgeMs = Math.max(0, now - drillPerformed);
+  if (backupAgeMs > policy.max_backup_age_hours * 60 * 60 * 1000) {
+    throw pilotError('VF_PILOT_BACKUP_TOO_OLD', 'Newest managed backup is older than pilot policy allows');
+  }
+  if (drillAgeMs > policy.max_restore_drill_age_days * 24 * 60 * 60 * 1000) {
+    throw pilotError('VF_PILOT_RESTORE_DRILL_TOO_OLD', 'Restore drill is older than pilot policy allows');
   }
   return report;
 }
@@ -216,10 +243,9 @@ export async function buildPilotReadiness({
   validateBundle(bundle, commit);
   const approvedAt = validateApproval(approval, bundle, commit);
   validateOpsStatus(ops);
-  validateBackupReport(backup);
-  validatePolicy(policy);
-
+  const validatedPolicy = validatePolicy(policy);
   const generated = generatedAt ? isoDate(generatedAt, '--generated-at') : new Date().toISOString();
+  validateBackupReport(backup, validatedPolicy, generated);
 
   const receipt = {
     schema_version: 1,
@@ -258,13 +284,15 @@ export async function buildPilotReadiness({
       restore_drill_sha256: backup.restoreDrill.backupSha256,
     },
     pilot_policy: {
-      max_operations: policy.max_operations,
-      max_duration_minutes: policy.max_duration_minutes,
+      max_operations: validatedPolicy.max_operations,
+      max_duration_minutes: validatedPolicy.max_duration_minutes,
+      max_backup_age_hours: validatedPolicy.max_backup_age_hours,
+      max_restore_drill_age_days: validatedPolicy.max_restore_drill_age_days,
       stop_on_warning: true,
       stop_on_rejection: true,
       stop_on_reconciliation_required: true,
       stop_on_blocked: true,
-      rollback_mode: policy.rollback_mode,
+      rollback_mode: validatedPolicy.rollback_mode,
     },
     contains_personal_data: false,
   };
