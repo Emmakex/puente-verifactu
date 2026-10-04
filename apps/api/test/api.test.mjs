@@ -92,3 +92,119 @@ test('record lookup never crosses organization boundaries', async () => {
   assert.equal(foreign.status, 404);
   assert.equal(foreign.body.error.code, 'VF_API_RECORD_NOT_FOUND');
 });
+
+
+test('status envelope includes presentation and cancellation is server-derived and idempotent', async () => {
+  const { handler } = setup();
+  const created = await handler({
+    method: 'POST',
+    path: '/v1/fiscal-records',
+    body: { intent: invoice({ sourceInvoiceId: 'invoice-lifecycle', number: '90' }) },
+    headers: { 'Idempotency-Key': 'evt-lifecycle-create' },
+  });
+  assert.equal(created.status, 202);
+
+  const status = await handler({
+    method: 'GET',
+    path: `/v1/fiscal-records/${created.body.recordId}/status`,
+    headers: {},
+  });
+  assert.equal(status.status, 200);
+  assert.equal(status.body.schemaVersion, 1);
+  assert.equal(status.body.recordId, created.body.recordId);
+  assert.equal(status.body.operation, 'issue');
+  assert.equal(status.body.status, 'fiscalized');
+  assert.equal(status.body.sourceInvoiceId, 'invoice-lifecycle');
+  assert.equal(status.body.sourceCancellationId, null);
+  assert.equal(status.body.cancellationOfRecordId, null);
+  assert.equal(status.body.fiscal.recordType, 'alta');
+  assert.equal(status.body.fiscal.fiscalNumber, 'A-90');
+  assert.equal(status.body.presentation.mode, 'VERI*FACTU');
+  assert.equal(status.body.presentation.qr.prefixText, 'QR tributario:');
+  assert.equal(status.body.delivery, null);
+  assert.equal('fiscalRecord' in status.body, false);
+
+  const missingKey = await handler({
+    method: 'POST',
+    path: `/v1/fiscal-records/${created.body.recordId}/cancel`,
+    body: { sourceCancellationId: 'cancel-lifecycle-1' },
+    headers: {},
+  });
+  assert.equal(missingKey.status, 400);
+  assert.equal(missingKey.body.error.code, 'VF_API_IDEMPOTENCY_KEY_REQUIRED');
+
+  const forbiddenFiscalIdentity = await handler({
+    method: 'POST',
+    path: `/v1/fiscal-records/${created.body.recordId}/cancel`,
+    body: {
+      sourceCancellationId: 'cancel-lifecycle-1',
+      issuerTaxId: 'ATTACKER',
+    },
+    headers: { 'Idempotency-Key': 'evt-lifecycle-cancel-forbidden' },
+  });
+  assert.equal(forbiddenFiscalIdentity.status, 400);
+  assert.equal(
+    forbiddenFiscalIdentity.body.error.code,
+    'VF_API_CANCELLATION_INPUT_FORBIDDEN',
+  );
+
+  const cancelRequest = {
+    method: 'POST',
+    path: `/v1/fiscal-records/${created.body.recordId}/cancel`,
+    body: { sourceCancellationId: 'cancel-lifecycle-1' },
+    headers: { 'Idempotency-Key': 'evt-lifecycle-cancel' },
+  };
+  const cancelled = await handler(cancelRequest);
+  assert.equal(cancelled.status, 202);
+  assert.match(cancelled.body.recordId, /^fr_[a-f0-9]{24}$/);
+  assert.equal(cancelled.body.fiscalRecord.recordType, 'anulacion');
+  assert.equal(cancelled.body.fiscalRecord.invoice.issuerTaxId, '89890001K');
+  assert.equal(cancelled.body.fiscalRecord.invoice.fiscalNumber, 'A-90');
+  assert.equal(cancelled.body.fiscalRecord.invoice.issueDate, '2026-09-15');
+  assert.equal(cancelled.body.sourceCancellationId, 'cancel-lifecycle-1');
+  assert.equal(cancelled.body.cancellationOfRecordId, created.body.recordId);
+  assert.equal(cancelled.body.presentation, null);
+
+  const retry = await handler(cancelRequest);
+  assert.equal(retry.status, 200);
+  assert.equal(retry.body.recordId, cancelled.body.recordId);
+  assert.equal(retry.body.duplicate, true);
+
+  const cancellationStatus = await handler({
+    method: 'GET',
+    path: `/v1/fiscal-records/${cancelled.body.recordId}/status`,
+    headers: {},
+  });
+  assert.equal(cancellationStatus.status, 200);
+  assert.equal(cancellationStatus.body.operation, 'cancel');
+  assert.equal(cancellationStatus.body.fiscal.recordType, 'anulacion');
+  assert.equal(cancellationStatus.body.presentation, null);
+  assert.equal(cancellationStatus.body.cancellationOfRecordId, created.body.recordId);
+  assert.equal(cancellationStatus.body.sourceCancellationId, 'cancel-lifecycle-1');
+});
+
+test('cancellation cannot target a cancellation resource', async () => {
+  const { handler } = setup();
+  const created = await handler({
+    method: 'POST',
+    path: '/v1/fiscal-records',
+    body: { intent: invoice({ sourceInvoiceId: 'invoice-cancel-twice', number: '91' }) },
+    headers: { 'Idempotency-Key': 'evt-cancel-twice-create' },
+  });
+  const cancelled = await handler({
+    method: 'POST',
+    path: `/v1/fiscal-records/${created.body.recordId}/cancel`,
+    body: { sourceCancellationId: 'cancel-twice-1' },
+    headers: { 'Idempotency-Key': 'evt-cancel-twice-1' },
+  });
+  assert.equal(cancelled.status, 202);
+
+  const secondCancel = await handler({
+    method: 'POST',
+    path: `/v1/fiscal-records/${cancelled.body.recordId}/cancel`,
+    body: { sourceCancellationId: 'cancel-twice-2' },
+    headers: { 'Idempotency-Key': 'evt-cancel-twice-2' },
+  });
+  assert.equal(secondCancel.status, 409);
+  assert.equal(secondCancel.body.error.code, 'VF_API_CANCELLATION_SOURCE_INVALID');
+});
