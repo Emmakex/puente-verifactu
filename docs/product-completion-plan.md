@@ -52,6 +52,16 @@ Criterios de salida:
 - export JSON/CSV;
 - Puente recibe un persistence bridge, nunca Mongo URI/client/password.
 
+### P1.5 — Persistencia data-plane Kairoseth en MongoDB (#91)
+
+Tras U10 hay que eliminar la dependencia productiva de SQLite en el runtime Kairoseth para:
+
+- cadena fiscal / operación idempotente;
+- API records e Idempotency-Key;
+- cualquier outbox/observabilidad que siga dependiendo del perfil SQLite y sea aplicable al deployment Kairoseth.
+
+SQLite continúa como perfil standalone/dev/test. Kairoseth productivo debe recibir stores MongoDB inyectados y fallar cerrado ante una configuración parcial.
+
 ### P2 — Gaps universales restantes (#55)
 
 Hecho:
@@ -116,7 +126,7 @@ La foundation comercial ya fusionada se conserva, pero no es camino crítico.
 Para este ciclo, consideramos el producto terminado cuando:
 
 1. los canales declarados como soportados tienen flujo seguro end-to-end;
-2. el deployment Kairoseth usa sus bridges y MongoDB donde corresponde;
+2. el deployment Kairoseth usa sus bridges y MongoDB para la persistencia productiva de control-plane y data-plane;
 3. no quedan gaps P1/P2 que bloqueen un caso prometido;
 4. existe un candidato final reproducible con evidencia vigente;
 5. la declaración responsable corresponde exactamente al candidato;
