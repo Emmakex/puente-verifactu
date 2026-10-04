@@ -599,7 +599,54 @@ test('unsupported fixed field is rejected rather than written into canonical pro
     { code: 'VF_IMPORT_CONFIGURATION_FIELD_INVALID' },
   );
 });
-));
+test('batch issuance requires explicit confirmation and is idempotent per frozen row', async () => {
+  const imports = new ImportSessionService();
+  const calls = [];
+  const seen = new Map();
+  const bridge = {
+    async issue(intent, receivedContext, { idempotencyKey }) {
+      calls.push({ intent, receivedContext, idempotencyKey });
+      if (seen.has(idempotencyKey)) return { ...seen.get(idempotencyKey), duplicate: true };
+      const resource = {
+        recordId: `fr_${String(seen.size + 1).padStart(2, '0')}`,
+        status: 'pending',
+        duplicate: false,
+      };
+      seen.set(idempotencyKey, resource);
+      return resource;
+    },
+  };
+  const handler = createApiHandler({ bridge, imports, authenticate: async () => context });
+  const inspection = await imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+
+  const direct = await handler({
+    method: 'POST',
+    path: `/v1/imports/${inspection.importId}/issue`,
+    headers: { 'content-type': 'application/json' },
+    body: { configuration },
+  });
+  assert.equal(direct.status, 409);
+  assert.equal(direct.body.error.code, 'VF_IMPORT_CONFIRMATION_REQUIRED');
+  assert.equal(calls.length, 0);
+
+  const confirmed = await handler({
+    method: 'POST',
+    path: `/v1/imports/${inspection.importId}/confirm`,
+    headers: { 'content-type': 'application/json' },
+    body: { configuration },
+  });
+  assert.equal(confirmed.status, 201);
+
+  const first = await handler({
+    method: 'POST',
+    path: `/v1/import-batches/${confirmed.body.batchId}/issue`,
+    headers: { 'content-type': 'application/json' },
+    body: {},
+  });
+  assert.equal(first.status, 202);
+  assert.equal(first.body.status, 'completed');
+  assert.equal(first.body.summary.issued, 1);
+  assert.match(calls[0].idempotencyKey, new RegExp(`^${inspection.importId}:row:2$`));
   assert.equal(first.body.rows[0].recordId, 'fr_01');
   assert.equal('intent' in first.body.rows[0], false);
 
