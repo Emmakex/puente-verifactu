@@ -6,6 +6,35 @@ Desplegar una nueva versión del perfil productivo `kairoseth-hostinger-mongodb`
 
 SQLite no participa en la persistencia productiva de este perfil. El tooling SQLite sigue disponible únicamente para `standalone`, desarrollo y test; su procedimiento está documentado en `backup-restore.md`.
 
+## Entrypoint productivo
+
+El runtime productivo se arranca exclusivamente con:
+
+```bash
+npm install --omit=dev --ignore-scripts --package-lock=false
+npm run server:kairoseth
+```
+
+`npm run server` y `apps/server/src/main.mjs` son el runtime `standalone` de referencia y **no se usan en Kairoseth productivo**.
+
+Antes del primer arranque de una base/entorno, la infraestructura Kairoseth aplica explícitamente los índices MongoDB versionados:
+
+```bash
+MONGODB_DB_NAME=kairoseth npm run kairoseth:mongodb:init
+```
+
+El servidor productivo no crea índices silenciosamente; los verifica al arrancar y falla cerrado si falta alguno.
+
+La plantilla de configuración no sensible está en `config/kairoseth-production.env.example`. Los valores reales de MongoDB, auth, certificado AEAT, declaración, backup y secretos de integración permanecen en Hostinger/secret mounts y fuera de Git.
+
+El runtime conecta de extremo a extremo:
+
+```text
+HTTP/Kairoseth -> core fiscal -> MongoDB -> AEAT outbox -> worker mTLS -> AEAT
+```
+
+Una alta o anulación productiva no puede arrancar en modo Kairoseth sin `enqueueDelivery` y `resolveDelivery`. El worker conserva los resultados inciertos en `reconciliation_required`; no hay reenvío ciego.
+
 ## Precondiciones
 
 - CI de `main` completamente verde para el SHA exacto.
@@ -38,6 +67,7 @@ El token debe llegar por variable de entorno o secret manager, nunca persistido 
 
 ## Despliegue
 
+0. Ejecutar `npm run kairoseth:mongodb:init` contra la base `kairoseth` si el candidato introduce/actualiza índices; después desplegar con `npm run server:kairoseth`.
 1. Colocar el nuevo código/artefacto en una release nueva; no modificar una release anterior in-place.
 2. Mantener fuera de Git auth, secretos, certificado y configuración privada.
 3. Detener/reiniciar el proceso según el mecanismo de Hostinger/Kairoseth, conservando cierre graceful.
