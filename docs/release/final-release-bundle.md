@@ -9,6 +9,7 @@ El bundle resultante **no incluye** el contenido de la declaración, NIF, direcc
 - `release-evidence.json` generado para el SHA exacto del candidato;
 - estado `release_candidate`;
 - `deployment_profile=kairoseth-hostinger-mongodb`;
+- fingerprints reproducibles de WooCommerce, PrestaShop y Kairoseth Local Agent;
 - cero blockers abiertos;
 - CI del candidato en `success`;
 - declaración responsable con secciones a)-l), sin placeholders y con la misma versión del producto.
