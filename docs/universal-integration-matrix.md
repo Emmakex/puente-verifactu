@@ -261,9 +261,19 @@ Todos los canales deben cumplir:
 - [x] SFTP read-only/no destructivo;
 - [ ] formatos adicionales cuando exista un caso de producto que los requiera.
 
-### U5 — Manual universal
+### U5 — Manual universal ✅
 
-Formulario mínimo y fallback operativo.
+- [x] formulario ES/EN responsive;
+- [x] payload neutral sin autoridad fiscal/tenant en cliente;
+- [x] mapping server-side a `InvoiceIntent v1`;
+- [x] preflight explícito en UI y repetido server-side antes de emitir;
+- [x] confirmación humana;
+- [x] idempotencia estable por identidad documental;
+- [x] F1/F2 y R1-R5 dentro del perfil manual soportado;
+- [x] consulta de estado y presentación QR;
+- [x] fail-closed fuera del perfil IVA interior 21/10/4.
+
+Con U5 cerrado, la matriz capability-first dispone de un fallback operativo incluso cuando el sistema origen no ofrece ninguna capacidad técnica de integración.
 
 ## Regla de release
 
