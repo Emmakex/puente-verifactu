@@ -110,13 +110,19 @@ export class MongoKairosethImportSessionStore {
     await this.collection.deleteMany({ expiresAt: { $lte: Number(now) } });
   }
 
-  async ensureCapacity(maxSessions, now) {
+  async ensureCapacity(maxSessions, now, context = null) {
     await this.purgeExpired(now);
-    const count = await this.collection.countDocuments({});
+    const scope = context?.organizationId && context?.installationId
+      ? {
+          organizationId: String(context.organizationId),
+          installationId: String(context.installationId),
+        }
+      : {};
+    const count = await this.collection.countDocuments(scope);
     const removeCount = Math.max(0, count - Number(maxSessions) + 1);
     if (removeCount < 1) return;
     const oldest = await this.collection
-      .find({}, { projection: { _id: 1 } })
+      .find(scope, { projection: { _id: 1 } })
       .sort({ createdAt: 1, importId: 1 })
       .limit(removeCount)
       .toArray();
@@ -254,7 +260,9 @@ export class MongoKairosethImportBatchStore {
       },
       { returnDocument: 'after' },
     );
-    const doc = result?.value ?? result;
+    const doc = result && Object.prototype.hasOwnProperty.call(result, 'value')
+      ? result.value
+      : result;
     if (doc) return publicBatch(doc);
 
     const current = await this.get(organizationId, installationId, batchId);
@@ -329,7 +337,9 @@ export class MongoKairosethImportBatchStore {
       },
       { returnDocument: 'after' },
     );
-    const doc = result?.value ?? result;
+    const doc = result && Object.prototype.hasOwnProperty.call(result, 'value')
+      ? result.value
+      : result;
     if (!doc) {
       throw fail(
         'VF_IMPORT_BATCH_LEASE_LOST',
