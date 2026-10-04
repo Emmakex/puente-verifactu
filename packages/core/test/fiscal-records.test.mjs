@@ -139,3 +139,53 @@ test('numeric trailing zeros do not change AEAT hash', () => {
     generatedAt: '2024-01-01T19:20:30+01:00',
   }), officialFirstHash);
 });
+
+test('service supports an external atomic fiscal operation store without transact()', async () => {
+  const operations = new Map();
+  const chains = new Map();
+  const store = {
+    async executeOperation({ chainKey, operationKey, fingerprint, createRecord }) {
+      const existing = operations.get(operationKey);
+      if (existing) {
+        if (existing.fingerprint !== fingerprint) {
+          throw Object.assign(new Error('conflict'), { code: 'VF_FISCAL_IDEMPOTENCY_CONFLICT' });
+        }
+        return { record: structuredClone(existing.record), duplicate: true };
+      }
+      const chain = chains.get(chainKey) ?? [];
+      const previous = chain.at(-1) ?? null;
+      const record = createRecord(previous);
+      chain.push(structuredClone(record));
+      chains.set(chainKey, chain);
+      operations.set(operationKey, { fingerprint, record: structuredClone(record) });
+      return { record: structuredClone(record), duplicate: false };
+    },
+    async list(chainKey) {
+      return structuredClone(chains.get(chainKey) ?? []);
+    },
+  };
+
+  const service = new FiscalRecordService({
+    sif: { systemId: 'PV', installationNumber: '001' },
+    store,
+  });
+  const one = await service.issue(
+    intent('external-1', 'EXT-1'),
+    { generatedAt: '2026-09-15T10:00:00+02:00' },
+  );
+  const duplicate = await service.issue(
+    intent('external-1', 'EXT-1'),
+    { generatedAt: '2026-09-15T10:05:00+02:00' },
+  );
+  const two = await service.issue(
+    intent('external-2', 'EXT-2'),
+    { generatedAt: '2026-09-15T10:06:00+02:00' },
+  );
+
+  assert.equal(one.duplicate, false);
+  assert.equal(duplicate.duplicate, true);
+  assert.equal(duplicate.record.hash, one.record.hash);
+  assert.equal(two.record.sequence, 2);
+  assert.equal(two.record.previous.hash, one.record.hash);
+  assert.equal(verifyFiscalChain(await store.list(one.record.chainKey)).ok, true);
+});
