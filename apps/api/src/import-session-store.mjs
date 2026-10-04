@@ -68,6 +68,92 @@ export class MemoryImportBatchStore {
     return structuredClone(batch);
   }
 
+  acquireLease({
+    batchId,
+    organizationId,
+    installationId,
+    leaseToken,
+    now,
+    expiresAt,
+  }) {
+    const batch = this.batches.get(batchId);
+    if (
+      !batch
+      || batch.organizationId !== organizationId
+      || batch.installationId !== installationId
+      || batch.status === 'completed'
+    ) {
+      return null;
+    }
+    if (batch.lease && batch.lease.expiresAt > now) return null;
+    batch.lease = { token: leaseToken, expiresAt };
+    batch.status = 'processing';
+    batch.updatedAt = now;
+    this.batches.set(batchId, batch);
+    return structuredClone(batch);
+  }
+
+  updateRow({
+    batchId,
+    organizationId,
+    installationId,
+    leaseToken,
+    row,
+    patch,
+    now,
+  }) {
+    const batch = this.batches.get(batchId);
+    if (
+      !batch
+      || batch.organizationId !== organizationId
+      || batch.installationId !== installationId
+      || batch.lease?.token !== leaseToken
+    ) {
+      throw Object.assign(new Error('Import batch lease is not owned by this worker'), {
+        code: 'VF_IMPORT_BATCH_LEASE_LOST',
+        status: 409,
+      });
+    }
+    const target = batch.rows.find((item) => item.row === row);
+    if (!target) {
+      throw Object.assign(new Error('Import batch row not found'), {
+        code: 'VF_IMPORT_BATCH_ROW_NOT_FOUND',
+        status: 404,
+      });
+    }
+    Object.assign(target, structuredClone(patch), { updatedAt: now });
+    batch.updatedAt = now;
+    this.batches.set(batchId, batch);
+    return structuredClone(batch);
+  }
+
+  releaseLease({
+    batchId,
+    organizationId,
+    installationId,
+    leaseToken,
+    status,
+    now,
+  }) {
+    const batch = this.batches.get(batchId);
+    if (
+      !batch
+      || batch.organizationId !== organizationId
+      || batch.installationId !== installationId
+      || batch.lease?.token !== leaseToken
+    ) {
+      throw Object.assign(new Error('Import batch lease is not owned by this worker'), {
+        code: 'VF_IMPORT_BATCH_LEASE_LOST',
+        status: 409,
+      });
+    }
+    batch.lease = null;
+    batch.status = status;
+    batch.updatedAt = now;
+    this.batches.set(batchId, batch);
+    return structuredClone(batch);
+  }
+
   size() {
     return this.batches.size;
   }
