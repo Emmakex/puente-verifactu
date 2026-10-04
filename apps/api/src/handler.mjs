@@ -512,7 +512,7 @@ export function createApiHandler({
         forbidIntegrationCredential(context, 'file import routes');
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
         const headerRowRaw = header(request.headers, 'x-header-row');
-        const result = imports.inspect({
+        const result = await imports.inspect({
           buffer: binaryBody(request),
           filename: decodedHeader(request.headers, 'x-file-name', 'import'),
           sheet: decodedHeader(request.headers, 'x-sheet', '') || undefined,
@@ -528,14 +528,33 @@ export function createApiHandler({
       if (method === 'POST' && importPreflightMatch) {
         forbidIntegrationCredential(context, 'file import routes');
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
-        const result = imports.preflight(importPreflightMatch[1], context, parseJsonBody(request));
+        const result = await imports.preflight(importPreflightMatch[1], context, parseJsonBody(request));
         return json(200, result, correlationId);
       }
+      const importConfirmMatch = path.match(/^\/v1\/imports\/(imp_[a-f0-9]{32})\/confirm$/);
+      if (method === 'POST' && importConfirmMatch) {
+        forbidIntegrationCredential(context, 'file import routes');
+        if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
+        const confirmed = await imports.confirmBatch(
+          importConfirmMatch[1],
+          context,
+          parseJsonBody(request),
+        );
+        return json(201, confirmed, correlationId);
+      }
+
+      const importBatchMatch = path.match(/^\/v1\/import-batches\/(bat_[a-f0-9]{32})$/);
+      if (method === 'GET' && importBatchMatch) {
+        forbidIntegrationCredential(context, 'file import routes');
+        if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
+        return json(200, await imports.batch(importBatchMatch[1], context), correlationId);
+      }
+
       const importIssueMatch = path.match(/^\/v1\/imports\/(imp_[a-f0-9]{32})\/issue$/);
       if (method === 'POST' && importIssueMatch) {
         forbidIntegrationCredential(context, 'file import routes');
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
-        const batch = imports.prepareBatch(importIssueMatch[1], context, parseJsonBody(request));
+        const batch = await imports.prepareBatch(importIssueMatch[1], context, parseJsonBody(request));
         const results = [];
         for (const row of batch.rows) {
           const resource = await bridge.issue(row.intent, context, { idempotencyKey: row.idempotencyKey });
@@ -552,7 +571,7 @@ export function createApiHandler({
       if (method === 'DELETE' && importMatch) {
         forbidIntegrationCredential(context, 'file import routes');
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
-        return json(200, imports.remove(importMatch[1], context), correlationId);
+        return json(200, await imports.remove(importMatch[1], context), correlationId);
       }
 
       if (method === 'POST' && path === '/v1/preflight') {
