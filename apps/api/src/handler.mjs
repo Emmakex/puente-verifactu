@@ -529,6 +529,17 @@ export function createApiHandler({
       if (method === 'POST' && path === '/v1/manual/fiscal-records') {
         const body = parseJsonBody(request);
         const intent = manualCaptureToIntent(body);
+        const preflight = bridge.preflight(intent, context);
+        if (!preflight.ok) {
+          throw Object.assign(
+            new Error('Manual capture must pass preflight before issuance'),
+            {
+              code: 'VF_MANUAL_PREFLIGHT_FAILED',
+              status: 422,
+              details: [...(preflight.errors ?? []), ...(preflight.warnings ?? [])],
+            },
+          );
+        }
         const resource = await bridge.issue(intent, context, {
           idempotencyKey: manualCaptureIdempotencyKey(body),
         });
