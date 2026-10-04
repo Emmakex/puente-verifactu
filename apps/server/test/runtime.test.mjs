@@ -245,3 +245,95 @@ test('runtime fails closed when responsible declaration is not configured', asyn
     await runtime.close();
   }
 });
+
+
+test('runtime rejects partial Kairoseth import persistence injection', () => {
+  assert.throws(
+    () => createPuenteRuntime({
+      databasePath: ':memory:',
+      authConfig: authConfig(),
+      sif: { systemId: 'PV', installationNumber: '001', timeZone: 'Europe/Madrid' },
+      importSessionStore: {},
+    }),
+    /importSessionStore and importBatchStore must be injected together/,
+  );
+});
+
+test('runtime serves confirmed import batch CSV export as raw text', async () => {
+  const runtime = createPuenteRuntime({
+    databasePath: ':memory:',
+    authConfig: authConfig(),
+    sif: { systemId: 'PV', installationNumber: '001', timeZone: 'Europe/Madrid' },
+    clock: () => new Date('2026-09-15T09:00:00Z'),
+  });
+  const basic = Buffer.from(`demo:${uiPassword}`).toString('base64');
+  const csv = [
+    'Nº Factura;Fecha factura;Concepto;Base imponible;Cuota IVA;Total factura',
+    'HTTP-CSV-1;15/09/2026;Servicio CSV;100,00;21,00;121,00',
+  ].join('\n');
+  const configuration = {
+    'issuer.name': 'Empresa Demo',
+    'issuer.taxId': '89890001K',
+    currency: 'EUR',
+    'taxBreakdown.0.taxCode': '01',
+    'taxBreakdown.0.regimeKey': '01',
+    'taxBreakdown.0.operationClass': 'S1',
+    'taxBreakdown.0.rate': '21',
+    invoiceType: 'F2',
+  };
+
+  try {
+    const baseUrl = await listen(runtime);
+    const authHeaders = { authorization: `Basic ${basic}` };
+
+    const inspected = await fetch(`${baseUrl}/v1/imports/inspect`, {
+      method: 'POST',
+      headers: {
+        ...authHeaders,
+        'x-file-name': encodeURIComponent('facturas.csv'),
+        'content-type': 'application/octet-stream',
+      },
+      body: csv,
+    });
+    assert.equal(inspected.status, 201);
+    const inspection = await inspected.json();
+
+    const confirmed = await fetch(
+      `${baseUrl}/v1/imports/${inspection.importId}/confirm`,
+      {
+        method: 'POST',
+        headers: { ...authHeaders, 'content-type': 'application/json' },
+        body: JSON.stringify({ configuration }),
+      },
+    );
+    assert.equal(confirmed.status, 201);
+    const batch = await confirmed.json();
+
+    const issued = await fetch(
+      `${baseUrl}/v1/import-batches/${batch.batchId}/issue`,
+      {
+        method: 'POST',
+        headers: { ...authHeaders, 'content-type': 'application/json' },
+        body: '{}',
+      },
+    );
+    assert.equal(issued.status, 202);
+    assert.equal((await issued.json()).status, 'completed');
+
+    const exported = await fetch(
+      `${baseUrl}/v1/import-batches/${batch.batchId}/export`,
+      {
+        headers: { ...authHeaders, accept: 'text/csv' },
+      },
+    );
+    assert.equal(exported.status, 200);
+    assert.match(exported.headers.get('content-type') ?? '', /^text\/csv/);
+    assert.match(exported.headers.get('content-disposition') ?? '', /^attachment/);
+    const text = await exported.text();
+    assert.match(text, /^row,status,recordId,/);
+    assert.equal(text.includes('89890001K'), false);
+    assert.equal(text.includes('HTTP-CSV-1'), false);
+  } finally {
+    await runtime.close();
+  }
+});
