@@ -12,7 +12,7 @@ PV
 0.1.0
 
 **d) Componentes, hardware y software, breve descripción y principales funcionalidades:**  
-Puente VeriFactu es un sistema informático de facturación modular para integración con sistemas empresariales. Incluye núcleo fiscal canónico, registros de alta y anulación, encadenamiento y huella SHA-256, adaptador AEAT VERI*FACTU, outbox durable, reconciliación oficial, API/SDK, importación CSV/XLSX, webhooks y conectores WooCommerce/PrestaShop. El perfil objetivo de esta versión es software sobre servidor de propósito general, SQLite single-node, sin hardware propietario obligatorio.
+Puente VeriFactu es un sistema informático de facturación modular para integración con sistemas empresariales. Incluye núcleo fiscal canónico, registros de alta y anulación, encadenamiento y huella SHA-256, adaptador AEAT VERI*FACTU, outbox durable, reconciliación oficial, API/SDK, importación CSV/XLSX, webhooks, conectores WooCommerce/PrestaShop, Kairoseth Local Agent para integraciones read-only/SFTP/watch-folder y captura manual universal. El perfil productivo de esta versión se ejecuta dentro de Kairoseth sobre infraestructura Hostinger con persistencia MongoDB inyectada y autoridad fiscal/certificado server-side. SQLite queda reservado al perfil standalone de desarrollo, prueba y referencia y no forma parte de la persistencia productiva del candidato. No requiere hardware propietario obligatorio.
 
 **e) Indicación de si el sistema se ha producido para funcionar exclusivamente como «VERI*FACTU»:**  
 S - Sí.
@@ -42,9 +42,9 @@ La persona o entidad productora hace constar que Puente VeriFactu, versión 0.1.
 
 - Contacto adicional: <CONTACTO_OPCIONAL>
 - Sitio web del productor/producto: <URL_OPCIONAL>
-- Perfil de despliegue: SQLite single-node.
-- Conector WooCommerce: 0.2.0.
-- Conector PrestaShop: 0.4.0.
+- Perfil de despliegue productivo: Kairoseth en Hostinger + MongoDB.
+- Artefactos técnicos versionados y fingerprintados en la evidencia de release: WooCommerce, PrestaShop y Kairoseth Local Agent.
+- Canales adicionales cubiertos por el mismo core: API/SDK, webhook, CSV/XLSX y captura manual.
 - Evidencia externa AEAT: `docs/release/aeat-gate-6-evidence-2026-10-03.md`.
 
 ## Generación privada
