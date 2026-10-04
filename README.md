@@ -2,7 +2,7 @@
 
 **Puente VeriFactu** es un **producto del catálogo Kairoseth Extensions** y actúa como capa de integración fiscal para conectar sistemas de facturación, ERP, CRM, ecommerce, hojas de cálculo y software propio con **VERI*FACTU / AEAT** sin obligar al negocio a sustituir lo que ya utiliza.
 
-> Estado: Fases 0–5 técnicamente cerradas. El gate externo AEAT #6 se completó el 3 de octubre de 2026 con aceptación real en pruebas, rechazo controlado y reconciliación oficial; el repositorio está en `release_candidate`. Fase 6 incorpora backup/restore SQLite verificable, outbox durable, observabilidad, runbooks, evidencia de release, workflow privado de declaración responsable y acceso autenticado a dicha declaración dentro del runtime. No usar todavía en producción: queda completar la aprobación/publicación de la declaración responsable definitiva de la versión y el piloto progresivo con rollback y monitorización. Este repositorio no constituye asesoramiento fiscal o jurídico.
+> Estado: Fases 0–5 técnicamente cerradas. El gate externo AEAT #6 se completó el 3 de octubre de 2026 con aceptación real en pruebas, rechazo controlado y reconciliación oficial; el repositorio está en `release_candidate`. La prioridad vigente es **terminar producto antes de comercialización**: cerrar U10/#84 (CSV/XLSX durable sobre MongoDB Kairoseth), los gaps universales restantes, congelar el candidato final, aprobar su declaración responsable y ejecutar el piloto progresivo con rollback/monitorización. Pricing y billing quedan después. No usar todavía en producción. Este repositorio no constituye asesoramiento fiscal o jurídico.
 
 ## Modelo de producto Kairoseth
 
@@ -12,7 +12,7 @@ Kairoseth → Extensions → Puente VeriFactu → adapters/canales de conexión
 
 WooCommerce, PrestaShop, API, Webhook, Excel/CSV, futuros adapters de ERP/CRM, DB, SFTP y Local Agent pertenecen a **la misma extensión**. No se convierten en productos separados. El manifest de producto vive en `config/kairoseth-extension.json`.
 
-La identidad técnica permanece `Puente VeriFactu`. La cara comercial seguirá el mismo patrón que **Puente DeCA → Kairoseth Cargo**: nombre comercial propio dentro de Kairoseth, sin renombrar el motor, contratos ni repositorio. El naming comercial de VeriFactu queda pendiente de fijar.
+La identidad técnica permanece `Puente VeriFactu`. La faceta comercial seleccionada es **Kairoseth Fiscal**, siguiendo el patrón **Puente DeCA → Kairoseth Cargo**. El naming comercial no renombra el motor, contratos ni repositorio. Pricing, billing y checkout permanecen deliberadamente deferidos hasta cerrar desarrollo de producto, candidato final y piloto.
 
 ## Principio Camaleón
 
