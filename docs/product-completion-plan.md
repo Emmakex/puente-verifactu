@@ -21,9 +21,9 @@ Mientras este plan no esté cerrado:
 
 ### P1 — U10 CSV/XLSX durable en Kairoseth MongoDB (#84)
 
-**Implementación en curso:** confirmación explícita, store MongoDB TTL/durable,
-lease de batch, emisión reanudable y export seguro forman una única unidad de
-cierre. No se considera P1 cerrado hasta que el smoke MongoDB real y CI estén verdes.
+**Cerrado en #90:** confirmación explícita, sesiones TTL, batch durable, lease,
+emisión reanudable, idempotencia estable por fila y export seguro están
+fusionados en `main` con smoke MongoDB real y CI 19/19 verde.
 
 Debe cerrar el flujo:
 
@@ -54,15 +54,22 @@ Criterios de salida:
 
 ### P1.5 — Persistencia data-plane Kairoseth en MongoDB (#91)
 
-**Microfase activa:** cadena fiscal + API records + Idempotency-Key mediante stores MongoDB inyectados. SQLite sigue temporalmente para outbox/observabilidad hasta la siguiente microfase del mismo blocker.
+**Cierre en esta unidad:** cadena fiscal, API records/Idempotency-Key, AEAT outbox,
+readiness y observabilidad usan stores/health providers MongoDB inyectados. El
+runtime incorpora un modo explícito `kairoseth` que no crea ni requiere SQLite.
 
-Tras U10 hay que eliminar la dependencia productiva de SQLite en el runtime Kairoseth para:
+Perfil productivo Kairoseth:
 
-- cadena fiscal / operación idempotente;
-- API records e Idempotency-Key;
-- cualquier outbox/observabilidad que siga dependiendo del perfil SQLite y sea aplicable al deployment Kairoseth.
+- cadena fiscal e idempotencia fiscal: MongoDB;
+- API records e Idempotency-Key: MongoDB con lease recuperable;
+- CSV/XLSX sessions/batches: MongoDB;
+- Local Agent registry: MongoDB;
+- onboarding/integration profiles: MongoDB;
+- AEAT outbox: MongoDB con lease y `reconciliation_required`;
+- backup status: proveedor inyectado por Kairoseth;
+- observabilidad/readiness: MongoDB-aware.
 
-SQLite continúa como perfil standalone/dev/test. Kairoseth productivo debe recibir stores MongoDB inyectados y fallar cerrado ante una configuración parcial.
+SQLite queda exclusivamente como perfil `standalone`/dev/test.
 
 ### P2 — Gaps universales restantes (#55)
 
