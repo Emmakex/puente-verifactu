@@ -5,6 +5,7 @@ const onboardingAdapter = readFileSync('packages/kairoseth-control-plane/src/mon
 const onboardingRuntime = readFileSync('apps/server/src/onboarding-control-plane.mjs', 'utf8');
 const integrationAdapter = readFileSync('packages/kairoseth-control-plane/src/mongodb-integration-profiles.mjs', 'utf8');
 const importAdapter = readFileSync('packages/kairoseth-control-plane/src/mongodb-import-batches.mjs', 'utf8');
+const dataPlaneAdapter = readFileSync('packages/kairoseth-control-plane/src/mongodb-dataplane.mjs', 'utf8');
 const integrationRuntime = readFileSync('apps/server/src/integration-control-plane.mjs', 'utf8');
 const serverRuntime = readFileSync('apps/server/src/runtime.mjs', 'utf8');
 const authBridge = readFileSync('apps/server/src/kairoseth-auth-bridge.mjs', 'utf8');
@@ -23,6 +24,9 @@ expect(product.infrastructure?.integration_profiles === 'mongodb-injected', 'KAI
 expect(product.infrastructure?.data_plane_auth === 'kairoseth-injected', 'KAIROSETH_DATA_PLANE_AUTH_MUST_BE_INJECTED');
 expect(product.infrastructure?.import_sessions === 'mongodb-injected-ttl', 'KAIROSETH_IMPORT_SESSIONS_MUST_USE_MONGODB_TTL');
 expect(product.infrastructure?.import_batches === 'mongodb-injected-durable', 'KAIROSETH_IMPORT_BATCHES_MUST_USE_MONGODB');
+expect(product.infrastructure?.fiscal_records === 'mongodb-injected-durable', 'KAIROSETH_FISCAL_RECORDS_MUST_USE_MONGODB');
+expect(product.infrastructure?.api_records === 'mongodb-injected-durable', 'KAIROSETH_API_RECORDS_MUST_USE_MONGODB');
+expect(product.infrastructure?.api_idempotency === 'mongodb-injected-lease', 'KAIROSETH_API_IDEMPOTENCY_MUST_USE_MONGODB');
 expect(adapter.includes('database.collection'), 'KAIROSETH_MONGODB_DATABASE_INJECTION_REQUIRED');
 expect(!/from ['"]mongodb['"]|require\(['"]mongodb['"]\)|new\s+MongoClient\s*\(/.test(adapter), 'KAIROSETH_MONGODB_CLIENT_MUST_BE_INJECTED');
 expect(!/MONGODB_URI|MONGO_URI|process\.env|mongodb\+srv:|mongodb:\/\//.test(adapter), 'KAIROSETH_MONGODB_CONNECTION_SECRET_FORBIDDEN');
@@ -48,6 +52,13 @@ expect(!/from ['"]mongodb['"]|require\(['"]mongodb['"]\)|new\s+MongoClient\s*\(/
 expect(!/MONGODB_URI|MONGO_URI|process\.env|mongodb\+srv:|mongodb:\/\//.test(importAdapter), 'KAIROSETH_IMPORT_MONGO_SECRET_FORBIDDEN');
 expect(!/createCollection\s*\(|createIndex(?:es)?\s*\(/.test(importAdapter), 'KAIROSETH_IMPORT_AUTO_INFRA_MUTATION_FORBIDDEN');
 expect(index.includes('mongodb-import-batches.mjs'), 'KAIROSETH_IMPORT_MONGODB_EXPORT_REQUIRED');
+expect(dataPlaneAdapter.includes('database.collection'), 'KAIROSETH_DATAPLANE_MONGODB_INJECTION_REQUIRED');
+expect(!/from ['"]mongodb['"]|require\(['"]mongodb['"]\)|new\s+MongoClient\s*\(/.test(dataPlaneAdapter), 'KAIROSETH_DATAPLANE_MONGO_CLIENT_MUST_BE_INJECTED');
+expect(!/MONGODB_URI|MONGO_URI|process\.env|mongodb\+srv:|mongodb:\/\//.test(dataPlaneAdapter), 'KAIROSETH_DATAPLANE_MONGO_SECRET_FORBIDDEN');
+expect(!/createCollection\s*\(|createIndex(?:es)?\s*\(/.test(dataPlaneAdapter), 'KAIROSETH_DATAPLANE_AUTO_INFRA_MUTATION_FORBIDDEN');
+expect(index.includes('mongodb-dataplane.mjs'), 'KAIROSETH_DATAPLANE_MONGODB_EXPORT_REQUIRED');
+expect(serverRuntime.includes('fiscalRecordStore ?? persistence.fiscalStore'), 'KAIROSETH_FISCAL_STORE_INJECTION_REQUIRED');
+expect(serverRuntime.includes('integrationDataStore ?? persistence.integrationStore'), 'KAIROSETH_API_STORE_INJECTION_REQUIRED');
 expect(serverRuntime.includes('importSessionStore ?? persistence.importStore'), 'KAIROSETH_IMPORT_SESSION_INJECTION_REQUIRED');
 expect(serverRuntime.includes('batchStore: importBatchStore'), 'KAIROSETH_IMPORT_BATCH_INJECTION_REQUIRED');
 expect(integrationRuntime.includes('createHybridIntegrationResolvers'), 'KAIROSETH_HYBRID_INTEGRATION_RESOLVER_REQUIRED');
@@ -84,5 +95,8 @@ console.log(JSON.stringify({
   data_plane_auth: 'kairoseth-injected',
   import_sessions: 'mongodb-ttl',
   import_batches: 'mongodb-durable',
+  fiscal_records: 'mongodb-durable',
+  api_records: 'mongodb-durable',
+  api_idempotency: 'mongodb-lease',
   dynamic_auth_secret_persistence: false,
 }, null, 2));
