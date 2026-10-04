@@ -20,6 +20,7 @@ test('Kairoseth Auth bridge normalizes data-plane bearer context without control
           organizationId: 'org-a',
           installationId: 'int-install-a',
           sourceSystem: 'universal-rest',
+          profileId: 'int_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
           rateLimitPerMinute: 321,
           permissions: [],
         };
@@ -32,6 +33,7 @@ test('Kairoseth Auth bridge normalizes data-plane bearer context without control
   assert.equal(context.organizationId, 'org-a');
   assert.equal(context.installationId, 'int-install-a');
   assert.equal(context.sourceSystem, 'universal-rest');
+  assert.equal(context.profileId, 'int_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
   assert.equal(context.authType, 'kairoseth-bearer');
   assert.equal(context.credentialKind, 'kairoseth-data-plane');
   assert.equal(context.rateLimitPerMinute, 321);
@@ -46,6 +48,7 @@ test('Kairoseth Auth bridge rejects dynamic credentials carrying control-plane p
         organizationId: 'org-a',
         installationId: 'int-install-a',
         sourceSystem: 'universal-rest',
+        profileId: 'int_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         permissions: ['agents:manage'],
       }),
     },
@@ -67,6 +70,7 @@ test('Kairoseth Auth bridge fails closed when provider returns a different tenan
         organizationId: 'org-other',
         installationId: 'int-install-a',
         sourceSystem: 'universal-rest',
+        profileId: 'int_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       }),
     },
   });
