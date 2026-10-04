@@ -67,6 +67,21 @@ El token debe llegar por variable de entorno o secret manager, nunca persistido 
 
 ## Despliegue
 
+### Hostinger Node.js Web App
+
+Para el perfil gestionado de Hostinger:
+
+- Node.js: 22.x.
+- Build command: `npm run kairoseth:mongodb:init`.
+- Start command: `npm run server:kairoseth`.
+- Host: `PV_HOST=0.0.0.0`.
+- Port: `PV_PORT=3000` (o el `PORT` inyectado por Hostinger si no se define `PV_PORT`).
+- MongoDB: Atlas externo mediante `MONGODB_URI`; Hostinger no hospeda MongoDB en el plan gestionado.
+- Certificado AEAT, declaración, auth y evidencia de backup: archivos privados fuera de `public_html` y fuera del directorio `nodejs` gestionado por los redeploys.
+- Nunca importar al panel una `.env` que contenga valores placeholder del repositorio.
+
+Hostinger permite editar build/start commands y variables en Deployments/Redeploy. El build de infraestructura es idempotente: reaplica únicamente los índices versionados y el runtime vuelve a verificarlos al arrancar.
+
 0. Ejecutar `npm run kairoseth:mongodb:init` contra la base `kairoseth` si el candidato introduce/actualiza índices; después desplegar con `npm run server:kairoseth`.
 1. Colocar el nuevo código/artefacto en una release nueva; no modificar una release anterior in-place.
 2. Mantener fuera de Git auth, secretos, certificado y configuración privada.
