@@ -208,3 +208,74 @@ test('cancellation cannot target a cancellation resource', async () => {
   assert.equal(secondCancel.status, 409);
   assert.equal(secondCancel.body.error.code, 'VF_API_CANCELLATION_SOURCE_INVALID');
 });
+
+
+test('public lifecycle responses sanitize delivery and reconciliation payloads', async () => {
+  const fiscalService = new FiscalRecordService({
+    sif,
+    clock: () => new Date('2026-09-15T08:00:00Z'),
+  });
+  const bridge = new UniversalBridgeService({
+    fiscalService,
+    enqueueDelivery: async ({ operation = 'issue' } = {}) => ({
+      id: `job-${operation}`,
+      status: 'queued',
+      attempts: 1,
+      retryable: true,
+      rawXml: '<soap>must-not-leak</soap>',
+      rawResponse: '<aeat>must-not-leak</aeat>',
+      reconciliation: {
+        outcome: 'unresolved',
+        received: false,
+        shouldReissue: false,
+        errorCode: 'WAIT',
+        rawQueryResponse: '<query>must-not-leak</query>',
+      },
+    }),
+  });
+  const handler = createApiHandler({
+    bridge,
+    authenticate: async () => ({
+      organizationId: 'org-1',
+      installationId: 'source-install-1',
+      sourceSystem: 'sdk-test',
+    }),
+  });
+
+  const created = await handler({
+    method: 'POST',
+    path: '/v1/fiscal-records',
+    body: { intent: invoice({ sourceInvoiceId: 'invoice-sanitize', number: '92' }) },
+    headers: { 'Idempotency-Key': 'evt-sanitize-create' },
+  });
+  assert.equal(created.status, 202);
+  assert.equal(created.body.delivery.status, 'queued');
+  assert.equal(created.body.delivery.jobId, 'job-issue');
+  assert.equal(created.body.delivery.reconciliation.outcome, 'unresolved');
+  const serializedCreate = JSON.stringify(created.body);
+  assert.equal(serializedCreate.includes('must-not-leak'), false);
+  assert.equal(serializedCreate.includes('rawXml'), false);
+  assert.equal(serializedCreate.includes('rawResponse'), false);
+  assert.equal(serializedCreate.includes('rawQueryResponse'), false);
+
+  const status = await handler({
+    method: 'GET',
+    path: `/v1/fiscal-records/${created.body.recordId}/status`,
+    headers: {},
+  });
+  assert.equal(status.status, 200);
+  const serializedStatus = JSON.stringify(status.body);
+  assert.equal(serializedStatus.includes('must-not-leak'), false);
+  assert.equal(serializedStatus.includes('rawXml'), false);
+  assert.equal(status.body.delivery.reconciliation.shouldReissue, false);
+
+  const cancelled = await handler({
+    method: 'POST',
+    path: `/v1/fiscal-records/${created.body.recordId}/cancel`,
+    body: { sourceCancellationId: 'cancel-sanitize' },
+    headers: { 'Idempotency-Key': 'evt-sanitize-cancel' },
+  });
+  assert.equal(cancelled.status, 202);
+  assert.equal(cancelled.body.delivery.jobId, 'job-cancel');
+  assert.equal(JSON.stringify(cancelled.body).includes('must-not-leak'), false);
+});
