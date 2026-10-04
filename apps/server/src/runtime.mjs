@@ -41,6 +41,8 @@ export function createPuenteRuntime({
   integrationProfileStore = null,
   resolveIntegrationSecretReference = null,
   kairosethAuthProvider = null,
+  importSessionStore = null,
+  importBatchStore = null,
   supportedNativeConnectors = DEFAULT_NATIVE_CONNECTORS,
 } = {}) {
   const normalizedSif = {
@@ -83,7 +85,12 @@ export function createPuenteRuntime({
     resolveEuroConversion: resolvers.resolveEuroConversion,
     presentationEnvironment,
   });
-  const imports = new ImportSessionService({ store: persistence.importStore });
+  const imports = new ImportSessionService({
+    store: importSessionStore ?? persistence.importStore,
+    batchStore: importBatchStore,
+    bridge,
+    clock: observabilityClock,
+  });
   const localAgents = new KairosethLocalAgentControlPlane({
     // SQLite is the single-node reference store only. Kairoseth production can inject
     // its shared tenant-aware persistence without changing the control-plane service.
