@@ -400,6 +400,24 @@ export class ImportSessionService {
         400,
       );
     }
+
+    const batchId = batchIdFor(importId);
+    const existingBatch = await this.batchStore.get(
+      context.organizationId,
+      context.installationId,
+      batchId,
+    );
+    if (existingBatch) {
+      if (String(input.preflightToken ?? '') !== existingBatch.preflightToken) {
+        throw apiError(
+          'VF_IMPORT_BATCH_CONFIRM_CONFLICT',
+          'Import batch already exists for a different confirmed preflight',
+          409,
+        );
+      }
+      return publicBatch(existingBatch);
+    }
+
     const session = await this.session(importId, context);
     const snapshot = session.preflight;
     if (!snapshot?.token) {
@@ -427,7 +445,7 @@ export class ImportSessionService {
     const now = this.clock();
     const batch = {
       schemaVersion: 1,
-      batchId: batchIdFor(importId),
+      batchId,
       importId,
       organizationId: context.organizationId,
       installationId: context.installationId,
