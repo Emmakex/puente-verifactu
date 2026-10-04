@@ -1,8 +1,8 @@
-# Runbook — backup, restore y recuperación
+# Runbook — backup, restore y recuperación SQLite standalone
 
 ## Objetivo
 
-Recuperar el perfil SQLite single-node sin sobrescribir un store sano ni provocar reenvíos fiscales por pérdida de estado local.
+Recuperar el perfil SQLite `standalone` sin sobrescribir un store sano ni provocar reenvíos fiscales por pérdida de estado local. **Este runbook no aplica al candidato productivo Kairoseth/Hostinger/MongoDB**, cuyo contrato está en `docs/kairoseth-backup-evidence.md` y cuyo rollback está en `deploy-rollback.md`.
 
 ## Crear backup en caliente
 
