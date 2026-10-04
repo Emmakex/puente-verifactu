@@ -64,7 +64,7 @@ h1 { margin: 0; font-size: clamp(2.15rem, 5vw, 4rem); line-height: 1; letter-spa
 .field { display: grid; gap: 7px; }
 .field > span { font-weight: 700; font-size: .9rem; }
 .field.compact { max-width: 320px; margin-top: 14px; }
-input[type="text"], select { width: 100%; min-height: 44px; border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; background: white; color: var(--text); }
+input[type="text"], input[type="date"], select { width: 100%; min-height: 44px; border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; background: white; color: var(--text); }
 input:focus, select:focus, button:focus-visible { outline: 3px solid rgba(23,43,77,.16); outline-offset: 2px; }
 
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; }
@@ -86,6 +86,14 @@ tbody tr:last-child td { border-bottom: 0; }
 .action-card { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
 .primary { border: 0; border-radius: 12px; background: var(--primary); color: var(--primary-contrast); padding: 13px 18px; font-weight: 800; min-width: 170px; }
 .primary:disabled { opacity: .45; cursor: not-allowed; }
+.secondary { border: 1px solid var(--border); border-radius: 12px; background: white; color: var(--text); padding: 11px 16px; font-weight: 750; margin-top: 16px; }
+.secondary:hover { border-color: var(--primary); }
+.field-wide { grid-column: 1 / -1; }
+.manual-container { max-width: 920px; }
+.back-link { display: inline-flex; margin-bottom: 22px; color: var(--primary); font-weight: 750; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.issue-confirm { margin-bottom: 18px; align-items: flex-start; }
+.issued-record { padding: 10px 12px; margin: 8px 0; border-radius: 10px; background: white; border: 1px solid var(--border); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88rem; overflow-wrap: anywhere; }
+.qr-link { display: inline-flex; margin: 10px 0; color: var(--primary); font-weight: 800; text-underline-offset: 3px; }
 
 .status { min-height: 24px; margin: 16px 4px; color: var(--muted); }
 .results.success { border-color: #b8dec9; background: var(--success-bg); }
