@@ -68,7 +68,11 @@ assert.equal(evidence.schema_version, 1);
 assert.equal(evidence.release.status, 'release_candidate');
 assert.equal(evidence.release.blockers.length, 0);
 assert.equal(evidence.responsible_declaration.status, 'required_before_publication');
-assert.equal(evidence.artifacts.length, 2);
+assert.equal(evidence.artifacts.length, 3);
+const localAgent = evidence.artifacts.find((artifact) => artifact.id === 'kairoseth-local-agent');
+assert.ok(localAgent, 'Local Agent artifact must be part of release evidence');
+assert.equal(localAgent.source_commit, fixture.commit);
+assert.match(localAgent.content_fingerprint, /^[0-9a-f]{64}$/);
 assert.deepEqual(evidence.artifacts, evidenceAgain.artifacts, 'Release artifact fingerprints must be reproducible');
 for (const artifact of evidence.artifacts) {
   assert.match(artifact.sha256, /^[0-9a-f]{64}$/);
