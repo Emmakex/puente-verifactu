@@ -50,3 +50,10 @@ export {
   createMongoKairosethAeatOutboxStore,
   mongoAeatOutboxIndexes,
 } from './mongodb-aeat-outbox.mjs';
+
+
+export {
+  MongoKairosethFiscalAuthProvider,
+  createMongoKairosethFiscalAuthProvider,
+  mongoFiscalDataPlaneAuthIndexes,
+} from './mongodb-fiscal-auth.mjs';
