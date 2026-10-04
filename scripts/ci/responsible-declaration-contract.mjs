@@ -22,12 +22,14 @@ const result = await buildResponsibleDeclaration({
     },
   },
   packageJson: { version: '0.1.0' },
+  releaseGates: { deployment_profile: 'kairoseth-hostinger-mongodb' },
   outputPath: output,
 });
 
 assert.equal(result.status, 'written');
 assert.equal(result.system_code, 'PV');
 assert.equal(result.version, '0.1.0');
+assert.equal(result.deployment_profile, 'kairoseth-hostinger-mongodb');
 assert.equal(result.repository_output, false);
 
 const content = await readFile(output, 'utf8');
@@ -47,6 +49,26 @@ assert.match(content, /S - Sí\./);
 assert.match(content, /Persona Productora Ejemplo/);
 assert.match(content, /00000000T/);
 assert.match(content, /3 de octubre de 2026/);
+
+await assert.rejects(
+  () => buildResponsibleDeclaration({
+    producerConfig: {
+      producer: {
+        name: 'Persona Productora Ejemplo',
+        taxId: '00000000T',
+        postalAddress: 'Calle Ejemplo 1, 00000 Localidad, España',
+      },
+      signature: {
+        place: 'Localidad, España',
+        date: '2026-10-03',
+      },
+    },
+    packageJson: { version: '0.1.0' },
+    releaseGates: { deployment_profile: 'sqlite-single-node' },
+    outputPath: join(dir, 'declaracion-invalid.md'),
+  }),
+  (error) => error.code === 'VF_RESPONSIBLE_DECLARATION_PROFILE_INVALID',
+);
 
 const mode = (await stat(output)).mode & 0o777;
 assert.equal(mode, 0o600);
