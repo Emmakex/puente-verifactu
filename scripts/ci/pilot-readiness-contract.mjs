@@ -60,6 +60,8 @@ await writeFile(backupPath, JSON.stringify({
   deploymentProfile: 'kairoseth-hostinger-mongodb',
   status: 'ok',
   provider: 'fixture-managed-backup',
+  containsSecrets: false,
+  containsFiscalData: false,
   newestBackup: {
     createdAt: '2026-10-03T11:00:00Z',
     sha256: backupSha,
@@ -119,6 +121,40 @@ assert.deepEqual(persisted, receipt);
 assert.equal((await stat(outputPath)).mode & 0o777, 0o600);
 
 
+
+const unsanitizedBackupPath = join(dir, 'backup-unsanitized.json');
+await writeFile(unsanitizedBackupPath, JSON.stringify({
+  schemaVersion: 1,
+  kind: 'kairoseth-managed-backup-readiness',
+  deploymentProfile: 'kairoseth-hostinger-mongodb',
+  status: 'ok',
+  provider: 'fixture-managed-backup',
+  containsSecrets: true,
+  containsFiscalData: false,
+  newestBackup: {
+    createdAt: '2026-10-03T11:00:00Z',
+    sha256: backupSha,
+    remote: true,
+    encryptedAtRest: true,
+  },
+  restoreDrill: {
+    performedAt: '2026-10-03T11:30:00Z',
+    backupSha256: backupSha,
+    result: 'ok',
+  },
+}, null, 2));
+await assert.rejects(
+  () => buildPilotReadiness({
+    bundlePath,
+    approvalPath,
+    opsStatusPath: opsPath,
+    backupReportPath: unsanitizedBackupPath,
+    policyPath,
+    expectedCommit: commit,
+    generatedAt: '2026-10-03T12:30:00Z',
+  }),
+  (error) => error.code === 'VF_PILOT_BACKUP_EVIDENCE_NOT_SANITIZED',
+);
 
 const staleBackupPath = join(dir, 'backup-stale.json');
 await writeFile(staleBackupPath, JSON.stringify({
