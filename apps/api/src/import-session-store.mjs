@@ -101,6 +101,7 @@ export class MemoryImportBatchStore {
     row,
     patch,
     now,
+    leaseExpiresAt = null,
   }) {
     const batch = this.batches.get(batchId);
     if (
@@ -122,6 +123,7 @@ export class MemoryImportBatchStore {
       });
     }
     Object.assign(target, structuredClone(patch), { updatedAt: now });
+    if (leaseExpiresAt != null) batch.lease.expiresAt = Number(leaseExpiresAt);
     batch.updatedAt = now;
     this.batches.set(batchId, batch);
     return structuredClone(batch);
