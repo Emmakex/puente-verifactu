@@ -138,6 +138,18 @@ export function createPuenteRuntime({
       aeatOutboxStore,
       'aeatOutboxStore',
     );
+    requiredInjectedStore(onboardingProfileStore, 'onboardingProfileStore');
+    requiredInjectedStore(integrationProfileStore, 'integrationProfileStore');
+    if (typeof resolveIntegrationSecretReference !== 'function') {
+      throw new TypeError(
+        'resolveIntegrationSecretReference is required in kairoseth persistence mode',
+      );
+    }
+    if (!kairosethAuthProvider) {
+      throw new TypeError(
+        'kairosethAuthProvider is required in kairoseth persistence mode',
+      );
+    }
     if (typeof backupStatusProvider !== 'function') {
       throw new TypeError(
         'backupStatusProvider is required in kairoseth persistence mode',
