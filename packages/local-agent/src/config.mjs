@@ -118,6 +118,48 @@ function normalizeRuntime(raw = {}) {
   });
 }
 
+function normalizeArchiveRetention(raw = null) {
+  if (raw == null) {
+    return Object.freeze({
+      mode: 'keep',
+      processedDays: null,
+      errorDays: null,
+    });
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw fail('VF_LOCAL_AGENT_CONFIG_INVALID', 'source.archiveRetention must be an object');
+  }
+
+  const mode = String(raw.mode ?? 'keep').trim().toLowerCase();
+  if (mode === 'keep') {
+    return Object.freeze({
+      mode: 'keep',
+      processedDays: null,
+      errorDays: null,
+    });
+  }
+  if (mode !== 'delete-source-after-days') {
+    throw fail(
+      'VF_LOCAL_AGENT_CONFIG_INVALID',
+      'source.archiveRetention.mode must be keep or delete-source-after-days',
+    );
+  }
+
+  return Object.freeze({
+    mode,
+    processedDays: integer(raw.processedDays, null, {
+      name: 'source.archiveRetention.processedDays',
+      min: 1,
+      max: 3650,
+    }),
+    errorDays: integer(raw.errorDays, null, {
+      name: 'source.archiveRetention.errorDays',
+      min: 1,
+      max: 3650,
+    }),
+  });
+}
+
 function normalizeWatchFolder(raw, baseDir) {
   return Object.freeze({
     kind: 'watch-folder',
@@ -138,6 +180,7 @@ function normalizeWatchFolder(raw, baseDir) {
       min: 1,
       max: 10_000,
     }),
+    archiveRetention: normalizeArchiveRetention(raw.archiveRetention),
   });
 }
 
@@ -218,6 +261,7 @@ function normalizeSftp(raw, baseDir) {
       min: 1,
       max: 10_000,
     }),
+    archiveRetention: normalizeArchiveRetention(raw.archiveRetention),
     connection: Object.freeze({
       host: text(connection.host, 'source.connection.host'),
       port: integer(connection.port, 22, { name: 'source.connection.port', min: 1, max: 65535 }),

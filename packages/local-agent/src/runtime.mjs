@@ -8,6 +8,7 @@ import { createLocalAgentApiClient } from './client.mjs';
 import {
   ensureWatchFolderLayout,
   ingestWatchFolder,
+  pruneWatchFolderArchives,
   recoverProcessingWatchFiles,
   settleWatchFolder,
 } from './watch-ingest.mjs';
@@ -416,10 +417,16 @@ export class LocalAgentRuntime {
     const workerResult = await this.worker.runDue({ limit: this.config.runtime.workerBatchSize });
 
     let settled = null;
+    let archiveRetention = null;
     if (this.config.source.kind === 'watch-folder' || this.config.source.kind === 'sftp') {
       settled = await settleWatchFolder({
         store: this.store,
         root: this.config.source.root,
+      });
+      archiveRetention = await pruneWatchFolderArchives({
+        root: this.config.source.root,
+        retention: this.config.source.archiveRetention,
+        now: this.now(),
       });
     }
 
@@ -446,6 +453,7 @@ export class LocalAgentRuntime {
       pendingAfterWorker: workerResult.pending,
       blocked: workerResult.blocked,
       settled: settled?.settled?.length ?? 0,
+      archivedSourceFilesDeleted: archiveRetention?.deleted ?? 0,
       redacted: redaction.redacted,
       queue: stats,
       heartbeat,

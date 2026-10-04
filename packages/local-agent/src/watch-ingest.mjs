@@ -1,4 +1,4 @@
-import { chmod, mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { parseImportFile } from '../../../connectors/file-import/src/file-reader.mjs';
@@ -420,6 +420,127 @@ export async function ingestWatchFolder({
     root: layout.root,
     staged: Object.freeze(staged),
     skipped: Object.freeze(skipped),
+  });
+}
+
+function retentionTimestamp(metadata) {
+  const value = metadata?.updated_at ?? metadata?.created_at ?? null;
+  if (typeof value !== 'string') return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+async function retentionMetadataPath(directory, filename, category) {
+  const manifest = join(directory, `${filename}${MANIFEST_SUFFIX}`);
+  if (await exists(manifest)) return manifest;
+  if (category === 'error') {
+    const errorReport = join(directory, `${filename}${ERROR_SUFFIX}`);
+    if (await exists(errorReport)) return errorReport;
+  }
+  return null;
+}
+
+async function pruneArchiveDirectory({
+  directory,
+  category,
+  days,
+  now,
+}) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const cutoffMs = Number(days) * 24 * 60 * 60_000;
+  let scanned = 0;
+  let deleted = 0;
+  let skipped = 0;
+
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!entry.isFile()) continue;
+    if (!ALLOWED_EXTENSIONS.has(extname(entry.name).toLowerCase())) continue;
+    scanned += 1;
+
+    const metadataPath = await retentionMetadataPath(directory, entry.name, category);
+    if (!metadataPath) {
+      skipped += 1;
+      continue;
+    }
+
+    let metadata;
+    try {
+      metadata = JSON.parse(await readFile(metadataPath, 'utf8'));
+    } catch {
+      skipped += 1;
+      continue;
+    }
+    const archivedAt = retentionTimestamp(metadata);
+    if (archivedAt == null) {
+      skipped += 1;
+      continue;
+    }
+
+    const ageMs = Math.max(0, Number(now) - archivedAt);
+    if (ageMs < cutoffMs) continue;
+
+    await unlink(join(directory, entry.name));
+    deleted += 1;
+  }
+
+  return Object.freeze({ scanned, deleted, skipped });
+}
+
+export async function pruneWatchFolderArchives({
+  root,
+  retention = { mode: 'keep' },
+  now = Date.now(),
+} = {}) {
+  const layout = await ensureWatchFolderLayout(root);
+  const mode = String(retention?.mode ?? 'keep');
+
+  if (mode === 'keep') {
+    return Object.freeze({
+      mode: 'keep',
+      processed: Object.freeze({ scanned: 0, deleted: 0, skipped: 0 }),
+      error: Object.freeze({ scanned: 0, deleted: 0, skipped: 0 }),
+      deleted: 0,
+    });
+  }
+  if (mode !== 'delete-source-after-days') {
+    throw fail(
+      'VF_LOCAL_AGENT_WATCH_RETENTION_INVALID',
+      'Archive retention mode must be keep or delete-source-after-days',
+    );
+  }
+
+  const processedDays = Number(retention?.processedDays);
+  const errorDays = Number(retention?.errorDays);
+  if (
+    !Number.isInteger(processedDays)
+    || processedDays < 1
+    || !Number.isInteger(errorDays)
+    || errorDays < 1
+  ) {
+    throw fail(
+      'VF_LOCAL_AGENT_WATCH_RETENTION_INVALID',
+      'Archive retention days must be positive integers',
+    );
+  }
+
+  const processed = await pruneArchiveDirectory({
+    directory: layout.processed,
+    category: 'processed',
+    days: processedDays,
+    now: Number(now),
+  });
+  const error = await pruneArchiveDirectory({
+    directory: layout.error,
+    category: 'error',
+    days: errorDays,
+    now: Number(now),
+  });
+
+  return Object.freeze({
+    mode,
+    processed,
+    error,
+    deleted: processed.deleted + error.deleted,
   });
 }
 

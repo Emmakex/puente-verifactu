@@ -8,6 +8,7 @@ import { LocalAgentWorker, createPuenteApiTransport } from '../src/worker.mjs';
 import {
   ensureWatchFolderLayout,
   ingestWatchFolder,
+  pruneWatchFolderArchives,
   recoverProcessingWatchFiles,
   settleWatchFolder,
 } from '../src/watch-ingest.mjs';
@@ -175,6 +176,67 @@ test('watch-folder archives a fully accepted batch as processed', async () => {
     assert.ok(job.recordId);
   }
   store.close();
+});
+
+test('watch-folder archive retention is keep-by-default and deletes only opted-in raw source files', async () => {
+  const layout = await tempWatchRoot('pv-watch-retention-');
+  const old = '2026-01-01T00:00:00.000Z';
+  const now = Date.parse('2026-04-15T00:00:00.000Z');
+
+  await writeFile(join(layout.processed, 'old-processed.csv'), 'invoice,total\nP-1,10\n');
+  await writeFile(
+    join(layout.processed, 'old-processed.csv.pv-manifest.json'),
+    JSON.stringify({
+      schema_version: 1,
+      state: 'completed',
+      updated_at: old,
+    }),
+  );
+
+  await writeFile(join(layout.error, 'old-error.xlsx'), 'placeholder');
+  await writeFile(
+    join(layout.error, 'old-error.xlsx.pv-error.json'),
+    JSON.stringify({
+      schema_version: 1,
+      stage: 'parse',
+      created_at: old,
+    }),
+  );
+
+  await writeFile(join(layout.processed, 'orphan.csv'), 'invoice,total\nO-1,1\n');
+
+  const kept = await pruneWatchFolderArchives({
+    root: layout.root,
+    retention: { mode: 'keep' },
+    now,
+  });
+  assert.equal(kept.deleted, 0);
+  assert.ok((await readdir(layout.processed)).includes('old-processed.csv'));
+  assert.ok((await readdir(layout.error)).includes('old-error.xlsx'));
+
+  const pruned = await pruneWatchFolderArchives({
+    root: layout.root,
+    retention: {
+      mode: 'delete-source-after-days',
+      processedDays: 30,
+      errorDays: 90,
+    },
+    now,
+  });
+  assert.equal(pruned.processed.scanned, 2);
+  assert.equal(pruned.processed.deleted, 1);
+  assert.equal(pruned.processed.skipped, 1);
+  assert.equal(pruned.error.scanned, 1);
+  assert.equal(pruned.error.deleted, 1);
+  assert.equal(pruned.deleted, 2);
+
+  const processed = await readdir(layout.processed);
+  const error = await readdir(layout.error);
+  assert.equal(processed.includes('old-processed.csv'), false);
+  assert.equal(error.includes('old-error.xlsx'), false);
+  assert.ok(processed.includes('old-processed.csv.pv-manifest.json'));
+  assert.ok(error.includes('old-error.xlsx.pv-error.json'));
+  assert.ok(processed.includes('orphan.csv'));
 });
 
 test('watch-folder recovery resumes an orphan processing file without reissuing existing rows', async () => {

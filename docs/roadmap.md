@@ -209,7 +209,7 @@ Conectores ERP/CRM adicionales, portal multiempresa, herramientas para asesoría
 - [x] Local Agent v1 foundation: SQLite privado + cola offline + leases/recovery + checkpoint + discovery watch-folder + HTTPS saliente.
 - [x] Local Agent v1 ingest: watch-folder -> parser -> MappingProfile server-side -> preflight -> issue + processed/error quarantine.
 - [x] Local Agent v1 data minimization: redacción de payload/result terminal preservando idempotencia y recordId.
-- [ ] Local Agent v1 archive retention: política explícita para ficheros en processed/error (sin borrado automático por defecto).
+- [x] Local Agent v1 archive retention: default `keep`, poda opt-in del CSV/XLSX bruto por antigüedad, metadata sanitizada preservada y SFTP remoto no destructivo.
 - [x] Local Agent v1: bundle reproducible + instalación nativa + upgrade/rollback en Linux, Windows y macOS (#67, #68, #69).
 - [x] Adaptadores DB read-only: PostgreSQL/MySQL-MariaDB/SQL Server con CI real (#61, #62).
 - [x] SFTP/drop-folder read-only/no destructivo con host-key pinning (#64).
@@ -217,7 +217,6 @@ Conectores ERP/CRM adicionales, portal multiempresa, herramientas para asesoría
 
 **Pendientes reales de expansión antes de considerar el producto funcionalmente completo:**
 
-- formulario manual universal con el mismo preflight/core;
-- política explícita de retención de archivos `processed/error` del Local Agent.
+- formulario manual universal con el mismo preflight/core.
 
 **Regla:** esta expansión no modifica el motor fiscal. El piloto/release v0.1.0 mantiene sus propios gates y no se da por cerrado por el avance de adapters. El pricing/billing queda fuera del camino crítico hasta completar estos pendientes de producto y el piloto.

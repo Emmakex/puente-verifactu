@@ -7,6 +7,7 @@ const manifest = validateUniversalAdapterManifest(
 
 const runtimeSource = readFileSync('packages/local-agent/src/runtime.mjs', 'utf8');
 const configSource = readFileSync('packages/local-agent/src/config.mjs', 'utf8');
+const watchIngestSource = readFileSync('packages/local-agent/src/watch-ingest.mjs', 'utf8');
 const cliSource = readFileSync('packages/local-agent/src/cli.mjs', 'utf8');
 const exampleConfig = JSON.parse(readFileSync('config/local-agent.example.json', 'utf8'));
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
@@ -43,6 +44,11 @@ expect(exampleConfig.source?.issueEnabled === false, 'LOCAL_AGENT_EXAMPLE_MUST_F
 expect(typeof exampleConfig.bridge?.apiKeyEnv === 'string', 'LOCAL_AGENT_API_KEY_ENV_REQUIRED');
 expect(exampleConfig.bridge?.apiKey == null, 'LOCAL_AGENT_INLINE_API_KEY_FORBIDDEN');
 expect(exampleConfig.runtime?.heartbeatIntervalMs === 60000, 'LOCAL_AGENT_HEARTBEAT_INTERVAL_EXAMPLE_INVALID');
+expect(exampleConfig.source?.archiveRetention?.mode === 'keep', 'LOCAL_AGENT_ARCHIVE_RETENTION_MUST_DEFAULT_KEEP');
+expect(configSource.includes("'delete-source-after-days'"), 'LOCAL_AGENT_EXPLICIT_ARCHIVE_RETENTION_MODE_REQUIRED');
+expect(runtimeSource.includes('pruneWatchFolderArchives'), 'LOCAL_AGENT_ARCHIVE_RETENTION_RUNTIME_REQUIRED');
+expect(watchIngestSource.includes('await unlink(join(directory, entry.name))'), 'LOCAL_AGENT_ARCHIVE_SOURCE_PRUNE_REQUIRED');
+expect(!watchIngestSource.includes('unlink(metadataPath)'), 'LOCAL_AGENT_ARCHIVE_METADATA_DELETE_FORBIDDEN');
 expect(versionSource.includes(`LOCAL_AGENT_VERSION = '${packageJson.version}'`), 'LOCAL_AGENT_VERSION_MUST_MATCH_PACKAGE');
 
 if (failures.length) {
@@ -66,4 +72,6 @@ console.log(JSON.stringify({
   runtime_cli: true,
   config_fail_closed: true,
   heartbeat_control_plane: true,
+  archive_retention_default: 'keep',
+  archive_retention_raw_source_only: true,
 }, null, 2));
