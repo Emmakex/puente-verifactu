@@ -1,6 +1,6 @@
 # Piloto progresivo v1
 
-Este gate prepara el piloto fiscal real del perfil `sqlite-single-node`. No activa envíos ni aprueba nada automáticamente.
+Este gate prepara el piloto fiscal real del perfil productivo `kairoseth-hostinger-mongodb`. No activa envíos ni aprueba nada automáticamente.
 
 ## Principio
 
@@ -8,10 +8,10 @@ Un candidato solo puede obtener `pilot_ready` cuando coinciden, para el mismo co
 
 - bundle final `candidate_evidence_complete`;
 - aprobación humana privada que referencia exactamente la huella de la declaración revisada;
-- snapshot operacional completamente `ok`;
+- snapshot operacional completamente `ok` y con `mode=kairoseth-mongodb`;
 - cero `reconciliation_required`, cero `blocked` y cero leases expirados;
-- monitorización de backup configurada y en estado `ok`;
-- lifecycle real de backup en `ok`, incluido restore drill;
+- monitorización de backup Kairoseth configurada y en estado `ok`;
+- evidencia gestionada de backup remoto cifrado, reciente y con restore drill satisfactorio;
 - política de piloto con stop conditions obligatorias.
 
 La aprobación privada no es una firma electrónica de la declaración ni sustituye la responsabilidad del productor. Es una guarda operativa que impide iniciar el piloto por accidente.
@@ -21,7 +21,7 @@ La aprobación privada no es una firma electrónica de la declaración ni sustit
 Campos obligatorios de la política: `stop_on_warning=true`, `stop_on_rejection=true`, `stop_on_reconciliation_required=true`, `stop_on_blocked=true` y `rollback_mode=code-first-no-automatic-db-restore`.
 
 
-`config/pilot-policy.example.json` propone una primera ventana conservadora de hasta 5 operaciones o 120 minutos. Son límites internos de ingeniería, no límites establecidos por AEAT.
+`config/pilot-policy.example.json` propone una primera ventana conservadora de hasta 5 operaciones o 120 minutos, backup con antigüedad máxima de 26 horas y restore drill con antigüedad máxima de 90 días. Son límites internos de ingeniería, no límites establecidos por AEAT.
 
 Cualquier warning, rechazo, reconciliación pendiente o bloqueo obliga a detener la ventana y revisar antes de continuar.
 
@@ -52,17 +52,29 @@ curl --fail --silent --show-error \
 chmod 600 "$HOME/.puente-verifactu/pilot/ops-status.json"
 ```
 
-El backup lifecycle debe ejecutarse contra evidencia real del deployment:
+### Evidencia de backup Kairoseth
+
+El piloto productivo **no usa el lifecycle SQLite**. El deployment Kairoseth debe preparar fuera del repositorio un informe sanitizado basado en evidencia real del backup MongoDB gestionado.
+
+Se puede partir de `config/kairoseth-backup-readiness.example.json` y guardarlo fuera de Git:
 
 ```bash
-npm run backup:lifecycle:check -- \
-  --dir "$PV_BACKUP_DIR" \
-  --policy "$PV_BACKUP_POLICY" \
-  --remote-evidence "$PV_BACKUP_REMOTE_EVIDENCE" \
-  --restore-drill-evidence "$PV_RESTORE_DRILL_EVIDENCE" \
-  > "$HOME/.puente-verifactu/pilot/backup-report.json"
+cp config/kairoseth-backup-readiness.example.json \
+  "$HOME/.puente-verifactu/pilot/backup-report.json"
 chmod 600 "$HOME/.puente-verifactu/pilot/backup-report.json"
 ```
+
+Antes de ejecutar el gate deben sustituirse los placeholders con evidencia real. El informe debe acreditar:
+
+- `deploymentProfile=kairoseth-hostinger-mongodb`;
+- backup remoto;
+- cifrado en reposo;
+- timestamp del backup;
+- fingerprint SHA-256 del artefacto o manifest sanitizado que identifica ese backup;
+- restore drill satisfactorio sobre ese mismo fingerprint;
+- ausencia de secretos y datos fiscales en el informe compartido.
+
+El gate rechaza automáticamente backups demasiado antiguos, restore drills vencidos, fingerprints distintos o un informe asociado a otro perfil.
 
 ## Gate
 
@@ -82,6 +94,7 @@ Resultado correcto:
 ```text
 status: pilot_ready
 contains_personal_data: false
+operational_readiness.persistence_mode: kairoseth-mongodb
 operational_readiness.ops_status: ok
 operational_readiness.reconciliation_required: 0
 operational_readiness.blocked: 0
