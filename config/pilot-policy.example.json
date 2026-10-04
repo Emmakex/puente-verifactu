@@ -10,5 +10,7 @@
   "stop_on_blocked": true,
   "require_verified_backup": true,
   "rollback_mode": "code-first-no-automatic-db-restore",
-  "backup_evidence_kind": "kairoseth-managed-mongodb-backup-evidence"
+  "backup_evidence_kind": "kairoseth-managed-mongodb-backup-evidence",
+  "max_backup_age_hours": 26,
+  "max_restore_drill_age_days": 90
 }
