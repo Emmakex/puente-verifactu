@@ -14,7 +14,7 @@ Hasta cerrar el producto y su piloto, el orden obligatorio es:
 
 Quedan **deferidos** durante este tramo: pricing, cuotas, checkout, billing self-service y nuevas mejoras CRM/comerciales. La foundation comercial ya existente no se elimina, pero no compite por prioridad con el cierre técnico.
 
-Camino crítico actual: **#84 → persistencia data-plane MongoDB #91 → gaps universales restantes de #55 → cierre #43 → piloto #53**.
+Camino crítico tras este cierre de persistencia: **gaps universales restantes de #55 → cierre #43 → piloto #53**. U10/#84 está cerrado en #90 y #91 se cierra con el runtime productivo MongoDB-only.
 
 ## Fase 0 — Foundation ✅
 
@@ -178,6 +178,7 @@ Camino crítico actual: **#84 → persistencia data-plane MongoDB #91 → gaps u
 - [x] Política operacional de backups v1: copia remota por checksum, cifrado en reposo, retención 7 diarios/5 semanales/12 mensuales, control de antigüedad y restore drill periódico; proveedor-neutral y sin borrado automático.
 - [x] Outbox durable AEAT para el perfil single-node: persistencia de estado/backoff/intentos, leases, recuperación tras reinicio y `reconciliation_required` para resultados inciertos sin reemisión ciega.
 - [x] Observabilidad y alertas operativas v1: endpoint agregado protegido por `ops:read`, métricas de outbox/backup y códigos `VF_OBS_*` estables sin datos fiscales.
+- [x] Perfil productivo Kairoseth Hostinger + MongoDB: cadena fiscal, API/idempotencia, imports y AEAT outbox mediante stores inyectados; readiness/ops Mongo-aware y arranque sin SQLite.
 - [x] Runbooks operativos single-node: deploy/rollback, incidente AEAT y `reconciliation_required`, backup/restore y rotación de credenciales; protegidos por gate CI.
 - [x] Evidencia de release v1 y revisión regulatoria interna: registro versionado de fuentes, cruce con `AEAT_ARTIFACTS`, caducidad de revisión, commit/CI explícitos y SHA-256 reproducible de artefactos; transición a `release_candidate` tras el cierre documentado de #6.
 - [x] Workflow privado de declaración responsable v0.1.0: plantilla a)-l), generación fuera del repositorio, permisos `0600` y contrato CI.
@@ -216,7 +217,6 @@ Conectores ERP/CRM adicionales, portal multiempresa, herramientas para asesoría
 
 **Pendientes reales de expansión antes de considerar el producto funcionalmente completo:**
 
-- U10 / #84: lotes CSV/XLSX durables en MongoDB Kairoseth, confirmación explícita, reanudación e histórico/export;
 - starter kits HTTP/JSON y ejemplos para software propio;
 - formulario manual universal con el mismo preflight/core;
 - política explícita de retención de archivos `processed/error` del Local Agent.
