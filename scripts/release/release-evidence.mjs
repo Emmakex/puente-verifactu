@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildPrestaShopZip } from './package-prestashop.mjs';
 import { buildWooCommerceZip } from './package-woocommerce.mjs';
+import { buildLocalAgentPortableZip } from './package-local-agent.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const PRODUCTIVE_DEPLOYMENT_PROFILE = 'kairoseth-hostinger-mongodb';
@@ -46,12 +47,14 @@ function validateRegulatoryRegistry(registry) {
 }
 
 export async function buildReleaseEvidence({ commit, generatedAt = null, ci = null } = {}) {
-  const [packageJson, releaseGates, regulatorySources, woo, prestashop] = await Promise.all([
+  const normalizedCommit = normalizeCommit(commit);
+  const [packageJson, releaseGates, regulatorySources, woo, prestashop, localAgent] = await Promise.all([
     readJson(join(REPO_ROOT, 'package.json')),
     readJson(join(REPO_ROOT, 'config/release-gates.json')),
     readJson(join(REPO_ROOT, 'config/regulatory-sources.json')),
     buildWooCommerceZip(),
     buildPrestaShopZip(),
+    buildLocalAgentPortableZip({ sourceCommit: normalizedCommit }),
   ]);
 
   validateReleaseGateConfig(releaseGates);
@@ -69,7 +72,7 @@ export async function buildReleaseEvidence({ commit, generatedAt = null, ci = nu
     generated_at: normalizeGeneratedAt(generatedAt),
     source: {
       repository: 'Emmakex/puente-verifactu',
-      commit: normalizeCommit(commit),
+      commit: normalizedCommit,
     },
     product: {
       name: packageJson.name,
@@ -102,6 +105,15 @@ export async function buildReleaseEvidence({ commit, generatedAt = null, ci = nu
         version: prestashop.version,
         files: prestashop.entries.filter((entry) => !entry.isDirectory).length,
         sha256: sha256(prestashop.buffer),
+      },
+      {
+        id: 'kairoseth-local-agent',
+        filename: `kairoseth-local-agent-${localAgent.version}.zip`,
+        version: localAgent.version,
+        files: localAgent.entries.length,
+        sha256: localAgent.sha256,
+        content_fingerprint: localAgent.manifest.contentFingerprint,
+        source_commit: localAgent.sourceCommit,
       },
     ],
     regulatory_review: {
