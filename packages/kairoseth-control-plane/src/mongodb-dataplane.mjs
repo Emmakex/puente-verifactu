@@ -135,6 +135,18 @@ export class MongoKairosethFiscalRecordStore {
     return mongoFiscalRecordIndexes();
   }
 
+  async healthcheck() {
+    try {
+      await Promise.all([
+        this.records.findOne({}, { projection: { _id: 1 } }),
+        this.locks.findOne({}, { projection: { _id: 1 } }),
+      ]);
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
+  }
+
   async operation(operationKey) {
     const doc = await this.records.findOne({ operationKey: String(operationKey) });
     if (!doc) return null;
