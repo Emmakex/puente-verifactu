@@ -213,13 +213,14 @@ async function listen(runtime) {
   return `http://127.0.0.1:${address.port}`;
 }
 
-async function jsonRequest(baseUrl, token, path, { method = 'GET', body } = {}) {
+async function jsonRequest(baseUrl, token, path, { method = 'GET', body, headers = {} } = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: {
       authorization: `Bearer ${token}`,
       accept: 'application/json',
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+      ...headers,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -605,6 +606,63 @@ test('Kairoseth Auth provisions, rotates and revokes dynamic API credentials wit
     assert.equal(firstPreflight.body.preview.organizationId, 'org-dynamic');
     assert.equal(firstPreflight.body.preview.installationId, 'int-api-01');
     assert.equal(firstPreflight.body.preview.sourceSystem, 'universal-rest');
+
+    const issued = await jsonRequest(baseUrl, firstToken, '/v1/fiscal-records', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': 'dynamic-own-record' },
+      body: { profileId, source: source() },
+    });
+    assert.equal(issued.response.status, 202);
+    assert.equal(issued.body.integrationProfileId, profileId);
+    assert.equal(issued.body.installationId, 'int-api-01');
+    assert.equal(issued.body.sourceSystem, 'universal-rest');
+
+    const ownRecord = await jsonRequest(
+      baseUrl,
+      firstToken,
+      `/v1/fiscal-records/${issued.body.recordId}`,
+    );
+    assert.equal(ownRecord.response.status, 200);
+
+    const ownStatus = await jsonRequest(
+      baseUrl,
+      firstToken,
+      `/v1/fiscal-records/${issued.body.recordId}/status`,
+    );
+    assert.equal(ownStatus.response.status, 200);
+    assert.equal(ownStatus.body.integrationProfileId, profileId);
+    assert.equal(ownStatus.body.operation, 'issue');
+
+    const foreignProfileId = 'int_dddddddddddddddddddddddddddddddd';
+    const foreign = await runtime.bridge.issueMapped(
+      { ...source(), numero: '2' },
+      mapping(foreignProfileId),
+      {
+        organizationId: 'org-dynamic',
+        installationId: 'int-api-02',
+        sourceSystem: 'universal-rest',
+      },
+      {
+        idempotencyKey: 'foreign-resource',
+      },
+    );
+    assert.equal(foreign.integrationProfileId, foreignProfileId);
+
+    const foreignGet = await jsonRequest(
+      baseUrl,
+      firstToken,
+      `/v1/fiscal-records/${foreign.recordId}`,
+    );
+    assert.equal(foreignGet.response.status, 404);
+    assert.equal(foreignGet.body.error.code, 'VF_API_RECORD_NOT_FOUND');
+
+    const foreignStatus = await jsonRequest(
+      baseUrl,
+      firstToken,
+      `/v1/fiscal-records/${foreign.recordId}/status`,
+    );
+    assert.equal(foreignStatus.response.status, 404);
+    assert.equal(foreignStatus.body.error.code, 'VF_API_RECORD_NOT_FOUND');
 
     const directIntentBypass = await jsonRequest(baseUrl, firstToken, '/v1/preflight', {
       method: 'POST',
