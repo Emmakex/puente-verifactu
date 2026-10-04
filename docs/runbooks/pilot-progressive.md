@@ -54,7 +54,7 @@ chmod 600 "$HOME/.puente-verifactu/pilot/ops-status.json"
 
 ### Evidencia de backup Kairoseth
 
-El piloto productivo **no usa el lifecycle SQLite**. El deployment Kairoseth debe preparar fuera del repositorio un informe sanitizado basado en evidencia real del backup MongoDB gestionado.
+El piloto productivo **no usa el lifecycle SQLite**. El deployment Kairoseth debe preparar fuera del repositorio un informe sanitizado basado en evidencia real del backup MongoDB gestionado, con `kind=kairoseth-managed-backup-readiness`.
 
 Se puede partir de `config/kairoseth-backup-readiness.example.json` y guardarlo fuera de Git:
 
