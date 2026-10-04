@@ -92,6 +92,7 @@ class FakeKairosethAuthProvider {
       organizationId: identity.organizationId,
       installationId: identity.installationId,
       sourceSystem: identity.sourceSystem,
+      profileId: identity.profileId,
       rateLimitPerMinute: 500,
       permissions: [],
     };
