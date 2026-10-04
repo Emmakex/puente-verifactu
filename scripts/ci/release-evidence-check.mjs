@@ -7,11 +7,14 @@ import { buildReleaseEvidence } from '../release/release-evidence.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const gates = JSON.parse(await readFile(join(REPO_ROOT, 'config/release-gates.json'), 'utf8'));
+const pilotPolicy = JSON.parse(await readFile(join(REPO_ROOT, 'config/pilot-policy.example.json'), 'utf8'));
 const registry = JSON.parse(await readFile(join(REPO_ROOT, 'config/regulatory-sources.json'), 'utf8'));
 
 assert.equal(gates.schema_version, 1);
 assert.equal(gates.deployment_profile, 'kairoseth-hostinger-mongodb');
 assert.equal(gates.release_status, 'release_candidate');
+assert.equal(pilotPolicy.deployment_profile, 'kairoseth-hostinger-mongodb');
+assert.equal(pilotPolicy.backup_evidence_kind, 'kairoseth-managed-backup-readiness');
 
 const aeatGate = gates.blockers.find((blocker) => blocker.id === 'AEAT_EXTERNAL_GATE_6');
 assert.ok(aeatGate, 'AEAT external gate #6 must be represented');
