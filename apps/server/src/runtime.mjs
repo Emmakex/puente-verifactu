@@ -83,15 +83,17 @@ export function createPuenteRuntime({
     timeZone: requiredString(sif?.timeZone, 'sif.timeZone'),
   };
 
-  if ((importSessionStore == null) !== (importBatchStore == null)) {
-    throw new TypeError(
-      'importSessionStore and importBatchStore must be injected together',
-    );
-  }
-  if ((fiscalRecordStore == null) !== (integrationDataStore == null)) {
-    throw new TypeError(
-      'fiscalRecordStore and integrationDataStore must be injected together',
-    );
+  if (mode === 'standalone') {
+    if ((importSessionStore == null) !== (importBatchStore == null)) {
+      throw new TypeError(
+        'importSessionStore and importBatchStore must be injected together',
+      );
+    }
+    if ((fiscalRecordStore == null) !== (integrationDataStore == null)) {
+      throw new TypeError(
+        'fiscalRecordStore and integrationDataStore must be injected together',
+      );
+    }
   }
 
   let standalonePersistence = null;
