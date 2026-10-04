@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FiscalRecordService } from '../../../packages/core/src/fiscal-record-service.mjs';
 import { createApiHandler } from '../src/handler.mjs';
-import { UniversalBridgeService } from '../src/service.mjs';
+import { MemoryIntegrationStore, UniversalBridgeService } from '../src/service.mjs';
 
 const sif = { systemId: 'PV', installationNumber: '001', timeZone: 'Europe/Madrid' };
 
@@ -278,4 +278,66 @@ test('public lifecycle responses sanitize delivery and reconciliation payloads',
   assert.equal(cancelled.status, 202);
   assert.equal(cancelled.body.delivery.jobId, 'job-cancel');
   assert.equal(JSON.stringify(cancelled.body).includes('must-not-leak'), false);
+});
+
+
+test('bridge supports a fully asynchronous integration store contract', async () => {
+  const delegate = new MemoryIntegrationStore();
+  const asyncStore = {
+    async get(recordId) { return delegate.get(recordId); },
+    async put(record) { return delegate.put(record); },
+    async reserve(key, payload) { return delegate.reserve(key, payload); },
+    async complete(key, payload, recordId, reservationToken) {
+      return delegate.complete(key, payload, recordId, reservationToken);
+    },
+    async release(key, payload, reservationToken) {
+      return delegate.release(key, payload, reservationToken);
+    },
+  };
+  const fiscalService = new FiscalRecordService({
+    sif,
+    clock: () => new Date('2026-09-15T08:00:00Z'),
+  });
+  const bridge = new UniversalBridgeService({ fiscalService, store: asyncStore });
+  const handler = createApiHandler({
+    bridge,
+    authenticate: async () => ({
+      organizationId: 'org-async',
+      installationId: 'install-async',
+      sourceSystem: 'async-store',
+    }),
+  });
+
+  const created = await handler({
+    method: 'POST',
+    path: '/v1/fiscal-records',
+    body: { intent: invoice({ sourceInvoiceId: 'async-1', number: 'ASYNC-1' }) },
+    headers: { 'Idempotency-Key': 'async-create' },
+  });
+  assert.equal(created.status, 202);
+
+  const fetched = await handler({
+    method: 'GET',
+    path: '/v1/fiscal-records/' + created.body.recordId,
+    headers: {},
+  });
+  assert.equal(fetched.status, 200);
+  assert.equal(fetched.body.recordId, created.body.recordId);
+
+  const status = await handler({
+    method: 'GET',
+    path: '/v1/fiscal-records/' + created.body.recordId + '/status',
+    headers: {},
+  });
+  assert.equal(status.status, 200);
+
+  const retry = await handler({
+    method: 'POST',
+    path: '/v1/fiscal-records',
+    body: { intent: invoice({ sourceInvoiceId: 'async-1', number: 'ASYNC-1' }) },
+    headers: { 'Idempotency-Key': 'async-create' },
+  });
+  assert.equal(retry.status, 200);
+  assert.equal(retry.body.recordId, created.body.recordId);
+  assert.equal(retry.body.duplicate, true);
 });
