@@ -25,15 +25,15 @@ const configuration = {
   invoiceType: 'F2',
 };
 
-test('temporary import session inspects CSV and runs a dry preflight', () => {
+test('temporary import session inspects CSV and runs a dry preflight', async () => {
   const imports = new ImportSessionService({ clock: () => Date.parse('2026-09-15T09:00:00Z') });
-  const inspection = imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+  const inspection = await imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
   assert.match(inspection.importId, /^imp_[a-f0-9]{32}$/);
   assert.equal(inspection.file.rows, 1);
   assert.equal(inspection.assistant.profile.fields['Nº Factura'], 'number');
   assert.equal(inspection.assistant.missingEssentialTargets.includes('invoiceType'), true);
 
-  const report = imports.preflight(inspection.importId, context, { configuration });
+  const report = await imports.preflight(inspection.importId, context, { configuration });
   assert.equal(report.mode, 'dry-run');
   assert.equal(report.ok, true);
   assert.deepEqual(report.summary, { rows: 1, valid: 1, invalid: 0 });
@@ -42,26 +42,35 @@ test('temporary import session inspects CSV and runs a dry preflight', () => {
   assert.equal(report.profile.constants.invoiceType, 'F2');
 });
 
-test('import session is tenant and installation isolated', () => {
+test('import session is tenant and installation isolated', async () => {
   const imports = new ImportSessionService();
-  const inspection = imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
-  assert.throws(() => imports.preflight(inspection.importId, { ...context, organizationId: 'org-other' }, { configuration }), { code: 'VF_IMPORT_SESSION_NOT_FOUND' });
-  assert.throws(() => imports.preflight(inspection.importId, { ...context, installationId: 'install-other' }, { configuration }), { code: 'VF_IMPORT_SESSION_NOT_FOUND' });
+  const inspection = await imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+  await assert.rejects(
+    imports.preflight(inspection.importId, { ...context, organizationId: 'org-other' }, { configuration }),
+    { code: 'VF_IMPORT_SESSION_NOT_FOUND' },
+  );
+  await assert.rejects(
+    imports.preflight(inspection.importId, { ...context, installationId: 'install-other' }, { configuration }),
+    { code: 'VF_IMPORT_SESSION_NOT_FOUND' },
+  );
 });
 
-test('reading at session capacity does not evict the active session', () => {
+test('reading at session capacity does not evict the active session', async () => {
   const imports = new ImportSessionService({ maxSessions: 1 });
-  const inspection = imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
-  const report = imports.preflight(inspection.importId, context, { configuration });
+  const inspection = await imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+  const report = await imports.preflight(inspection.importId, context, { configuration });
   assert.equal(report.ok, true);
 });
 
-test('expired import session returns an explicit expiration error', () => {
+test('expired import session returns an explicit expiration error', async () => {
   let now = 1000;
   const imports = new ImportSessionService({ clock: () => now, ttlMs: 50 });
-  const inspection = imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+  const inspection = await imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
   now = 1051;
-  assert.throws(() => imports.preflight(inspection.importId, context, { configuration }), { code: 'VF_IMPORT_SESSION_EXPIRED' });
+  await assert.rejects(
+    imports.preflight(inspection.importId, context, { configuration }),
+    { code: 'VF_IMPORT_SESSION_EXPIRED' },
+  );
 });
 
 test('import API accepts raw file bytes and returns preflight through same-origin flow', async () => {
@@ -90,12 +99,15 @@ test('import API accepts raw file bytes and returns preflight through same-origi
   assert.equal(preflight.body.ok, true);
 });
 
-test('unsupported fixed field is rejected rather than written into canonical profile', () => {
+test('unsupported fixed field is rejected rather than written into canonical profile', async () => {
   const imports = new ImportSessionService();
-  const inspection = imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
-  assert.throws(() => imports.preflight(inspection.importId, context, {
-    configuration: { ...configuration, organizationId: 'attacker-org' },
-  }), { code: 'VF_IMPORT_CONFIGURATION_FIELD_INVALID' });
+  const inspection = await imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+  await assert.rejects(
+    imports.preflight(inspection.importId, context, {
+      configuration: { ...configuration, organizationId: 'attacker-org' },
+    }),
+    { code: 'VF_IMPORT_CONFIGURATION_FIELD_INVALID' },
+  );
 });
 
 
@@ -113,7 +125,7 @@ test('batch issuance is explicit, preflight-gated and idempotent per row', async
     },
   };
   const handler = createApiHandler({ bridge, imports, authenticate: async () => context });
-  const inspection = imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+  const inspection = await imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
 
   const first = await handler({
     method: 'POST',
@@ -144,7 +156,7 @@ test('batch issuance refuses a file with invalid rows before issuing anything', 
     imports,
     authenticate: async () => context,
   });
-  const inspection = imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+  const inspection = await imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
   const response = await handler({
     method: 'POST',
     path: `/v1/imports/${inspection.importId}/issue`,
@@ -154,4 +166,91 @@ test('batch issuance refuses a file with invalid rows before issuing anything', 
   assert.equal(response.status, 422);
   assert.equal(response.body.error.code, 'VF_IMPORT_BATCH_PREFLIGHT_FAILED');
   assert.equal(issueCalls, 0);
+});
+
+
+test('explicit confirmation freezes a durable tenant-bound import batch', async () => {
+  const imports = new ImportSessionService({
+    clock: () => Date.parse('2026-09-15T09:00:00Z'),
+  });
+  const inspection = await imports.inspect({
+    buffer: csv,
+    filename: 'facturas.csv',
+    context,
+  });
+
+  const confirmed = await imports.confirmBatch(
+    inspection.importId,
+    context,
+    { configuration },
+  );
+
+  assert.match(confirmed.batchId, /^bat_[a-f0-9]{32}$/);
+  assert.equal(confirmed.importId, inspection.importId);
+  assert.equal(confirmed.status, 'confirmed');
+  assert.deepEqual(confirmed.summary, {
+    rows: 1,
+    pending: 1,
+    issued: 0,
+    failed: 0,
+  });
+  assert.equal(confirmed.rows[0].row, 2);
+  assert.equal(confirmed.rows[0].status, 'pending');
+  assert.equal('intent' in confirmed.rows[0], false);
+  assert.equal('profile' in confirmed, false);
+
+  const repeated = await imports.confirmBatch(
+    inspection.importId,
+    context,
+    { configuration },
+  );
+  assert.equal(repeated.batchId, confirmed.batchId);
+
+  const fetched = await imports.batch(confirmed.batchId, context);
+  assert.deepEqual(fetched, confirmed);
+
+  await assert.rejects(
+    imports.batch(confirmed.batchId, { ...context, organizationId: 'org-other' }),
+    { code: 'VF_IMPORT_BATCH_NOT_FOUND' },
+  );
+});
+
+test('confirm API requires full preflight before creating a batch', async () => {
+  const imports = new ImportSessionService();
+  const handler = createApiHandler({
+    bridge: {},
+    imports,
+    authenticate: async () => context,
+  });
+  const inspection = await imports.inspect({
+    buffer: csv,
+    filename: 'facturas.csv',
+    context,
+  });
+
+  const invalid = await handler({
+    method: 'POST',
+    path: `/v1/imports/${inspection.importId}/confirm`,
+    headers: { 'content-type': 'application/json' },
+    body: { configuration: { ...configuration, invoiceType: '' } },
+  });
+  assert.equal(invalid.status, 422);
+  assert.equal(invalid.body.error.code, 'VF_IMPORT_BATCH_PREFLIGHT_FAILED');
+
+  const confirmed = await handler({
+    method: 'POST',
+    path: `/v1/imports/${inspection.importId}/confirm`,
+    headers: { 'content-type': 'application/json' },
+    body: { configuration },
+  });
+  assert.equal(confirmed.status, 201);
+  assert.match(confirmed.body.batchId, /^bat_[a-f0-9]{32}$/);
+
+  const fetched = await handler({
+    method: 'GET',
+    path: `/v1/import-batches/${confirmed.body.batchId}`,
+    headers: {},
+  });
+  assert.equal(fetched.status, 200);
+  assert.equal(fetched.body.batchId, confirmed.body.batchId);
 });
