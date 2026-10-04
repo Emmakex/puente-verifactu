@@ -87,9 +87,12 @@ Hecho:
 - Local Agent portable Linux/Windows/macOS;
 - instalación nativa y upgrade/rollback.
 
+Hecho:
+
+- starter kits HTTP/JSON y ejemplos multi-lenguaje para Node.js, Python, PHP y cURL, con gate CI y sin lógica fiscal en cliente.
+
 Pendiente:
 
-- starter kits HTTP/JSON y ejemplos multi-lenguaje;
 - formulario manual universal;
 - política de retención de archivos processed/error del Local Agent.
 
