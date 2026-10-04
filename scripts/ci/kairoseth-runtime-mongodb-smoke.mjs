@@ -9,14 +9,18 @@ import {
   createMongoKairosethImportBatchStore,
   createMongoKairosethImportSessionStore,
   createMongoKairosethIntegrationStore,
+  createMongoKairosethIntegrationProfileStore,
   createMongoKairosethLocalAgentRegistryStore,
+  createMongoKairosethOnboardingProfileStore,
   mongoAeatOutboxIndexes,
   mongoFiscalRecordIndexes,
   mongoImportBatchIndexes,
   mongoImportSessionIndexes,
   mongoIntegrationRecordIndexes,
   mongoIntegrationRequestIndexes,
+  mongoIntegrationProfileIndexes,
   mongoLocalAgentRegistryIndexes,
+  mongoOnboardingProfileIndexes,
 } from '../../packages/kairoseth-control-plane/src/index.mjs';
 
 const uri = process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27018';
@@ -162,6 +166,14 @@ try {
     mongoLocalAgentRegistryIndexes(),
   );
   await createIndexes(
+    database.collection('kairoseth_onboarding_profiles'),
+    mongoOnboardingProfileIndexes(),
+  );
+  await createIndexes(
+    database.collection('kairoseth_integration_profiles'),
+    mongoIntegrationProfileIndexes(),
+  );
+  await createIndexes(
     database.collection('kairoseth_aeat_outbox'),
     mongoAeatOutboxIndexes(),
   );
@@ -225,7 +237,13 @@ try {
       importSessionStore: createMongoKairosethImportSessionStore({ database }),
       importBatchStore: createMongoKairosethImportBatchStore({ database }),
       localAgentRegistryStore: createMongoKairosethLocalAgentRegistryStore({ database }),
+      onboardingProfileStore: createMongoKairosethOnboardingProfileStore({ database }),
+      integrationProfileStore: createMongoKairosethIntegrationProfileStore({ database }),
       aeatOutboxStore: createMongoKairosethAeatOutboxStore({ database }),
+      resolveIntegrationSecretReference: async () => null,
+      kairosethAuthProvider: {
+        async resolveBearerDigest() { return null; },
+      },
       persistenceHealthcheck: () => fiscalRecordStore.healthcheck(),
     };
   };
@@ -348,6 +366,9 @@ try {
     readiness: true,
     observability: true,
     managed_backup_status: true,
+    onboarding_profiles_mongodb: true,
+    integration_profiles_mongodb: true,
+    kairoseth_auth_injected: true,
     aeat_outbox_dispatch: true,
     aeat_expired_lease_quarantine: true,
   }, null, 2));
