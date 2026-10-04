@@ -235,11 +235,14 @@ export class UniversalBridgeService {
     assertValid(intent);
     this.assertPresentationIntent(intent);
     const requestKey = `${context.organizationId}\u001f${context.installationId}\u001f${idempotencyKey}`;
-    const reservation = this.store.reserve(requestKey, intent);
+    const reservation = await this.store.reserve(requestKey, intent);
 
     if (reservation.duplicate) {
       if (!reservation.existing.recordId) throw apiError('VF_API_IDEMPOTENCY_IN_PROGRESS', 'The same request is already being processed', 409);
-      return { ...this.publicResource(this.store.get(reservation.existing.recordId)), duplicate: true };
+      return {
+        ...this.publicResource(await this.store.get(reservation.existing.recordId)),
+        duplicate: true,
+      };
     }
 
     try {
@@ -253,7 +256,7 @@ export class UniversalBridgeService {
         status = delivery?.status ?? 'queued';
       }
 
-      const resource = this.store.put({
+      const resource = await this.store.put({
         recordId,
         organizationId: context.organizationId,
         installationId: context.installationId,
@@ -265,10 +268,19 @@ export class UniversalBridgeService {
         presentation: this.presentationForRecord(fiscalized.record),
         delivery,
       });
-      this.store.complete(requestKey, intent, recordId);
+      await this.store.complete(
+        requestKey,
+        intent,
+        recordId,
+        reservation.reservationToken ?? null,
+      );
       return { ...this.publicResource(resource), duplicate: fiscalized.duplicate };
     } catch (error) {
-      this.store.release(requestKey, intent);
+      await this.store.release(
+        requestKey,
+        intent,
+        reservation.reservationToken ?? null,
+      );
       throw error;
     }
   }
@@ -298,13 +310,13 @@ export class UniversalBridgeService {
     return resource;
   }
 
-  get(recordId, context) {
-    const record = this.assertResourceAccess(this.store.get(recordId), context);
+  async get(recordId, context) {
+    const record = this.assertResourceAccess(await this.store.get(recordId), context);
     return this.publicResource(record);
   }
 
-  status(recordId, context) {
-    const resource = this.get(recordId, context);
+  async status(recordId, context) {
+    const resource = await this.get(recordId, context);
     return Object.freeze({
       schemaVersion: 1,
       recordId: resource.recordId,
@@ -347,7 +359,7 @@ export class UniversalBridgeService {
       throw apiError('VF_API_CANCELLATION_ID_INVALID', 'sourceCancellationId is required and must not exceed 160 characters', 400);
     }
 
-    const original = this.get(recordId, context);
+    const original = await this.get(recordId, context);
     if (original.fiscalRecord?.recordType !== 'alta') {
       throw apiError('VF_API_CANCELLATION_SOURCE_INVALID', 'Only an alta fiscal record can be cancelled', 409);
     }
@@ -366,22 +378,30 @@ export class UniversalBridgeService {
       integrationProfileId: original.integrationProfileId ?? null,
     };
     const requestKey = `${context.organizationId}\u001f${context.installationId}\u001fcancel\u001f${idempotencyKey}`;
-    const reservation = this.store.reserve(requestKey, requestPayload);
+    const reservation = await this.store.reserve(requestKey, requestPayload);
 
     if (reservation.duplicate) {
       if (!reservation.existing.recordId) {
         throw apiError('VF_API_IDEMPOTENCY_IN_PROGRESS', 'The same cancellation request is already being processed', 409);
       }
-      return { ...this.get(reservation.existing.recordId, context), duplicate: true };
+      return {
+        ...(await this.get(reservation.existing.recordId, context)),
+        duplicate: true,
+      };
     }
 
     try {
       const fiscalized = await this.fiscalService.cancel(request);
       const cancellationRecordId = recordIdFor(fiscalized.record);
-      const existingResource = this.store.get(cancellationRecordId);
+      const existingResource = await this.store.get(cancellationRecordId);
       if (fiscalized.duplicate && existingResource) {
         this.assertResourceAccess(existingResource, context);
-        this.store.complete(requestKey, requestPayload, cancellationRecordId);
+        await this.store.complete(
+          requestKey,
+          requestPayload,
+          cancellationRecordId,
+          reservation.reservationToken ?? null,
+        );
         return { ...this.publicResource(existingResource), duplicate: true };
       }
 
@@ -399,7 +419,7 @@ export class UniversalBridgeService {
         status = delivery?.status ?? 'queued';
       }
 
-      const resource = this.store.put({
+      const resource = await this.store.put({
         recordId: cancellationRecordId,
         organizationId: context.organizationId,
         installationId: original.installationId,
@@ -413,10 +433,19 @@ export class UniversalBridgeService {
         presentation: null,
         delivery,
       });
-      this.store.complete(requestKey, requestPayload, cancellationRecordId);
+      await this.store.complete(
+        requestKey,
+        requestPayload,
+        cancellationRecordId,
+        reservation.reservationToken ?? null,
+      );
       return { ...this.publicResource(resource), duplicate: fiscalized.duplicate };
     } catch (error) {
-      this.store.release(requestKey, requestPayload);
+      await this.store.release(
+        requestKey,
+        requestPayload,
+        reservation.reservationToken ?? null,
+      );
       throw error;
     }
   }
