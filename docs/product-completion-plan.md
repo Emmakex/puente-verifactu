@@ -21,6 +21,10 @@ Mientras este plan no esté cerrado:
 
 ### P1 — U10 CSV/XLSX durable en Kairoseth MongoDB (#84)
 
+**Implementación en curso:** confirmación explícita, store MongoDB TTL/durable,
+lease de batch, emisión reanudable y export seguro forman una única unidad de
+cierre. No se considera P1 cerrado hasta que el smoke MongoDB real y CI estén verdes.
+
 Debe cerrar el flujo:
 
 ```text
