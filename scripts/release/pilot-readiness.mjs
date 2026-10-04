@@ -55,14 +55,26 @@ function validatePolicy(policy) {
   if (policy?.schema_version !== 1 || policy?.kind !== 'puente-verifactu-pilot-policy') {
     throw pilotError('VF_PILOT_POLICY_INVALID', 'Unsupported pilot policy');
   }
-  if (policy.deployment_profile !== 'sqlite-single-node') {
-    throw pilotError('VF_PILOT_POLICY_PROFILE_INVALID', 'Pilot policy must target sqlite-single-node');
+  if (policy.deployment_profile !== 'kairoseth-hostinger-mongodb') {
+    throw pilotError(
+      'VF_PILOT_POLICY_PROFILE_INVALID',
+      'Pilot policy must target kairoseth-hostinger-mongodb',
+    );
   }
   if (!Number.isInteger(policy.max_operations) || policy.max_operations < 1) {
     throw pilotError('VF_PILOT_POLICY_SCOPE_INVALID', 'max_operations must be a positive integer');
   }
   if (!Number.isInteger(policy.max_duration_minutes) || policy.max_duration_minutes < 1) {
     throw pilotError('VF_PILOT_POLICY_DURATION_INVALID', 'max_duration_minutes must be a positive integer');
+  }
+  if (!Number.isInteger(policy.max_backup_age_hours) || policy.max_backup_age_hours < 1) {
+    throw pilotError('VF_PILOT_POLICY_BACKUP_AGE_INVALID', 'max_backup_age_hours must be a positive integer');
+  }
+  if (!Number.isInteger(policy.max_restore_drill_age_days) || policy.max_restore_drill_age_days < 1) {
+    throw pilotError(
+      'VF_PILOT_POLICY_RESTORE_AGE_INVALID',
+      'max_restore_drill_age_days must be a positive integer',
+    );
   }
   for (const key of [
     'stop_on_warning',
@@ -96,8 +108,11 @@ function validateBundle(bundle, expectedCommit) {
   if (bundle?.ci?.result !== 'success') {
     throw pilotError('VF_PILOT_CI_NOT_GREEN', 'Candidate CI result is not success');
   }
-  if (bundle?.product?.deployment_profile !== 'sqlite-single-node') {
-    throw pilotError('VF_PILOT_PROFILE_MISMATCH', 'Candidate deployment profile is not sqlite-single-node');
+  if (bundle?.product?.deployment_profile !== 'kairoseth-hostinger-mongodb') {
+    throw pilotError(
+      'VF_PILOT_PROFILE_MISMATCH',
+      'Candidate deployment profile is not kairoseth-hostinger-mongodb',
+    );
   }
   if (bundle?.declaration?.present !== true
     || bundle?.declaration?.version_bound !== true
@@ -116,6 +131,12 @@ function validateApproval(approval, bundle, expectedCommit) {
   if (approval.candidate_commit !== expectedCommit) {
     throw pilotError('VF_PILOT_APPROVAL_COMMIT_MISMATCH', 'Pilot approval does not match expected commit');
   }
+  if (approval.deployment_profile !== bundle.product.deployment_profile) {
+    throw pilotError(
+      'VF_PILOT_APPROVAL_PROFILE_MISMATCH',
+      'Pilot approval does not match the candidate deployment profile',
+    );
+  }
   if (approval.declaration_sha256 !== bundle.declaration.sha256) {
     throw pilotError('VF_PILOT_APPROVAL_DECLARATION_MISMATCH', 'Pilot approval does not match the declaration fingerprint');
   }
@@ -127,6 +148,9 @@ function validateApproval(approval, bundle, expectedCommit) {
 
 function validateOpsStatus(ops) {
   if (ops?.schemaVersion !== 1) throw pilotError('VF_PILOT_OPS_INVALID', 'Operational snapshot schema is invalid');
+  if (ops?.mode !== 'kairoseth-mongodb') {
+    throw pilotError('VF_PILOT_OPS_PROFILE_MISMATCH', 'Operational snapshot must come from kairoseth-mongodb mode');
+  }
   if (ops?.database?.ok !== true || ops?.aeatOutbox?.available !== true) {
     throw pilotError('VF_PILOT_OPS_UNAVAILABLE', 'Database or AEAT outbox is unavailable');
   }
@@ -148,15 +172,62 @@ function validateOpsStatus(ops) {
   return ops;
 }
 
-function validateBackupReport(report) {
-  if (report?.schemaVersion !== 1 || report?.status !== 'ok') {
-    throw pilotError('VF_PILOT_BACKUP_LIFECYCLE_FAILED', 'Backup lifecycle report must be ok');
+function validateBackupReport(report, policy, referenceTime) {
+  if (
+    report?.schemaVersion !== 1
+    || report?.kind !== 'kairoseth-managed-backup-readiness'
+    || report?.deploymentProfile !== 'kairoseth-hostinger-mongodb'
+    || report?.status !== 'ok'
+  ) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_LIFECYCLE_FAILED',
+      'Kairoseth managed backup readiness report must be ok and match the candidate profile',
+    );
+  }
+  if (typeof report?.provider !== 'string' || !report.provider.trim()) {
+    throw pilotError('VF_PILOT_BACKUP_PROVIDER_MISSING', 'Managed backup provider reference is required');
+  }
+  if (report.containsSecrets !== false || report.containsFiscalData !== false) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_EVIDENCE_NOT_SANITIZED',
+      'Managed backup readiness evidence must explicitly exclude secrets and fiscal data',
+    );
   }
   sha256(report?.newestBackup?.sha256, 'backup.newestBackup.sha256');
-  if (!report?.restoreDrill || !report.restoreDrill.backupSha256) {
-    throw pilotError('VF_PILOT_RESTORE_DRILL_MISSING', 'Backup lifecycle report must include restore drill evidence');
+  if (report?.newestBackup?.encryptedAtRest !== true || report?.newestBackup?.remote !== true) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_REMOTE_INVALID',
+      'Kairoseth backup evidence must prove a remote encrypted backup',
+    );
+  }
+  if (!report?.restoreDrill || report.restoreDrill.result !== 'ok' || !report.restoreDrill.backupSha256) {
+    throw pilotError('VF_PILOT_RESTORE_DRILL_MISSING', 'Backup readiness must include a successful restore drill');
   }
   sha256(report.restoreDrill.backupSha256, 'backup.restoreDrill.backupSha256');
+  if (report.restoreDrill.backupSha256 !== report.newestBackup.sha256) {
+    throw pilotError(
+      'VF_PILOT_RESTORE_DRILL_BACKUP_MISMATCH',
+      'Restore drill must reference the validated candidate backup fingerprint',
+    );
+  }
+
+  const now = Date.parse(referenceTime);
+  const backupCreated = Date.parse(String(report.newestBackup.createdAt ?? ''));
+  const drillPerformed = Date.parse(String(report.restoreDrill.performedAt ?? ''));
+  if (!Number.isFinite(now) || !Number.isFinite(backupCreated) || !Number.isFinite(drillPerformed)) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_TIMESTAMP_INVALID',
+      'Backup and restore drill timestamps must be valid ISO dates',
+    );
+  }
+  const backupAgeMs = Math.max(0, now - backupCreated);
+  const drillAgeMs = Math.max(0, now - drillPerformed);
+  if (backupAgeMs > policy.max_backup_age_hours * 60 * 60 * 1000) {
+    throw pilotError('VF_PILOT_BACKUP_TOO_OLD', 'Newest managed backup is older than pilot policy allows');
+  }
+  if (drillAgeMs > policy.max_restore_drill_age_days * 24 * 60 * 60 * 1000) {
+    throw pilotError('VF_PILOT_RESTORE_DRILL_TOO_OLD', 'Restore drill is older than pilot policy allows');
+  }
   return report;
 }
 
@@ -187,10 +258,9 @@ export async function buildPilotReadiness({
   validateBundle(bundle, commit);
   const approvedAt = validateApproval(approval, bundle, commit);
   validateOpsStatus(ops);
-  validateBackupReport(backup);
-  validatePolicy(policy);
-
+  const validatedPolicy = validatePolicy(policy);
   const generated = generatedAt ? isoDate(generatedAt, '--generated-at') : new Date().toISOString();
+  validateBackupReport(backup, validatedPolicy, generated);
 
   const receipt = {
     schema_version: 1,
@@ -217,6 +287,7 @@ export async function buildPilotReadiness({
       content_embedded: false,
     },
     operational_readiness: {
+      persistence_mode: 'kairoseth-mongodb',
       database_ok: true,
       outbox_available: true,
       reconciliation_required: 0,
@@ -228,13 +299,15 @@ export async function buildPilotReadiness({
       restore_drill_sha256: backup.restoreDrill.backupSha256,
     },
     pilot_policy: {
-      max_operations: policy.max_operations,
-      max_duration_minutes: policy.max_duration_minutes,
+      max_operations: validatedPolicy.max_operations,
+      max_duration_minutes: validatedPolicy.max_duration_minutes,
+      max_backup_age_hours: validatedPolicy.max_backup_age_hours,
+      max_restore_drill_age_days: validatedPolicy.max_restore_drill_age_days,
       stop_on_warning: true,
       stop_on_rejection: true,
       stop_on_reconciliation_required: true,
       stop_on_blocked: true,
-      rollback_mode: policy.rollback_mode,
+      rollback_mode: validatedPolicy.rollback_mode,
     },
     contains_personal_data: false,
   };

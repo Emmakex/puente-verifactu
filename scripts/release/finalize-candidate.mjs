@@ -17,6 +17,8 @@ function required(value, name) {
   return text;
 }
 
+const PRODUCTIVE_DEPLOYMENT_PROFILE = 'kairoseth-hostinger-mongodb';
+
 function sha256(buffer) {
   return createHash('sha256').update(buffer).digest('hex');
 }
@@ -28,6 +30,36 @@ function assertSha40(value, name) {
     throw error;
   }
   return value.toLowerCase();
+}
+
+function ensureArtifacts(artifacts) {
+  const requiredIds = new Set([
+    'woocommerce-connector',
+    'prestashop-connector',
+    'kairoseth-local-agent',
+  ]);
+  if (!Array.isArray(artifacts)) {
+    const error = new Error('Release evidence artifacts are missing');
+    error.code = 'VF_FINAL_RELEASE_ARTIFACTS_INVALID';
+    throw error;
+  }
+  const seen = new Set();
+  for (const artifact of artifacts) {
+    const id = String(artifact?.id ?? '').trim();
+    const hash = String(artifact?.sha256 ?? '').trim().toLowerCase();
+    if (!id || seen.has(id) || !/^[0-9a-f]{64}$/.test(hash)) {
+      const error = new Error('Release evidence contains an invalid or duplicate artifact');
+      error.code = 'VF_FINAL_RELEASE_ARTIFACTS_INVALID';
+      throw error;
+    }
+    seen.add(id);
+    requiredIds.delete(id);
+  }
+  if (requiredIds.size > 0) {
+    const error = new Error(`Release evidence is missing required artifacts: ${[...requiredIds].join(', ')}`);
+    error.code = 'VF_FINAL_RELEASE_ARTIFACTS_MISSING';
+    throw error;
+  }
 }
 
 function ensureDeclaration(content, version) {
@@ -43,6 +75,18 @@ function ensureDeclaration(content, version) {
   if (!content.includes(version)) {
     const error = new Error(`Responsible declaration does not reference version ${version}`);
     error.code = 'VF_FINAL_RELEASE_DECLARATION_VERSION_MISMATCH';
+    throw error;
+  }
+
+  const requiredProfileMarkers = ['Kairoseth', 'Hostinger', 'MongoDB'];
+  if (
+    requiredProfileMarkers.some((marker) => !content.includes(marker))
+    || /SQLite single-node/i.test(content)
+  ) {
+    const error = new Error(
+      'Responsible declaration does not describe the Kairoseth Hostinger + MongoDB candidate profile',
+    );
+    error.code = 'VF_FINAL_RELEASE_DECLARATION_PROFILE_MISMATCH';
     throw error;
   }
 
@@ -95,6 +139,12 @@ export async function buildFinalReleaseBundle({
   }
 
   const version = required(release?.product?.version, 'release.product.version');
+  if (release?.product?.deployment_profile !== PRODUCTIVE_DEPLOYMENT_PROFILE) {
+    const error = new Error(`Release evidence must target ${PRODUCTIVE_DEPLOYMENT_PROFILE}`);
+    error.code = 'VF_FINAL_RELEASE_PROFILE_MISMATCH';
+    throw error;
+  }
+  ensureArtifacts(release?.artifacts);
   ensureDeclaration(declaration, version);
 
   const bundle = {

@@ -40,6 +40,9 @@ const contracts = [
       'code-first-no-automatic-db-restore',
       'stop_on_warning',
       'approval-v0.1.0.json',
+      'kairoseth-hostinger-mongodb',
+      'kairoseth-mongodb',
+      'kairoseth-managed-backup-readiness',
     ],
   },
 ];

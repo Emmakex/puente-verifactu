@@ -12,11 +12,12 @@ const commit = '0123456789abcdef0123456789abcdef01234567';
 
 await writeFile(releasePath, JSON.stringify({
   source: { commit },
-  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'sqlite-single-node' },
+  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'kairoseth-hostinger-mongodb' },
   release: { status: 'release_candidate', blockers: [] },
   artifacts: [
     { id: 'woocommerce-connector', filename: 'woo.zip', version: '0.2.0', sha256: 'a'.repeat(64) },
     { id: 'prestashop-connector', filename: 'ps.zip', version: '0.4.0', sha256: 'b'.repeat(64) },
+    { id: 'kairoseth-local-agent', filename: 'agent.zip', version: '0.1.0', sha256: 'c'.repeat(64) },
   ],
   ci: { workflow: 'CI', run_id: '1', run_number: '1', result: 'success' },
 }, null, 2));
@@ -25,6 +26,7 @@ const declaration = [
   '# DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN',
   ...[...'abcdefghijkl'].map((letter) => `**${letter}) Campo obligatorio:** valor válido`),
   'Puente VeriFactu versión 0.1.0',
+  'Perfil productivo: Kairoseth en Hostinger + MongoDB. Incluye Kairoseth Local Agent.',
   'Productor Ejemplo',
   '00000000T',
   'Calle Ejemplo 1',
@@ -42,8 +44,10 @@ const bundle = await buildFinalReleaseBundle({
 
 assert.equal(bundle.status, 'candidate_evidence_complete');
 assert.equal(bundle.source_commit, commit);
+assert.equal(bundle.product.deployment_profile, 'kairoseth-hostinger-mongodb');
 assert.equal(bundle.release.status, 'release_candidate');
 assert.equal(bundle.release.blockers, 0);
+assert.equal(bundle.artifacts.some((artifact) => artifact.id === 'kairoseth-local-agent'), true);
 assert.equal(bundle.ci.result, 'success');
 assert.equal(bundle.declaration.present, true);
 assert.equal(bundle.declaration.version_bound, true);
@@ -55,6 +59,67 @@ assert.match(bundle.release_evidence_sha256, /^[0-9a-f]{64}$/);
 const persisted = JSON.parse(await readFile(outputPath, 'utf8'));
 assert.deepEqual(persisted, bundle);
 assert.equal((await stat(outputPath)).mode & 0o777, 0o600);
+
+
+const staleDeclarationPath = join(dir, 'declaration-stale-sqlite.md');
+await writeFile(staleDeclarationPath, [
+  '# DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN',
+  ...[...'abcdefghijkl'].map((letter) => `**${letter}) Campo obligatorio:** valor válido`),
+  'Puente VeriFactu versión 0.1.0',
+  'Perfil de despliegue: SQLite single-node.',
+  'Productor Ejemplo',
+  '00000000T',
+  'Calle Ejemplo 1',
+  '3 de octubre de 2026',
+].join('\n'));
+await assert.rejects(
+  () => buildFinalReleaseBundle({
+    releaseEvidencePath: releasePath,
+    declarationPath: staleDeclarationPath,
+    expectedCommit: commit,
+  }),
+  (error) => error.code === 'VF_FINAL_RELEASE_DECLARATION_PROFILE_MISMATCH',
+);
+
+const missingAgentPath = join(dir, 'release-evidence-missing-agent.json');
+await writeFile(missingAgentPath, JSON.stringify({
+  source: { commit },
+  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'kairoseth-hostinger-mongodb' },
+  release: { status: 'release_candidate', blockers: [] },
+  artifacts: [
+    { id: 'woocommerce-connector', filename: 'woo.zip', version: '0.2.0', sha256: 'a'.repeat(64) },
+    { id: 'prestashop-connector', filename: 'ps.zip', version: '0.4.0', sha256: 'b'.repeat(64) },
+  ],
+  ci: { workflow: 'CI', run_id: '1', run_number: '1', result: 'success' },
+}, null, 2));
+await assert.rejects(
+  () => buildFinalReleaseBundle({
+    releaseEvidencePath: missingAgentPath,
+    declarationPath,
+    expectedCommit: commit,
+  }),
+  (error) => error.code === 'VF_FINAL_RELEASE_ARTIFACTS_MISSING',
+);
+
+const staleProfilePath = join(dir, 'release-evidence-stale-profile.json');
+await writeFile(staleProfilePath, JSON.stringify({
+  source: { commit },
+  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'sqlite-single-node' },
+  release: { status: 'release_candidate', blockers: [] },
+  artifacts: [
+    { id: 'woocommerce-connector', filename: 'woo.zip', version: '0.2.0', sha256: 'a'.repeat(64) },
+    { id: 'prestashop-connector', filename: 'ps.zip', version: '0.4.0', sha256: 'b'.repeat(64) },
+  ],
+  ci: { workflow: 'CI', run_id: '1', run_number: '1', result: 'success' },
+}, null, 2));
+await assert.rejects(
+  () => buildFinalReleaseBundle({
+    releaseEvidencePath: staleProfilePath,
+    declarationPath,
+    expectedCommit: commit,
+  }),
+  (error) => error.code === 'VF_FINAL_RELEASE_PROFILE_MISMATCH',
+);
 
 console.log(JSON.stringify({
   schema_version: 1,

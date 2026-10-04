@@ -87,7 +87,7 @@ PV
 ${version}
 
 **d) Componentes, hardware y software, breve descripción y principales funcionalidades:**  
-Puente VeriFactu es un sistema informático de facturación de arquitectura modular para integración con sistemas empresariales. La versión ${version} incluye núcleo fiscal canónico, generación y encadenamiento de registros de alta y anulación, huella SHA-256, adaptador de remisión y consulta VERI*FACTU mediante servicios AEAT, outbox durable, reconciliación de resultados inciertos, API/SDK, importación CSV/XLSX, webhooks y conectores nativos para WooCommerce y PrestaShop. El perfil de despliegue declarado es software sobre servidor de propósito general en modo SQLite single-node; no requiere hardware propietario específico.
+Puente VeriFactu es un sistema informático de facturación de arquitectura modular para integración con sistemas empresariales. La versión ${version} incluye núcleo fiscal canónico, generación y encadenamiento de registros de alta y anulación, huella SHA-256, adaptador de remisión y consulta VERI*FACTU mediante servicios AEAT, outbox durable, reconciliación de resultados inciertos, API/SDK, importación CSV/XLSX, webhooks, conectores nativos para WooCommerce y PrestaShop, Kairoseth Local Agent para integraciones read-only/SFTP/watch-folder y captura manual universal. El perfil productivo declarado se ejecuta dentro de Kairoseth sobre infraestructura Hostinger con persistencia MongoDB inyectada y autoridad fiscal/certificado server-side. SQLite queda limitado al perfil standalone de desarrollo, prueba y referencia y no forma parte de la persistencia productiva del candidato. No requiere hardware propietario específico.
 
 **e) Indicación de si el sistema se ha producido para funcionar exclusivamente como «VERI*FACTU»:**  
 S - Sí.
@@ -119,9 +119,9 @@ ${optionalContacts.length ? optionalContacts.join('\n') : '- Sin datos adicional
 
 - Repositorio/producto: Puente VeriFactu.
 - Modalidad fiscal: VERI*FACTU.
-- Perfil de despliegue: SQLite single-node.
-- Conector WooCommerce incluido en la release: 0.2.0.
-- Conector PrestaShop incluido en la release: 0.4.0.
+- Perfil de despliegue productivo: Kairoseth en Hostinger + MongoDB.
+- Artefactos técnicos versionados/fingerprintados en la evidencia de release: conector WooCommerce, conector PrestaShop y Kairoseth Local Agent.
+- Canales adicionales cubiertos por el mismo core: API/SDK, webhook, CSV/XLSX y captura manual.
 - Evidencia técnica del gate externo AEAT: documentada de forma sanitizada para la versión candidata.
 
 ---

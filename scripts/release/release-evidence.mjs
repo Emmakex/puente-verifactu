@@ -4,8 +4,10 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildPrestaShopZip } from './package-prestashop.mjs';
 import { buildWooCommerceZip } from './package-woocommerce.mjs';
+import { buildLocalAgentPortableZip } from './package-local-agent.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const PRODUCTIVE_DEPLOYMENT_PROFILE = 'kairoseth-hostinger-mongodb';
 
 async function readJson(path) {
   return JSON.parse(await readFile(path, 'utf8'));
@@ -32,6 +34,9 @@ function validateReleaseGateConfig(config) {
   if (config?.schema_version !== 1) throw new Error('Unsupported release gate schema');
   if (!['release_blocked', 'release_candidate'].includes(config.release_status)) throw new Error('Invalid release_status');
   if (!Array.isArray(config.blockers) || !Array.isArray(config.profile_decisions)) throw new Error('Invalid release gate configuration');
+  if (config.deployment_profile !== PRODUCTIVE_DEPLOYMENT_PROFILE) {
+    throw new Error(`Productive release evidence must target ${PRODUCTIVE_DEPLOYMENT_PROFILE}`);
+  }
 }
 
 function validateRegulatoryRegistry(registry) {
@@ -42,12 +47,14 @@ function validateRegulatoryRegistry(registry) {
 }
 
 export async function buildReleaseEvidence({ commit, generatedAt = null, ci = null } = {}) {
-  const [packageJson, releaseGates, regulatorySources, woo, prestashop] = await Promise.all([
+  const normalizedCommit = normalizeCommit(commit);
+  const [packageJson, releaseGates, regulatorySources, woo, prestashop, localAgent] = await Promise.all([
     readJson(join(REPO_ROOT, 'package.json')),
     readJson(join(REPO_ROOT, 'config/release-gates.json')),
     readJson(join(REPO_ROOT, 'config/regulatory-sources.json')),
     buildWooCommerceZip(),
     buildPrestaShopZip(),
+    buildLocalAgentPortableZip({ sourceCommit: normalizedCommit }),
   ]);
 
   validateReleaseGateConfig(releaseGates);
@@ -65,7 +72,7 @@ export async function buildReleaseEvidence({ commit, generatedAt = null, ci = nu
     generated_at: normalizeGeneratedAt(generatedAt),
     source: {
       repository: 'Emmakex/puente-verifactu',
-      commit: normalizeCommit(commit),
+      commit: normalizedCommit,
     },
     product: {
       name: packageJson.name,
@@ -98,6 +105,15 @@ export async function buildReleaseEvidence({ commit, generatedAt = null, ci = nu
         version: prestashop.version,
         files: prestashop.entries.filter((entry) => !entry.isDirectory).length,
         sha256: sha256(prestashop.buffer),
+      },
+      {
+        id: 'kairoseth-local-agent',
+        filename: `kairoseth-local-agent-${localAgent.version}.zip`,
+        version: localAgent.version,
+        files: localAgent.entries.length,
+        sha256: localAgent.sha256,
+        content_fingerprint: localAgent.manifest.contentFingerprint,
+        source_commit: localAgent.sourceCommit,
       },
     ],
     regulatory_review: {
