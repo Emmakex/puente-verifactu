@@ -123,6 +123,12 @@ expect(mongoInfrastructure.includes('kairoseth_fiscal_data_plane_credentials'), 
 expect(packageJson.scripts?.['server:kairoseth'] === 'node apps/server/src/kairoseth-main.mjs', 'KAIROSETH_PRODUCTION_SCRIPT_REQUIRED');
 expect(packageJson.scripts?.['kairoseth:mongodb:init'] === 'node scripts/ops/kairoseth-mongodb-init.mjs', 'KAIROSETH_MONGODB_INIT_SCRIPT_REQUIRED');
 expect(packageJson.dependencies?.mongodb === '7.7.0', 'KAIROSETH_MONGODB_DRIVER_PIN_REQUIRED');
+expect(productionMain.includes("process.env.PV_HOST ?? '0.0.0.0'"), 'KAIROSETH_HOSTINGER_BIND_HOST_REQUIRED');
+expect(productionMain.includes("process.env.PV_PORT ?? process.env.PORT, 3000"), 'KAIROSETH_HOSTINGER_PORT_REQUIRED');
+const productionEnv = readFileSync('config/kairoseth-production.env.example', 'utf8');
+expect(productionEnv.includes('PV_HOST=0.0.0.0'), 'KAIROSETH_HOSTINGER_ENV_BIND_HOST_REQUIRED');
+expect(productionEnv.includes('PV_PORT=3000'), 'KAIROSETH_HOSTINGER_ENV_PORT_REQUIRED');
+expect(!productionEnv.includes('PV_PORT=8787'), 'KAIROSETH_HOSTINGER_LEGACY_PORT_FORBIDDEN');
 
 if (failures.length) {
   console.error(JSON.stringify({ schema_version: 1, status: 'failed', check: 'kairoseth-hostinger-mongodb-contract', failures }, null, 2));
