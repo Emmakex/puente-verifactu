@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "puente-verifactu-pilot-policy",
-  "deployment_profile": "sqlite-single-node",
+  "deployment_profile": "kairoseth-hostinger-mongodb",
   "max_operations": 5,
   "max_duration_minutes": 120,
   "stop_on_warning": true,
@@ -9,5 +9,6 @@
   "stop_on_reconciliation_required": true,
   "stop_on_blocked": true,
   "require_verified_backup": true,
-  "rollback_mode": "code-first-no-automatic-db-restore"
+  "rollback_mode": "code-first-no-automatic-db-restore",
+  "backup_evidence_kind": "kairoseth-managed-mongodb-backup-evidence"
 }
