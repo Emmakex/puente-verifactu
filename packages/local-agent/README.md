@@ -107,7 +107,11 @@ That retained metadata is enough to reject a conflicting replay and to recognize
 
 `store.redactTerminalPayloads()` is also available as a maintenance sweep for terminal jobs left behind by a crash between archive and redaction.
 
-The original CSV/XLSX archived under `processed/` or `error/` is **not deleted automatically**. Source-file retention is an operator policy and must not be confused with SQLite payload minimization.
+The original CSV/XLSX archived under `processed/` or `error/` uses an explicit operator-controlled retention policy. The default is `archiveRetention.mode="keep"`, which performs **no automatic deletion**.
+
+An operator may opt into `delete-source-after-days` with separate positive day limits for `processed/` and `error/`. Only the raw archived CSV/XLSX is eligible for deletion. The adjacent `.pv-manifest.json` / `.pv-error.json` receipt remains for auditability, and files without valid recognized metadata fail closed by being retained. Retention age is derived from the agent-generated metadata timestamp rather than filesystem mtime.
+
+This local policy applies equally to watch-folder and to the local copy produced by SFTP ingress. It never deletes, renames or moves the customer's remote SFTP source. See `docs/local-agent-archive-retention.md`.
 
 ## Database source
 
@@ -380,7 +384,6 @@ npm run local-agent:sftp:smoke # Docker + ssh2-sftp-client@12.1.1
 
 The foundation does **not** claim:
 
-- unattended production readiness;
-- automatic source-file retention/pruning policy for archived watch-folder files.
+- unattended production readiness.
 
-Those capabilities stay on the U3/U4 roadmap until implementation and evidence exist.
+Archive retention/pruning is now implemented as an explicit opt-in operator policy with a fail-safe `keep` default.
