@@ -8,6 +8,7 @@ El bundle resultante **no incluye** el contenido de la declaración, NIF, direcc
 
 - `release-evidence.json` generado para el SHA exacto del candidato;
 - estado `release_candidate`;
+- `deployment_profile=kairoseth-hostinger-mongodb`;
 - cero blockers abiertos;
 - CI del candidato en `success`;
 - declaración responsable con secciones a)-l), sin placeholders y con la misma versión del producto.
@@ -29,6 +30,7 @@ Un resultado correcto usa:
 ```text
 status: candidate_evidence_complete
 release.status: release_candidate
+product.deployment_profile: kairoseth-hostinger-mongodb
 release.blockers: 0
 ci.result: success
 declaration.present: true
