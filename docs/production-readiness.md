@@ -19,9 +19,9 @@ El gate externo AEAT de Fase 3 quedó cerrado el 2026-10-03 con evidencia saniti
 
 ## Gates
 
-### 6.1 Backup/restore durable SQLite
+### 6.1 Backup/restore durable SQLite — referencia standalone
 
-Estado: **implementado**.
+Estado: **implementado para `standalone`; no es el gate de backup del candidato Kairoseth**.
 
 Criterios:
 
@@ -45,9 +45,9 @@ npm run sqlite:restore -- --backup <backup.sqlite> --db <target.sqlite>
 npm run sqlite:backup:smoke
 ```
 
-### 6.1b Ciclo de vida, copia remota y restore drill
+### 6.1b Ciclo de vida SQLite, copia remota y restore drill — referencia standalone
 
-Estado: **política y tooling v1 implementados; conformidad de cada deployment depende de su evidencia real**.
+Estado: **política/tooling v1 implementados para `standalone`; el candidato Kairoseth usa el contrato gestionado MongoDB de `docs/kairoseth-backup-evidence.md`**.
 
 Contrato del gate:
 
@@ -160,7 +160,7 @@ salud de persistencia y backup desde providers inyectados por Kairoseth.
 
 ### 6.4 Runbooks operativos
 
-Estado: **implementados para el perfil single-node y protegidos por `npm run check`**.
+Estado: **implementados y protegidos por `npm run check`; deploy/piloto apuntan al perfil Kairoseth y el restore SQLite queda como runbook standalone**.
 
 Índice: `docs/runbooks/README.md`.
 
@@ -189,15 +189,15 @@ npm run runbooks:check
 
 El gate forma parte de `npm run check`, por lo que CI falla si desaparece un procedimiento, una guarda crítica o un comando operativo documentado.
 
-**Límite:** los runbooks actuales describen el perfil single-node. Cualquier deployment HA/multi-réplica deberá tener procedimientos específicos para su store compartido, locking y rate limiting antes de producción.
+**Límite:** el piloto v0.1.0 usa una instancia de aplicación Kairoseth. Cualquier despliegue futuro con múltiples réplicas de aplicación deberá revalidar rate limiting, scheduler/worker coordination, observabilidad y operación antes de producción.
 
-### 6.5 Perfil HA / multi-réplica
+### 6.5 Perfil HA / multi-réplica de aplicación
 
-Estado para el perfil actual `sqlite-single-node`: **no aplicable**.
+Estado para el candidato `kairoseth-hostinger-mongodb`: **no aplicable al piloto v0.1.0**.
 
-No se añade complejidad distribuida únicamente para cerrar una casilla. Si un deployment futuro ejecuta múltiples réplicas escritoras de estado fiscal, entonces se convierte en gate obligatorio y deberá incorporar store transaccional compartido, locking/serialización distribuida, claims/leases y rate limiting compartidos. SQLite no se promociona como coordinación entre nodos.
+El estado fiscal, API/idempotencia, imports y outbox ya usan MongoDB compartido y leases adecuados al perfil Kairoseth. El piloto se ejecuta con una instancia de aplicación controlada. Si un deployment futuro habilita múltiples réplicas de la aplicación, el gate pasa a obligatorio y deberá revalidar rate limiting compartido, coordinación de workers/schedulers, observabilidad y procedimientos operativos multi-réplica.
 
-La decisión queda fijada en `config/release-gates.json` como `HA_MULTI_REPLICA = not_applicable` para el perfil actual.
+La decisión queda fijada en `config/release-gates.json` como `HA_MULTI_REPLICA = not_applicable` para el piloto actual.
 
 ### 6.6 Evidencia de release y verificación regulatoria
 
@@ -243,7 +243,7 @@ El gate `npm run pilot:readiness` falla cerrado y exige, para el mismo commit ca
 - snapshot `/v1/ops/status` completamente `ok`, sin warnings ni critical;
 - cero `reconciliation_required`, cero `blocked` y cero leases expirados;
 - backup monitoring configurado y `ok`;
-- backup lifecycle real `ok` con copia remota/restore drill según la política del deployment;
+- evidencia gestionada MongoDB `ok`, cifrada en reposo, con backup reciente y restore drill reciente según `config/pilot-policy.example.json`;
 - política de piloto con stop conditions obligatorias;
 - rollback `code-first-no-automatic-db-restore`.
 
@@ -269,7 +269,7 @@ Fase 6 solo puede marcarse completa cuando:
 
 ### 6.8 Perfil productivo Kairoseth MongoDB-only
 
-Estado: **implementado como perfil separado del standalone**.
+Estado: **implementado y seleccionado como perfil de release/piloto v0.1.0, separado del standalone**.
 
 `createPuenteRuntime({ persistenceMode: "kairoseth" })`:
 
