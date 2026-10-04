@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "deployment_profile": "sqlite-single-node",
+  "deployment_profile": "kairoseth-hostinger-mongodb",
   "release_status": "release_candidate",
   "blockers": [
     {
@@ -22,7 +22,7 @@
     {
       "id": "HA_MULTI_REPLICA",
       "status": "not_applicable",
-      "reason": "El perfil objetivo actual es single-node. HA se activa solo si el despliegue real exige multiples replicas escritoras."
+      "reason": "El candidato v0.1.0 usa una instancia de aplicacion Kairoseth controlada en Hostinger con persistencia productiva MongoDB compartida. HA/multi-replica de la aplicacion no forma parte del piloto; si se habilita, deben revalidarse rate limiting, scheduler/worker coordination y operacion multi-replica antes de produccion."
     }
   ]
 }
