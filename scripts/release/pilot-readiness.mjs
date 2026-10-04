@@ -3,6 +3,8 @@ import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const DEPLOYMENT_PROFILE = 'kairoseth-hostinger-mongodb';
+const BACKUP_EVIDENCE_KIND = 'kairoseth-managed-mongodb-backup-evidence';
 
 function pilotError(code, message) {
   return Object.assign(new Error(message), { code });
@@ -55,8 +57,14 @@ function validatePolicy(policy) {
   if (policy?.schema_version !== 1 || policy?.kind !== 'puente-verifactu-pilot-policy') {
     throw pilotError('VF_PILOT_POLICY_INVALID', 'Unsupported pilot policy');
   }
-  if (policy.deployment_profile !== 'sqlite-single-node') {
-    throw pilotError('VF_PILOT_POLICY_PROFILE_INVALID', 'Pilot policy must target sqlite-single-node');
+  if (policy.deployment_profile !== DEPLOYMENT_PROFILE) {
+    throw pilotError('VF_PILOT_POLICY_PROFILE_INVALID', `Pilot policy must target ${DEPLOYMENT_PROFILE}`);
+  }
+  if (policy.backup_evidence_kind !== BACKUP_EVIDENCE_KIND) {
+    throw pilotError(
+      'VF_PILOT_POLICY_BACKUP_KIND_INVALID',
+      `Pilot policy must require ${BACKUP_EVIDENCE_KIND}`,
+    );
   }
   if (!Number.isInteger(policy.max_operations) || policy.max_operations < 1) {
     throw pilotError('VF_PILOT_POLICY_SCOPE_INVALID', 'max_operations must be a positive integer');
@@ -96,8 +104,11 @@ function validateBundle(bundle, expectedCommit) {
   if (bundle?.ci?.result !== 'success') {
     throw pilotError('VF_PILOT_CI_NOT_GREEN', 'Candidate CI result is not success');
   }
-  if (bundle?.product?.deployment_profile !== 'sqlite-single-node') {
-    throw pilotError('VF_PILOT_PROFILE_MISMATCH', 'Candidate deployment profile is not sqlite-single-node');
+  if (bundle?.product?.deployment_profile !== DEPLOYMENT_PROFILE) {
+    throw pilotError(
+      'VF_PILOT_PROFILE_MISMATCH',
+      `Candidate deployment profile is not ${DEPLOYMENT_PROFILE}`,
+    );
   }
   if (bundle?.declaration?.present !== true
     || bundle?.declaration?.version_bound !== true
@@ -148,16 +159,65 @@ function validateOpsStatus(ops) {
   return ops;
 }
 
+function opaqueReference(value, name) {
+  const text = required(value, name);
+  if (text.length > 256 || /:\/\//.test(text) || /[?&](?:token|sig|signature|key|password)=/i.test(text)) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_REFERENCE_UNSAFE',
+      `${name} must be an opaque non-secret reference`,
+    );
+  }
+  return text;
+}
+
 function validateBackupReport(report) {
-  if (report?.schemaVersion !== 1 || report?.status !== 'ok') {
-    throw pilotError('VF_PILOT_BACKUP_LIFECYCLE_FAILED', 'Backup lifecycle report must be ok');
+  if (
+    report?.schemaVersion !== 1
+    || report?.kind !== BACKUP_EVIDENCE_KIND
+    || report?.deploymentProfile !== DEPLOYMENT_PROFILE
+    || report?.status !== 'ok'
+  ) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_LIFECYCLE_FAILED',
+      'Managed MongoDB backup evidence must match the Kairoseth deployment profile and be ok',
+    );
   }
-  sha256(report?.newestBackup?.sha256, 'backup.newestBackup.sha256');
-  if (!report?.restoreDrill || !report.restoreDrill.backupSha256) {
-    throw pilotError('VF_PILOT_RESTORE_DRILL_MISSING', 'Backup lifecycle report must include restore drill evidence');
+  if (report?.backup?.encryptedAtRest !== true) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_ENCRYPTION_REQUIRED',
+      'Managed MongoDB backup must be encrypted at rest',
+    );
   }
-  sha256(report.restoreDrill.backupSha256, 'backup.restoreDrill.backupSha256');
-  return report;
+  const backupCreatedAt = isoDate(report?.backup?.createdAt, 'backup.backup.createdAt');
+  const backupReference = opaqueReference(
+    report?.backup?.reference,
+    'backup.backup.reference',
+  );
+  if (report?.restoreDrill?.status !== 'ok') {
+    throw pilotError(
+      'VF_PILOT_RESTORE_DRILL_MISSING',
+      'Managed MongoDB backup evidence must include a successful restore drill',
+    );
+  }
+  const restoreDrillAt = isoDate(
+    report.restoreDrill.performedAt,
+    'backup.restoreDrill.performedAt',
+  );
+  const restoreDrillReference = opaqueReference(
+    report.restoreDrill.reference,
+    'backup.restoreDrill.reference',
+  );
+  const provider = opaqueReference(report?.provider, 'backup.provider');
+  return {
+    ...report,
+    _validated: {
+      provider,
+      backupCreatedAt,
+      backupReference,
+      restoreDrillAt,
+      restoreDrillReference,
+    },
+  };
 }
 
 export async function buildPilotReadiness({
@@ -187,7 +247,7 @@ export async function buildPilotReadiness({
   validateBundle(bundle, commit);
   const approvedAt = validateApproval(approval, bundle, commit);
   validateOpsStatus(ops);
-  validateBackupReport(backup);
+  const validatedBackup = validateBackupReport(backup);
   validatePolicy(policy);
 
   const generated = generatedAt ? isoDate(generatedAt, '--generated-at') : new Date().toISOString();
@@ -224,8 +284,11 @@ export async function buildPilotReadiness({
       expired_processing: 0,
       ops_status: 'ok',
       backup_status: 'ok',
-      backup_sha256: backup.newestBackup.sha256,
-      restore_drill_sha256: backup.restoreDrill.backupSha256,
+      backup_provider: validatedBackup._validated.provider,
+      backup_created_at: validatedBackup._validated.backupCreatedAt,
+      backup_reference: validatedBackup._validated.backupReference,
+      restore_drill_at: validatedBackup._validated.restoreDrillAt,
+      restore_drill_reference: validatedBackup._validated.restoreDrillReference,
     },
     pilot_policy: {
       max_operations: policy.max_operations,
@@ -234,6 +297,7 @@ export async function buildPilotReadiness({
       stop_on_rejection: true,
       stop_on_reconciliation_required: true,
       stop_on_blocked: true,
+      backup_evidence_kind: policy.backup_evidence_kind,
       rollback_mode: policy.rollback_mode,
     },
     contains_personal_data: false,
