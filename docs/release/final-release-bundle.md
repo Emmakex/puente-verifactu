@@ -10,7 +10,8 @@ El bundle resultante **no incluye** el contenido de la declaración, NIF, direcc
 - estado `release_candidate`;
 - cero blockers abiertos;
 - CI del candidato en `success`;
-- declaración responsable con secciones a)-l), sin placeholders y con la misma versión del producto.
+- deployment profile exacto `kairoseth-hostinger-mongodb`;
+- declaración responsable con secciones a)-l), sin placeholders, con la misma versión y descripción explícita de Kairoseth / Hostinger / MongoDB.
 
 ## Comando
 
@@ -30,6 +31,7 @@ Un resultado correcto usa:
 status: candidate_evidence_complete
 release.status: release_candidate
 release.blockers: 0
+product.deployment_profile: kairoseth-hostinger-mongodb
 ci.result: success
 declaration.present: true
 declaration.version_bound: true
@@ -37,3 +39,5 @@ declaration.content_in_bundle: false
 ```
 
 Este bundle cierra la evidencia técnica/regulatoria del candidato, pero no sustituye la decisión humana de aprobar/publicar la declaración ni el piloto progresivo.
+
+El finalizador falla cerrado si recibe evidencia histórica `sqlite-single-node` o si la declaración privada no describe el perfil Kairoseth seleccionado.
