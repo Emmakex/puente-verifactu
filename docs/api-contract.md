@@ -143,3 +143,77 @@ La ventana anti-replay por defecto es de 300 segundos. El secreto y el perfil se
 ## Datos monetarios
 
 No usar `float` binario para cálculos fiscales. En v1 los importes viajan como strings decimales y se comparan internamente con `BigInt` en céntimos.
+
+
+## Importación CSV/XLSX durable
+
+Las rutas de importación son tenant-bound y no aceptan credenciales de un
+`IntegrationProfile` como sustituto de la identidad del usuario/instalación.
+
+### `POST /v1/imports/inspect`
+
+Recibe el fichero como bytes y crea una sesión temporal. En Kairoseth productivo
+la sesión se persiste mediante un store MongoDB inyectado con TTL. El binario
+original no se persiste: solo el resultado parseado necesario para mapping/preflight.
+
+### `POST /v1/imports/{importId}/preflight`
+
+Dry-run sin efectos. Puede repetirse hasta obtener todas las filas válidas.
+
+### `POST /v1/imports/{importId}/confirm`
+
+Gate explícito. Falla si cualquier fila no pasa preflight. Si es válido:
+
+- crea un `batchId` determinista derivado del `importId`;
+- congela el `InvoiceIntent` exacto por fila;
+- fija una `Idempotency-Key` estable por fila;
+- persiste el batch durable en MongoDB Kairoseth;
+- no devuelve los intents congelados al cliente.
+
+La confirmación repetida con el mismo contenido devuelve el mismo batch.
+
+### `GET /v1/import-batches/{batchId}`
+
+Devuelve estado y resultados sanitizados por fila. Un batch de otro tenant se
+responde como `404`.
+
+### `POST /v1/import-batches/{batchId}/issue`
+
+Adquiere un lease atómico antes de procesar. Solo ejecuta filas `pending` o
+fallos retryable. Una fila ya emitida no vuelve a emitirse.
+
+Estados públicos del batch:
+
+- `confirmed`: listo para emitir;
+- `processing`: lease activo;
+- `partial`: quedan filas no emitidas;
+- `completed`: todas las filas tienen resultado emitido.
+
+Una caída entre `bridge.issue()` y la persistencia del resultado no cambia la
+clave idempotente. Tras expirar el lease, la reanudación reutiliza la misma clave
+y evita crear una factura distinta.
+
+Los errores de fila se reducen a:
+
+```json
+{
+  "code": "VF_...",
+  "status": 503,
+  "retryable": true
+}
+```
+
+No se persiste ni devuelve el mensaje remoto, XML/SOAP o detalles sensibles.
+
+### `GET /v1/import-batches/{batchId}/export`
+
+- por defecto: JSON machine-readable;
+- `Accept: text/csv`: CSV con número de fila, estado, `recordId`, duplicate,
+  estado fiscal, código de error, retryable e intentos.
+
+El export no contiene el `InvoiceIntent` congelado ni datos AEAT crudos.
+
+### Ruta legacy bloqueada
+
+`POST /v1/imports/{importId}/issue` responde
+`409 VF_IMPORT_CONFIRMATION_REQUIRED`. No existe emisión sin confirmación.
