@@ -1,0 +1,15 @@
+{
+  "profileId": "int_22222222222222222222222222222222",
+  "source": {
+    "source_rectification_id": "erp:credit-note:2026-15",
+    "rectification_number": "RECT-2026-15",
+    "rectification_date": "2026-10-04",
+    "original_invoice_number": "2026-100",
+    "original_invoice_date": "2026-10-01",
+    "description": "Rectificación de factura",
+    "tax_base": "-100.00",
+    "vat_rate": "21",
+    "vat_amount": "-21.00",
+    "total": "-121.00"
+  }
+}

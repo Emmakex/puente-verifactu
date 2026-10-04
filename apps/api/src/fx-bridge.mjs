@@ -116,7 +116,7 @@ export class FxAwareBridgeService extends UniversalBridgeService {
     return this.preflight(applyMapping(source, profile), context);
   }
 
-  async issue(input, context, { idempotencyKey } = {}) {
+  async issue(input, context, { idempotencyKey, integrationProfileId = null } = {}) {
     if (!idempotencyKey || typeof idempotencyKey !== 'string') {
       throw apiError('VF_API_IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key is required', 400);
     }
@@ -132,7 +132,7 @@ export class FxAwareBridgeService extends UniversalBridgeService {
 
     if (reservation.duplicate) {
       if (!reservation.existing.recordId) throw apiError('VF_API_IDEMPOTENCY_IN_PROGRESS', 'The same request is already being processed', 409);
-      return { ...this.withPresentation(this.store.get(reservation.existing.recordId)), duplicate: true };
+      return { ...this.publicResource(this.store.get(reservation.existing.recordId)), duplicate: true };
     }
 
     try {
@@ -157,6 +157,8 @@ export class FxAwareBridgeService extends UniversalBridgeService {
         organizationId: context.organizationId,
         installationId: context.installationId,
         sourceInvoiceId: prepared.sourceIntent.sourceInvoiceId,
+        sourceSystem: context.sourceSystem,
+        integrationProfileId: integrationProfileId ?? null,
         sourceCurrency: prepared.sourceIntent.currency,
         fiscalCurrency: 'EUR',
         currencyConversion: prepared.conversion,
@@ -166,15 +168,18 @@ export class FxAwareBridgeService extends UniversalBridgeService {
         delivery,
       });
       this.store.complete(requestKey, requestPayload, recordId);
-      return { ...resource, duplicate: fiscalized.duplicate };
+      return { ...this.publicResource(resource), duplicate: fiscalized.duplicate };
     } catch (error) {
       this.store.release(requestKey, requestPayload);
       throw error;
     }
   }
 
-  async issueMapped(source, profile, context, options) {
-    return this.issue(applyMapping(source, profile), context, options);
+  async issueMapped(source, profile, context, options = {}) {
+    return this.issue(applyMapping(source, profile), context, {
+      ...options,
+      integrationProfileId: profile?.id ?? null,
+    });
   }
 }
 

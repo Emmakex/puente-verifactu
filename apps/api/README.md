@@ -52,7 +52,35 @@ La identidad fiscal/técnica no se toma del cliente. `organizationId`, `installa
 
 ### `GET /v1/fiscal-records/{recordId}`
 
-Consulta estado normalizado. Un tenant nunca puede leer registros de otro tenant; se responde `404` para no filtrar existencia.
+Consulta el recurso fiscal. Un tenant nunca puede leer registros de otro tenant; una credencial dinámica Kairoseth queda además limitada a su instalación + IntegrationProfile + sourceSystem. Se responde `404` para no filtrar existencia.
+
+### `GET /v1/fiscal-records/{recordId}/status`
+
+Devuelve un envelope machine-readable común para API/Webhook/conectores:
+
+- operación: `issue`, `rectification` o `cancel`;
+- estado normalizado;
+- identificadores de origen;
+- IntegrationProfile;
+- identidad fiscal mínima del registro;
+- presentación VERI*FACTU/QR cuando corresponde;
+- resumen sanitizado de delivery/reconciliación.
+
+No expone XML/SOAP AEAT, requests crudos, responses crudos ni secretos.
+
+### `POST /v1/fiscal-records/{recordId}/cancel`
+
+Cancela un registro de alta utilizando el mismo core fiscal. Requiere `Idempotency-Key`.
+
+Body permitido:
+
+```json
+{
+  "sourceCancellationId": "erp:cancellation:2026-100"
+}
+```
+
+El cliente **no puede enviar** NIF emisor, número fiscal, serie ni fecha. Esa identidad se deriva del registro original ya persistido. La cancelación crea un nuevo `recordId` y se consulta mediante el mismo contrato `/status`.
 
 ### `POST /v1/webhooks/{profileId}`
 
@@ -63,6 +91,20 @@ Entrada low-code firmada. Requiere:
 - `Idempotency-Key` o `X-Event-Id`.
 
 El secreto y el `MappingProfile` se resuelven exclusivamente en servidor.
+
+## Lifecycle API/Webhook
+
+Los ejemplos genéricos están en `examples/api-lifecycle/`:
+
+- `create.json`;
+- `cancel.json`;
+- `rectification.json`;
+- `webhook-event.json`;
+- `README.md`.
+
+La rectificación utiliza un MappingProfile correctivo server-side. El origen aporta hechos e importes, pero no decide R1–R5, S/I ni otras reglas AEAT.
+
+Las credenciales dinámicas de Kairoseth están scopeadas al IntegrationProfile. No pueden enviar un InvoiceIntent canónico sin profileId, acceder a file-import ni consultar/cancelar recursos de otro perfil.
 
 ## Handler
 
