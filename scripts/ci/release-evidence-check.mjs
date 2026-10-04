@@ -10,7 +10,7 @@ const gates = JSON.parse(await readFile(join(REPO_ROOT, 'config/release-gates.js
 const registry = JSON.parse(await readFile(join(REPO_ROOT, 'config/regulatory-sources.json'), 'utf8'));
 
 assert.equal(gates.schema_version, 1);
-assert.equal(gates.deployment_profile, 'sqlite-single-node');
+assert.equal(gates.deployment_profile, 'kairoseth-hostinger-mongodb');
 assert.equal(gates.release_status, 'release_candidate');
 
 const aeatGate = gates.blockers.find((blocker) => blocker.id === 'AEAT_EXTERNAL_GATE_6');
@@ -23,6 +23,8 @@ assert.ok(aeatGate.required_before.includes('real_fiscal_pilot'));
 const haDecision = gates.profile_decisions.find((decision) => decision.id === 'HA_MULTI_REPLICA');
 assert.ok(haDecision, 'HA profile decision must be explicit');
 assert.equal(haDecision.status, 'not_applicable');
+assert.match(haDecision.reason, /Hostinger/);
+assert.match(haDecision.reason, /MongoDB/);
 
 assert.equal(registry.schema_version, 1);
 assert.equal(registry.aeat_artifacts.web_service_document_version, AEAT_ARTIFACTS.webServiceDocumentVersion);
@@ -65,6 +67,7 @@ const evidenceAgain = await buildReleaseEvidence(fixture);
 
 assert.equal(evidence.schema_version, 1);
 assert.equal(evidence.release.status, 'release_candidate');
+assert.equal(evidence.product.deployment_profile, 'kairoseth-hostinger-mongodb');
 assert.equal(evidence.release.blockers.length, 0);
 assert.equal(evidence.responsible_declaration.status, 'required_before_publication');
 assert.equal(evidence.artifacts.length, 2);
