@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "kairoseth-managed-backup-readiness",
+  "deploymentProfile": "kairoseth-hostinger-mongodb",
+  "status": "ok",
+  "provider": "<BACKUP_PROVIDER>",
+  "generatedAt": "<ISO-8601>",
+  "newestBackup": {
+    "createdAt": "<ISO-8601>",
+    "sha256": "<SHA256_BACKUP_OR_SANITIZED_MANIFEST>",
+    "remote": true,
+    "encryptedAtRest": true
+  },
+  "restoreDrill": {
+    "performedAt": "<ISO-8601>",
+    "backupSha256": "<SAME_SHA256_BACKUP_OR_SANITIZED_MANIFEST>",
+    "result": "ok"
+  },
+  "containsSecrets": false,
+  "containsFiscalData": false
+}
