@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { MongoClient } from 'mongodb';
 import { hashBearerToken } from '../../apps/server/src/auth.mjs';
 import { createPuenteRuntime } from '../../apps/server/src/runtime.mjs';
+import { AeatOutboxWorker } from '../../packages/aeat-adapter/src/outbox.mjs';
 import {
   createMongoKairosethAeatOutboxStore,
   createMongoKairosethFiscalRecordStore,
@@ -165,6 +166,57 @@ try {
     mongoAeatOutboxIndexes(),
   );
 
+  const aeatOutboxForWorker = createMongoKairosethAeatOutboxStore({ database });
+  await aeatOutboxForWorker.enqueue(
+    {
+      issuer: { name: 'Empresa Demo', taxId: '89890001K' },
+      entries: [{ recordId: 'runtime-aeat-smoke' }],
+    },
+    {
+      id: 'aeat_runtime_accepted',
+      availableAt: 1000,
+      now: 1000,
+    },
+  );
+  let aeatCalls = 0;
+  const worker = new AeatOutboxWorker({
+    outbox: aeatOutboxForWorker,
+    adapter: {
+      async submit() {
+        aeatCalls += 1;
+        return {
+          kind: 'aeat_response',
+          status: 'accepted',
+          retryable: false,
+          records: [{ status: 'accepted' }],
+        };
+      },
+    },
+    clock: () => 1000,
+    workerId: 'runtime-mongo-worker',
+  });
+  const dispatched = await worker.run('aeat_runtime_accepted');
+  assert.equal(dispatched.state, 'completed');
+  assert.equal(dispatched.attempts, 1);
+  assert.equal(aeatCalls, 1);
+
+  await aeatOutboxForWorker.enqueue(
+    { entries: [{ recordId: 'uncertain-runtime-smoke' }] },
+    { id: 'aeat_runtime_expired', availableAt: 0, now: 0 },
+  );
+  const claimed = await aeatOutboxForWorker.claim(
+    'aeat_runtime_expired',
+    { owner: 'dead-worker', now: 0, leaseMs: 100 },
+  );
+  assert.equal(claimed.state, 'processing');
+  assert.equal(await aeatOutboxForWorker.recoverExpired(101), 1);
+  const quarantined = await aeatOutboxForWorker.get('aeat_runtime_expired');
+  assert.equal(quarantined.state, 'reconciliation_required');
+  assert.equal(
+    quarantined.lastResult.reason,
+    'lease_expired_after_dispatch_start',
+  );
+
   const stores = () => {
     const fiscalRecordStore = createMongoKairosethFiscalRecordStore({ database });
     return {
@@ -296,6 +348,8 @@ try {
     readiness: true,
     observability: true,
     managed_backup_status: true,
+    aeat_outbox_dispatch: true,
+    aeat_expired_lease_quarantine: true,
   }, null, 2));
 } finally {
   await database.dropDatabase().catch(() => {});
