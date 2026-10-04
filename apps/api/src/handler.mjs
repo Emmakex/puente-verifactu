@@ -644,7 +644,7 @@ export function createApiHandler({
         /^\/v1\/fiscal-records\/(fr_[a-f0-9]+)\/status$/,
       );
       if (method === 'GET' && recordStatusMatch) {
-        return json(200, bridge.status(recordStatusMatch[1], context), correlationId);
+        return json(200, await bridge.status(recordStatusMatch[1], context), correlationId);
       }
 
       const recordCancelMatch = path.match(
@@ -662,7 +662,9 @@ export function createApiHandler({
       }
 
       const recordMatch = path.match(/^\/v1\/fiscal-records\/(fr_[a-f0-9]+)$/);
-      if (method === 'GET' && recordMatch) return json(200, bridge.get(recordMatch[1], context), correlationId);
+      if (method === 'GET' && recordMatch) {
+        return json(200, await bridge.get(recordMatch[1], context), correlationId);
+      }
 
       const webhookMatch = path.match(/^\/v1\/webhooks\/([A-Za-z0-9._-]{1,128})$/);
       if (method === 'POST' && webhookMatch) {
