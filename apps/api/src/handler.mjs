@@ -512,7 +512,7 @@ export function createApiHandler({
         forbidIntegrationCredential(context, 'file import routes');
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
         const headerRowRaw = header(request.headers, 'x-header-row');
-        const result = imports.inspect({
+        const result = await imports.inspect({
           buffer: binaryBody(request),
           filename: decodedHeader(request.headers, 'x-file-name', 'import'),
           sheet: decodedHeader(request.headers, 'x-sheet', '') || undefined,
@@ -528,13 +528,136 @@ export function createApiHandler({
       if (method === 'POST' && importPreflightMatch) {
         forbidIntegrationCredential(context, 'file import routes');
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
-        const result = imports.preflight(importPreflightMatch[1], context, parseJsonBody(request));
+        const result = await imports.preflight(
+          importPreflightMatch[1],
+          context,
+          parseJsonBody(request),
+        );
         return json(200, result, correlationId);
       }
+      const importConfirmMatch = path.match(
+        /^\/v1\/imports\/(imp_[a-f0-9]{32})\/confirm$/,
+      );
+      if (method === 'POST' && importConfirmMatch) {
+        forbidIntegrationCredential(context, 'file import routes');
+        if (!imports) {
+          throw Object.assign(new Error('Import service is unavailable'), {
+            code: 'VF_IMPORT_SERVICE_UNAVAILABLE',
+            status: 500,
+          });
+        }
+        return json(
+          201,
+          await imports.confirm(
+            importConfirmMatch[1],
+            context,
+            parseJsonBody(request),
+          ),
+          correlationId,
+        );
+      }
+
+      if (path === '/v1/import-batches') {
+        forbidIntegrationCredential(context, 'file import routes');
+        if (!imports) {
+          throw Object.assign(new Error('Import service is unavailable'), {
+            code: 'VF_IMPORT_SERVICE_UNAVAILABLE',
+            status: 500,
+          });
+        }
+        if (method === 'GET') {
+          return json(200, {
+            schemaVersion: 1,
+            batches: await imports.listBatches(context),
+          }, correlationId);
+        }
+        throw Object.assign(new Error('Method not allowed'), {
+          code: 'VF_API_METHOD_NOT_ALLOWED',
+          status: 405,
+        });
+      }
+
+      const importBatchMatch = path.match(
+        /^\/v1\/import-batches\/(bat_[a-f0-9]{32})$/,
+      );
+      if (method === 'GET' && importBatchMatch) {
+        forbidIntegrationCredential(context, 'file import routes');
+        if (!imports) {
+          throw Object.assign(new Error('Import service is unavailable'), {
+            code: 'VF_IMPORT_SERVICE_UNAVAILABLE',
+            status: 500,
+          });
+        }
+        return json(
+          200,
+          await imports.batch(importBatchMatch[1], context).then((batch) => ({
+            schemaVersion: 1,
+            batchId: batch.batchId,
+            importId: batch.importId,
+            state: batch.state,
+            file: batch.file,
+            mappingProfileId: batch.mappingProfile?.id ?? null,
+            preflightToken: batch.preflightToken,
+            summary: batch.summary,
+            createdAt: new Date(batch.createdAt).toISOString(),
+            updatedAt: new Date(batch.updatedAt).toISOString(),
+            rows: batch.rows.map((row) => ({
+              row: row.row,
+              sourceInvoiceId: row.intent?.sourceInvoiceId ?? null,
+              status: row.status,
+              recordId: row.recordId ?? null,
+              error: row.error ?? null,
+              issuedAt: row.issuedAt == null ? null : new Date(row.issuedAt).toISOString(),
+            })),
+          })),
+          correlationId,
+        );
+      }
+
+      const importBatchIssueMatch = path.match(
+        /^\/v1\/import-batches\/(bat_[a-f0-9]{32})\/issue$/,
+      );
+      if (method === 'POST' && importBatchIssueMatch) {
+        forbidIntegrationCredential(context, 'file import routes');
+        if (!imports) {
+          throw Object.assign(new Error('Import service is unavailable'), {
+            code: 'VF_IMPORT_SERVICE_UNAVAILABLE',
+            status: 500,
+          });
+        }
+        const body = parseJsonBody(request);
+        if (Object.keys(body).length > 0) {
+          throw Object.assign(new Error('Import batch issue body must be empty'), {
+            code: 'VF_IMPORT_BATCH_ISSUE_INPUT_FORBIDDEN',
+            status: 400,
+          });
+        }
+        const batch = await imports.issueBatch(importBatchIssueMatch[1], context);
+        return json(batch.duplicate ? 200 : 202, batch, correlationId);
+      }
+
+      const importBatchExportMatch = path.match(
+        /^\/v1\/import-batches\/(bat_[a-f0-9]{32})\/export$/,
+      );
+      if (method === 'GET' && importBatchExportMatch) {
+        forbidIntegrationCredential(context, 'file import routes');
+        if (!imports) {
+          throw Object.assign(new Error('Import service is unavailable'), {
+            code: 'VF_IMPORT_SERVICE_UNAVAILABLE',
+            status: 500,
+          });
+        }
+        return json(
+          200,
+          await imports.exportBatch(importBatchExportMatch[1], context),
+          correlationId,
+        );
+      }
+
       if (method === 'DELETE' && importMatch) {
         forbidIntegrationCredential(context, 'file import routes');
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
-        return json(200, imports.remove(importMatch[1], context), correlationId);
+        return json(200, await imports.remove(importMatch[1], context), correlationId);
       }
 
       if (method === 'POST' && path === '/v1/preflight') {
