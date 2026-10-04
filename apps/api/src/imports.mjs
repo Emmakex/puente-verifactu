@@ -1,12 +1,16 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { parseImportFile } from '../../../connectors/file-import/src/file-reader.mjs';
 import {
   buildMappingProfile,
   suggestMapping,
 } from '../../../packages/core/src/mapping-assistant.mjs';
+import { stableStringify } from '../../../packages/core/src/idempotency.mjs';
 import { setPath } from '../../../packages/core/src/mapping.mjs';
 import { preflightRows } from '../../../packages/core/src/preflight.mjs';
-import { MemoryImportSessionStore } from './import-session-store.mjs';
+import {
+  MemoryImportBatchStore,
+  MemoryImportSessionStore,
+} from './import-session-store.mjs';
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
 const DEFAULT_MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -40,8 +44,16 @@ function requireContext(context) {
 function safeConfiguration(configuration = {}) {
   const result = {};
   for (const [path, value] of Object.entries(configuration ?? {})) {
-    if (!ALLOWED_CONSTANT_PATHS.has(path)) throw apiError('VF_IMPORT_CONFIGURATION_FIELD_INVALID', `Unsupported fixed field: ${path}`, 422);
-    if (value !== undefined && value !== null && value !== '') result[path] = String(value).trim();
+    if (!ALLOWED_CONSTANT_PATHS.has(path)) {
+      throw apiError(
+        'VF_IMPORT_CONFIGURATION_FIELD_INVALID',
+        `Unsupported fixed field: ${path}`,
+        422,
+      );
+    }
+    if (value !== undefined && value !== null && value !== '') {
+      result[path] = String(value).trim();
+    }
   }
   return result;
 }
@@ -57,7 +69,9 @@ function identityConstants(context) {
 }
 
 function addConfiguration(target, configuration) {
-  for (const [path, value] of Object.entries(safeConfiguration(configuration))) setPath(target, path, value);
+  for (const [path, value] of Object.entries(safeConfiguration(configuration))) {
+    setPath(target, path, value);
+  }
   return target;
 }
 
@@ -72,6 +86,58 @@ function publicInspection(session) {
   };
 }
 
+function deterministicBatchId(importId) {
+  return `bat_${createHash('sha256').update(String(importId)).digest('hex').slice(0, 32)}`;
+}
+
+function batchFingerprint(batch) {
+  return createHash('sha256')
+    .update(stableStringify({
+      importId: batch.importId,
+      organizationId: batch.organizationId,
+      installationId: batch.installationId,
+      profile: batch.profile,
+      rows: batch.rows.map((row) => ({
+        row: row.row,
+        intent: row.intent,
+        idempotencyKey: row.idempotencyKey,
+      })),
+    }))
+    .digest('hex');
+}
+
+function publicBatch(batch) {
+  const statusCounts = {
+    pending: 0,
+    issued: 0,
+    failed: 0,
+  };
+  for (const row of batch.rows ?? []) {
+    if (row.status in statusCounts) statusCounts[row.status] += 1;
+  }
+  return {
+    batchId: batch.batchId,
+    importId: batch.importId,
+    status: batch.status,
+    createdAt: new Date(batch.createdAt).toISOString(),
+    updatedAt: new Date(batch.updatedAt).toISOString(),
+    file: structuredClone(batch.file),
+    summary: {
+      rows: batch.rows.length,
+      ...statusCounts,
+    },
+    rows: batch.rows.map((row) => ({
+      row: row.row,
+      status: row.status,
+      recordId: row.recordId ?? null,
+      duplicate: Boolean(row.duplicate),
+      fiscalStatus: row.fiscalStatus ?? null,
+      error: row.error == null ? null : structuredClone(row.error),
+      attempts: Number(row.attempts ?? 0),
+    })),
+  };
+}
+
 export class ImportSessionService {
   constructor({
     clock = () => Date.now(),
@@ -79,34 +145,61 @@ export class ImportSessionService {
     maxFileBytes = DEFAULT_MAX_FILE_BYTES,
     maxSessions = DEFAULT_MAX_SESSIONS,
     store = new MemoryImportSessionStore(),
+    batchStore = new MemoryImportBatchStore(),
   } = {}) {
     if (!(ttlMs > 0) || !(maxFileBytes > 0) || !Number.isInteger(maxSessions) || maxSessions < 1) {
       throw new TypeError('Import session limits must be positive and maxSessions must be an integer');
     }
     for (const method of ['purgeExpired', 'ensureCapacity', 'put', 'get', 'delete']) {
-      if (typeof store?.[method] !== 'function') throw new TypeError(`Import session store must implement ${method}()`);
+      if (typeof store?.[method] !== 'function') {
+        throw new TypeError(`Import session store must implement ${method}()`);
+      }
+    }
+    for (const method of ['create', 'get']) {
+      if (typeof batchStore?.[method] !== 'function') {
+        throw new TypeError(`Import batch store must implement ${method}()`);
+      }
     }
     this.clock = clock;
     this.ttlMs = ttlMs;
     this.maxFileBytes = maxFileBytes;
     this.maxSessions = maxSessions;
     this.store = store;
+    this.batchStore = batchStore;
   }
 
-  purgeExpired() {
-    this.store.purgeExpired(this.clock());
+  async purgeExpired(context = null) {
+    await this.store.purgeExpired(this.clock(), context);
   }
 
-  ensureCapacity() {
-    this.store.ensureCapacity(this.maxSessions, this.clock());
+  async ensureCapacity(context) {
+    await this.store.ensureCapacity(this.maxSessions, this.clock(), context);
   }
 
-  inspect({ buffer, filename, sheet, headerRow, locale = 'es-ES', configuration = {}, context }) {
+  async inspect({
+    buffer,
+    filename,
+    sheet,
+    headerRow,
+    locale = 'es-ES',
+    configuration = {},
+    context,
+  }) {
     requireContext(context);
-    if (!Buffer.isBuffer(buffer)) throw apiError('VF_IMPORT_FILE_REQUIRED', 'Import body must be a file buffer', 400);
-    if (buffer.length === 0) throw apiError('VF_IMPORT_FILE_EMPTY', 'Import file is empty', 400);
-    if (buffer.length > this.maxFileBytes) throw apiError('VF_IMPORT_FILE_TOO_LARGE', `Import file exceeds ${this.maxFileBytes} bytes`, 413);
-    this.ensureCapacity();
+    if (!Buffer.isBuffer(buffer)) {
+      throw apiError('VF_IMPORT_FILE_REQUIRED', 'Import body must be a file buffer', 400);
+    }
+    if (buffer.length === 0) {
+      throw apiError('VF_IMPORT_FILE_EMPTY', 'Import file is empty', 400);
+    }
+    if (buffer.length > this.maxFileBytes) {
+      throw apiError(
+        'VF_IMPORT_FILE_TOO_LARGE',
+        `Import file exceeds ${this.maxFileBytes} bytes`,
+        413,
+      );
+    }
+    await this.ensureCapacity(context);
 
     const table = parseImportFile(buffer, { filename, sheet, headerRow });
     const constants = addConfiguration(identityConstants(context), configuration);
@@ -122,6 +215,7 @@ export class ImportSessionService {
       importId,
       organizationId: context.organizationId,
       installationId: context.installationId,
+      sourceSystem: context.sourceSystem,
       createdAt: now,
       expiresAt: now + this.ttlMs,
       rows: table.rows,
@@ -139,26 +233,34 @@ export class ImportSessionService {
         columns: table.headers.length,
       },
     };
-    this.store.put(session);
+    await this.store.put(session);
     return publicInspection(session);
   }
 
-  session(importId, context) {
+  async session(importId, context) {
     requireContext(context);
-    const session = this.store.get(importId);
-    if (!session || session.organizationId !== context.organizationId || session.installationId !== context.installationId) {
+    const session = await this.store.get(importId, context);
+    if (
+      !session
+      || session.organizationId !== context.organizationId
+      || session.installationId !== context.installationId
+    ) {
       throw apiError('VF_IMPORT_SESSION_NOT_FOUND', 'Import session not found', 404);
     }
     if (session.expiresAt <= this.clock()) {
-      this.store.delete(importId);
+      await this.store.delete(importId, context);
       throw apiError('VF_IMPORT_SESSION_EXPIRED', 'Import session expired', 410);
     }
-    this.purgeExpired();
+    await this.purgeExpired(context);
     return session;
   }
 
-  preflight(importId, context, { acceptedSources = [], overrides = {}, configuration = {} } = {}) {
-    const session = this.session(importId, context);
+  async preflight(
+    importId,
+    context,
+    { acceptedSources = [], overrides = {}, configuration = {} } = {},
+  ) {
+    const session = await this.session(importId, context);
     const fixed = safeConfiguration(configuration);
     const profile = buildMappingProfile(session.assistant, {
       acceptedSources,
@@ -186,8 +288,12 @@ export class ImportSessionService {
     };
   }
 
-  prepareBatch(importId, context, { acceptedSources = [], overrides = {}, configuration = {} } = {}) {
-    const session = this.session(importId, context);
+  async prepareBatch(
+    importId,
+    context,
+    { acceptedSources = [], overrides = {}, configuration = {} } = {},
+  ) {
+    const session = await this.session(importId, context);
     const fixed = safeConfiguration(configuration);
     const profile = buildMappingProfile(session.assistant, {
       acceptedSources,
@@ -202,24 +308,68 @@ export class ImportSessionService {
     if (!report.ok) {
       throw apiError(
         'VF_IMPORT_BATCH_PREFLIGHT_FAILED',
-        'Batch issuance requires every row to pass preflight',
+        'Batch confirmation requires every row to pass preflight',
         422,
       );
     }
     return {
       importId,
+      session,
       profile,
       rows: report.rows.map((row) => ({
         row: row.row,
-        intent: row.preview,
+        intent: structuredClone(row.preview),
         idempotencyKey: `${importId}:row:${row.row}`,
       })),
     };
   }
 
-  remove(importId, context) {
-    this.session(importId, context);
-    this.store.delete(importId);
+  async confirmBatch(importId, context, options = {}) {
+    requireContext(context);
+    const prepared = await this.prepareBatch(importId, context, options);
+    const now = this.clock();
+    const batch = {
+      schemaVersion: 1,
+      batchId: deterministicBatchId(importId),
+      importId,
+      organizationId: context.organizationId,
+      installationId: context.installationId,
+      sourceSystem: context.sourceSystem,
+      status: 'confirmed',
+      file: structuredClone(prepared.session.file),
+      profile: structuredClone(prepared.profile),
+      rows: prepared.rows.map((row) => ({
+        row: row.row,
+        intent: structuredClone(row.intent),
+        idempotencyKey: row.idempotencyKey,
+        status: 'pending',
+        recordId: null,
+        fiscalStatus: null,
+        duplicate: false,
+        error: null,
+        attempts: 0,
+        updatedAt: null,
+      })),
+      createdAt: now,
+      updatedAt: now,
+    };
+    batch.fingerprint = batchFingerprint(batch);
+    const stored = await this.batchStore.create(batch);
+    return publicBatch(stored);
+  }
+
+  async batch(batchId, context) {
+    requireContext(context);
+    const batch = await this.batchStore.get(batchId, context);
+    if (!batch) {
+      throw apiError('VF_IMPORT_BATCH_NOT_FOUND', 'Import batch not found', 404);
+    }
+    return publicBatch(batch);
+  }
+
+  async remove(importId, context) {
+    await this.session(importId, context);
+    await this.store.delete(importId, context);
     return { importId, removed: true };
   }
 }
