@@ -99,11 +99,12 @@ Hecho:
 
 Después del último cambio funcional:
 
+- fijar `deployment_profile=kairoseth-hostinger-mongodb`;
 - congelar SHA candidato;
 - CI completo verde;
 - regenerar release evidence para ese SHA;
 - regenerar bundle sanitizado;
-- preparar y aprobar declaración responsable definitiva de esa versión.
+- preparar la declaración responsable definitiva con Hostinger + MongoDB y aprobarla explícitamente fuera de Git.
 
 Ninguna evidencia ligada a un SHA anterior autoriza el release nuevo.
 
@@ -113,7 +114,7 @@ Con el candidato congelado:
 
 - readiness gate;
 - aprobación privada;
-- backup lifecycle real;
+- evidencia de backup MongoDB gestionado + restore drill real;
 - observabilidad sin alertas críticas;
 - alcance progresivo;
 - stop conditions;
