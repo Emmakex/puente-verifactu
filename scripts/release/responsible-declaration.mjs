@@ -50,6 +50,7 @@ function isInsideRepo(path) {
 export async function buildResponsibleDeclaration({
   producerConfig,
   packageJson,
+  releaseGates,
   outputPath,
 }) {
   const producer = producerConfig?.producer ?? {};
@@ -62,6 +63,18 @@ export async function buildResponsibleDeclaration({
   const signingDate = assertIsoDate(signature.date);
 
   const version = requiredString(packageJson?.version, 'package.version');
+  const deploymentProfile = requiredString(
+    releaseGates?.deployment_profile,
+    'release.deployment_profile',
+  );
+  if (deploymentProfile !== 'kairoseth-hostinger-mongodb') {
+    const error = new Error(
+      'Responsible declaration must target the Kairoseth Hostinger + MongoDB release profile',
+    );
+    error.code = 'VF_RESPONSIBLE_DECLARATION_PROFILE_INVALID';
+    error.field = 'release.deployment_profile';
+    throw error;
+  }
   const output = resolve(requiredString(outputPath, '--output'));
 
   if (isInsideRepo(output)) {
@@ -119,7 +132,7 @@ ${optionalContacts.length ? optionalContacts.join('\n') : '- Sin datos adicional
 
 - Repositorio/producto: Puente VeriFactu.
 - Modalidad fiscal: VERI*FACTU.
-- Perfil de despliegue productivo: Kairoseth en Hostinger + MongoDB.
+- Perfil de despliegue productivo: Kairoseth en Hostinger + MongoDB (${deploymentProfile}).
 - Artefactos técnicos versionados/fingerprintados en la evidencia de release: conector WooCommerce, conector PrestaShop y Kairoseth Local Agent.
 - Canales adicionales cubiertos por el mismo core: API/SDK, webhook, CSV/XLSX y captura manual.
 - Evidencia técnica del gate externo AEAT: documentada de forma sanitizada para la versión candidata.
@@ -139,6 +152,7 @@ Esta declaración corresponde exclusivamente a la versión ${version}. Debe cons
     system: 'Puente VeriFactu',
     system_code: 'PV',
     version,
+    deployment_profile: deploymentProfile,
     contains_personal_data: true,
     repository_output: false,
   };
@@ -148,11 +162,17 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const producerPath = resolve(requiredString(argValue('--producer'), '--producer'));
   const outputPath = requiredString(argValue('--output'), '--output');
 
-  const [producerConfig, packageJson] = await Promise.all([
+  const [producerConfig, packageJson, releaseGates] = await Promise.all([
     readFile(producerPath, 'utf8').then(JSON.parse),
     readFile(resolve(REPO_ROOT, 'package.json'), 'utf8').then(JSON.parse),
+    readFile(resolve(REPO_ROOT, 'config/release-gates.json'), 'utf8').then(JSON.parse),
   ]);
 
-  const result = await buildResponsibleDeclaration({ producerConfig, packageJson, outputPath });
+  const result = await buildResponsibleDeclaration({
+    producerConfig,
+    packageJson,
+    releaseGates,
+    outputPath,
+  });
   console.log(JSON.stringify(result, null, 2));
 }
