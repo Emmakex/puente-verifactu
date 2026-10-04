@@ -126,6 +126,19 @@ test('concrete runtime serves protected onboarding, API auth and rate limits', a
     assert.match(await onboarding.text(), /Puente VeriFactu/);
     assert.match(onboarding.headers.get('content-security-policy'), /default-src 'self'/);
 
+    const manualPage = await fetch(`${baseUrl}/manual.html`, {
+      headers: { authorization: `Basic ${basic}` },
+    });
+    assert.equal(manualPage.status, 200);
+    assert.match(await manualPage.text(), /Captura manual de factura/);
+    assert.match(manualPage.headers.get('content-security-policy'), /default-src 'self'/);
+
+    const manualModel = await fetch(`${baseUrl}/src/manual-model.mjs`, {
+      headers: { authorization: `Basic ${basic}` },
+    });
+    assert.equal(manualModel.status, 200);
+    assert.match(await manualModel.text(), /calculateManualVat/);
+
     const request = () => fetch(`${baseUrl}/v1/preflight`, {
       method: 'POST',
       headers: {
