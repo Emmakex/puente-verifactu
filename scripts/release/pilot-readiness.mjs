@@ -55,8 +55,11 @@ function validatePolicy(policy) {
   if (policy?.schema_version !== 1 || policy?.kind !== 'puente-verifactu-pilot-policy') {
     throw pilotError('VF_PILOT_POLICY_INVALID', 'Unsupported pilot policy');
   }
-  if (policy.deployment_profile !== 'sqlite-single-node') {
-    throw pilotError('VF_PILOT_POLICY_PROFILE_INVALID', 'Pilot policy must target sqlite-single-node');
+  if (policy.deployment_profile !== 'kairoseth-hostinger-mongodb') {
+    throw pilotError(
+      'VF_PILOT_POLICY_PROFILE_INVALID',
+      'Pilot policy must target kairoseth-hostinger-mongodb',
+    );
   }
   if (!Number.isInteger(policy.max_operations) || policy.max_operations < 1) {
     throw pilotError('VF_PILOT_POLICY_SCOPE_INVALID', 'max_operations must be a positive integer');
@@ -96,8 +99,11 @@ function validateBundle(bundle, expectedCommit) {
   if (bundle?.ci?.result !== 'success') {
     throw pilotError('VF_PILOT_CI_NOT_GREEN', 'Candidate CI result is not success');
   }
-  if (bundle?.product?.deployment_profile !== 'sqlite-single-node') {
-    throw pilotError('VF_PILOT_PROFILE_MISMATCH', 'Candidate deployment profile is not sqlite-single-node');
+  if (bundle?.product?.deployment_profile !== 'kairoseth-hostinger-mongodb') {
+    throw pilotError(
+      'VF_PILOT_PROFILE_MISMATCH',
+      'Candidate deployment profile is not kairoseth-hostinger-mongodb',
+    );
   }
   if (bundle?.declaration?.present !== true
     || bundle?.declaration?.version_bound !== true
@@ -127,6 +133,9 @@ function validateApproval(approval, bundle, expectedCommit) {
 
 function validateOpsStatus(ops) {
   if (ops?.schemaVersion !== 1) throw pilotError('VF_PILOT_OPS_INVALID', 'Operational snapshot schema is invalid');
+  if (ops?.mode !== 'kairoseth-mongodb') {
+    throw pilotError('VF_PILOT_OPS_PROFILE_MISMATCH', 'Operational snapshot must come from kairoseth-mongodb mode');
+  }
   if (ops?.database?.ok !== true || ops?.aeatOutbox?.available !== true) {
     throw pilotError('VF_PILOT_OPS_UNAVAILABLE', 'Database or AEAT outbox is unavailable');
   }
@@ -149,14 +158,34 @@ function validateOpsStatus(ops) {
 }
 
 function validateBackupReport(report) {
-  if (report?.schemaVersion !== 1 || report?.status !== 'ok') {
-    throw pilotError('VF_PILOT_BACKUP_LIFECYCLE_FAILED', 'Backup lifecycle report must be ok');
+  if (
+    report?.schemaVersion !== 1
+    || report?.kind !== 'kairoseth-managed-backup-readiness'
+    || report?.deploymentProfile !== 'kairoseth-hostinger-mongodb'
+    || report?.status !== 'ok'
+  ) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_LIFECYCLE_FAILED',
+      'Kairoseth managed backup readiness report must be ok and match the candidate profile',
+    );
   }
   sha256(report?.newestBackup?.sha256, 'backup.newestBackup.sha256');
-  if (!report?.restoreDrill || !report.restoreDrill.backupSha256) {
-    throw pilotError('VF_PILOT_RESTORE_DRILL_MISSING', 'Backup lifecycle report must include restore drill evidence');
+  if (report?.newestBackup?.encryptedAtRest !== true || report?.newestBackup?.remote !== true) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_REMOTE_INVALID',
+      'Kairoseth backup evidence must prove a remote encrypted backup',
+    );
+  }
+  if (!report?.restoreDrill || report.restoreDrill.result !== 'ok' || !report.restoreDrill.backupSha256) {
+    throw pilotError('VF_PILOT_RESTORE_DRILL_MISSING', 'Backup readiness must include a successful restore drill');
   }
   sha256(report.restoreDrill.backupSha256, 'backup.restoreDrill.backupSha256');
+  if (report.restoreDrill.backupSha256 !== report.newestBackup.sha256) {
+    throw pilotError(
+      'VF_PILOT_RESTORE_DRILL_BACKUP_MISMATCH',
+      'Restore drill must reference the validated candidate backup fingerprint',
+    );
+  }
   return report;
 }
 
@@ -217,6 +246,7 @@ export async function buildPilotReadiness({
       content_embedded: false,
     },
     operational_readiness: {
+      persistence_mode: 'kairoseth-mongodb',
       database_ok: true,
       outbox_available: true,
       reconciliation_required: 0,
