@@ -20,6 +20,7 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `universal-integration-kit-v1.md` | API/SDK, webhook low-code y patrón camaleónico de integración |
 | `universal-integration-matrix.md` | Matriz completa ERP/CRM/software propio/Excel/legacy, selector por capacidades y Universal Adapter Manifest v1 |
 | `csv-xlsx-durable-batches.md` | Confirmación, persistencia MongoDB, lease, reanudación y export de lotes CSV/XLSX |
+| `kairoseth-mongodb-runtime.md` | Perfil productivo Hostinger + MongoDB sin SQLite, stores inyectados, outbox, backup status y observabilidad |
 | `woocommerce-compatibility.md` | Matriz WP/Woo/PHP, HPOS y ZIP reproducible del conector WooCommerce |
 | `compliance.md` | Marco normativo, obligaciones y checklist de release |
 | `release-evidence.md` | Manifest reproducible, blockers, revisión regulatoria y fingerprints de release |
