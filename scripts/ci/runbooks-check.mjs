@@ -7,7 +7,7 @@ const contracts = [
   },
   {
     path: 'docs/runbooks/deploy-rollback.md',
-    markers: ['npm run sqlite:backup', 'npm run sqlite:verify-backup', '/healthz', '/readyz', '/v1/ops/status', 'No restaurar automáticamente'],
+    markers: ['kairoseth-hostinger-mongodb', 'mode = kairoseth-mongodb', '/healthz', '/readyz', '/v1/ops/status', 'No restaurar automáticamente MongoDB'],
   },
   {
     path: 'docs/runbooks/aeat-incident-reconciliation.md',
@@ -40,6 +40,8 @@ const contracts = [
       'code-first-no-automatic-db-restore',
       'stop_on_warning',
       'approval-v0.1.0.json',
+      'kairoseth-hostinger-mongodb',
+      'kairoseth-backup-evidence.example.json',
     ],
   },
 ];
@@ -55,6 +57,15 @@ for (const contract of contracts) {
   for (const marker of contract.markers) {
     if (!content.includes(marker)) failures.push({ code: 'RUNBOOK_MARKER_MISSING', path: contract.path, marker });
   }
+}
+
+const deployRunbook = readFileSync('docs/runbooks/deploy-rollback.md', 'utf8');
+if (deployRunbook.includes('PV_DATABASE_PATH')) {
+  failures.push({
+    code: 'RUNBOOK_KAIROSETH_SQLITE_LEAK',
+    path: 'docs/runbooks/deploy-rollback.md',
+    marker: 'PV_DATABASE_PATH',
+  });
 }
 
 const productionReadiness = existsSync('docs/production-readiness.md')
