@@ -27,6 +27,7 @@ function validateProviderIdentity(result, expected) {
     organizationId: requiredId(result?.organizationId, 'provider.organizationId'),
     installationId: requiredId(result?.installationId, 'provider.installationId'),
     sourceSystem: requiredId(result?.sourceSystem, 'provider.sourceSystem'),
+    profileId: requiredId(result?.profileId, 'provider.profileId'),
   };
   for (const key of Object.keys(expected)) {
     if (actual[key] !== expected[key]) {
