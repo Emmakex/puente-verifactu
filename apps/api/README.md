@@ -23,6 +23,12 @@ Recibe confirmaciones/overrides permitidos y configuración fija del negocio. Co
 
 La sesión está aislada por organización + instalación y tiene TTL.
 
+### `POST /v1/imports/{importId}/issue`
+
+Emisión explícita por lotes para CSV/XLSX. Reutiliza las mismas confirmaciones, overrides y configuración del preflight. Antes de emitir vuelve a validar **todas** las filas y falla cerrado con `VF_IMPORT_BATCH_PREFLIGHT_FAILED` si existe cualquier fila inválida; en ese caso no se fiscaliza ninguna.
+
+Cada fila válida usa una clave de idempotencia estable `importId:row:<n>`, de modo que una repetición del lote puede reconciliar filas ya creadas sin duplicarlas. La respuesta devuelve `recordId`, estado y flag `duplicate` por fila.
+
 ### `DELETE /v1/imports/{importId}`
 
 Elimina explícitamente la sesión temporal de importación.

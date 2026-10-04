@@ -186,6 +186,37 @@ export class ImportSessionService {
     };
   }
 
+  prepareBatch(importId, context, { acceptedSources = [], overrides = {}, configuration = {} } = {}) {
+    const session = this.session(importId, context);
+    const fixed = safeConfiguration(configuration);
+    const profile = buildMappingProfile(session.assistant, {
+      acceptedSources,
+      overrides,
+      constants: fixed,
+    });
+    profile.id = `import-${importId}`;
+    profile.name = `Import ${session.file.filename}`;
+    profile.constants = addConfiguration(identityConstants(context), fixed);
+
+    const report = preflightRows(session.rows, profile);
+    if (!report.ok) {
+      throw apiError(
+        'VF_IMPORT_BATCH_PREFLIGHT_FAILED',
+        'Batch issuance requires every row to pass preflight',
+        422,
+      );
+    }
+    return {
+      importId,
+      profile,
+      rows: report.rows.map((row) => ({
+        row: row.row,
+        intent: row.preview,
+        idempotencyKey: `${importId}:row:${row.row}`,
+      })),
+    };
+  }
+
   remove(importId, context) {
     this.session(importId, context);
     this.store.delete(importId);
