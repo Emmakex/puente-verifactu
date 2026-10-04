@@ -408,3 +408,97 @@ test('batch history remains tenant and installation isolated', async () => {
     { code: 'VF_IMPORT_BATCH_NOT_FOUND' },
   );
 });
+
+
+test('durable import API requires explicit confirm before issue and exposes history/export', async () => {
+  const batchStore = new MemoryImportBatchStore();
+  const bridge = realBridge();
+  const imports = new ImportSessionService({
+    batchStore,
+    bridge,
+  });
+  const handler = createApiHandler({
+    bridge,
+    imports,
+    authenticate: async () => context,
+  });
+
+  const inspected = await handler({
+    method: 'POST',
+    path: '/v1/imports/inspect',
+    headers: { 'x-file-name': encodeURIComponent('facturas.csv') },
+    body: csv,
+  });
+  assert.equal(inspected.status, 201);
+
+  const preflight = await handler({
+    method: 'POST',
+    path: `/v1/imports/${inspected.body.importId}/preflight`,
+    headers: { 'content-type': 'application/json' },
+    body: { configuration },
+  });
+  assert.equal(preflight.status, 200);
+  assert.equal(preflight.body.ok, true);
+
+  const notConfirmed = await handler({
+    method: 'POST',
+    path: `/v1/imports/${inspected.body.importId}/confirm`,
+    headers: { 'content-type': 'application/json' },
+    body: {
+      confirm: false,
+      preflightToken: preflight.body.preflightToken,
+    },
+  });
+  assert.equal(notConfirmed.status, 400);
+  assert.equal(notConfirmed.body.error.code, 'VF_IMPORT_CONFIRM_REQUIRED');
+
+  const confirmed = await handler({
+    method: 'POST',
+    path: `/v1/imports/${inspected.body.importId}/confirm`,
+    headers: { 'content-type': 'application/json' },
+    body: {
+      confirm: true,
+      preflightToken: preflight.body.preflightToken,
+    },
+  });
+  assert.equal(confirmed.status, 201);
+  assert.match(confirmed.body.batchId, /^bat_[a-f0-9]{32}$/);
+  assert.equal(confirmed.body.state, 'confirmed');
+
+  const issued = await handler({
+    method: 'POST',
+    path: `/v1/import-batches/${confirmed.body.batchId}/issue`,
+    headers: { 'content-type': 'application/json' },
+    body: {},
+  });
+  assert.equal(issued.status, 202);
+  assert.equal(issued.body.state, 'completed');
+  assert.equal(issued.body.summary.issued, 1);
+
+  const batch = await handler({
+    method: 'GET',
+    path: `/v1/import-batches/${confirmed.body.batchId}`,
+    headers: {},
+  });
+  assert.equal(batch.status, 200);
+  assert.equal(batch.body.rows[0].status, 'issued');
+  assert.match(batch.body.rows[0].recordId, /^fr_[a-f0-9]{24}$/);
+
+  const history = await handler({
+    method: 'GET',
+    path: '/v1/import-batches',
+    headers: {},
+  });
+  assert.equal(history.status, 200);
+  assert.equal(history.body.batches.length, 1);
+  assert.equal(history.body.batches[0].batchId, confirmed.body.batchId);
+
+  const exported = await handler({
+    method: 'GET',
+    path: `/v1/import-batches/${confirmed.body.batchId}/export`,
+    headers: {},
+  });
+  assert.equal(exported.status, 200);
+  assert.equal(exported.body.contentType, 'text/csv; charset=utf-8');
+  assert.match(exported.body.csv, /A-1,issued,fr_/);
+});
