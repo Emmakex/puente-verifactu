@@ -25,7 +25,7 @@ const csv = Buffer.from([
 
 const configuration = {
   'issuer.name': 'Empresa Demo',
-  'issuer.taxId': 'TESTISSUER',
+  'issuer.taxId': '89890001K',
   currency: 'EUR',
   'taxBreakdown.0.taxCode': '01',
   'taxBreakdown.0.regimeKey': '01',
@@ -107,8 +107,11 @@ async function request(baseUrl, path, {
     ...(payload == null ? {} : { body: payload }),
   });
   const text = await response.text();
-  const parsed = text ? JSON.parse(text) : null;
-  return { response, payload: parsed };
+  const contentType = response.headers.get('content-type') ?? '';
+  const parsed = text && contentType.includes('application/json')
+    ? JSON.parse(text)
+    : null;
+  return { response, payload: parsed, text };
 }
 
 await client.connect();
@@ -204,6 +207,14 @@ try {
   assert.equal(repeated.response.status, 201);
   assert.equal(repeated.payload.batchId, confirmed.payload.batchId);
 
+  const directIssue = await request(
+    firstUrl,
+    `/v1/imports/${inspected.payload.importId}/issue`,
+    { method: 'POST', body: { configuration } },
+  );
+  assert.equal(directIssue.response.status, 409);
+  assert.equal(directIssue.payload.error.code, 'VF_IMPORT_CONFIRMATION_REQUIRED');
+
   await first.close();
 
   const second = createRuntime();
@@ -222,6 +233,51 @@ try {
     );
     assert.equal(batchAfterRestart.response.status, 200);
     assert.equal(batchAfterRestart.payload.batchId, confirmed.payload.batchId);
+    assert.equal(batchAfterRestart.payload.status, 'confirmed');
+
+    const issued = await request(
+      secondUrl,
+      `/v1/import-batches/${confirmed.payload.batchId}/issue`,
+      { method: 'POST', body: {} },
+    );
+    assert.equal(issued.response.status, 202);
+    assert.equal(issued.payload.status, 'completed');
+    assert.equal(issued.payload.summary.issued, 1);
+    assert.match(issued.payload.rows[0].recordId, /^fr_/);
+    assert.equal('intent' in issued.payload.rows[0], false);
+
+    const issuedAgain = await request(
+      secondUrl,
+      `/v1/import-batches/${confirmed.payload.batchId}/issue`,
+      { method: 'POST', body: {} },
+    );
+    assert.equal(issuedAgain.response.status, 202);
+    assert.equal(issuedAgain.payload.rows[0].recordId, issued.payload.rows[0].recordId);
+    assert.equal(issuedAgain.payload.rows[0].attempts, 1);
+
+    const jsonExport = await request(
+      secondUrl,
+      `/v1/import-batches/${confirmed.payload.batchId}/export`,
+      { headers: { accept: 'application/json' } },
+    );
+    assert.equal(jsonExport.response.status, 200);
+    assert.equal(jsonExport.payload.rows[0].recordId, issued.payload.rows[0].recordId);
+    assert.equal(JSON.stringify(jsonExport.payload).includes('89890001K'), false);
+    assert.equal(JSON.stringify(jsonExport.payload).includes('A-9001'), false);
+    assert.equal(JSON.stringify(jsonExport.payload).includes('<soap'), false);
+
+    const csvExport = await request(
+      secondUrl,
+      `/v1/import-batches/${confirmed.payload.batchId}/export`,
+      { headers: { accept: 'text/csv' } },
+    );
+    assert.equal(csvExport.response.status, 200);
+    assert.match(csvExport.response.headers.get('content-type') ?? '', /^text\/csv/);
+    assert.match(csvExport.text, /^row,status,recordId,/);
+    assert.match(csvExport.text, new RegExp(issued.payload.rows[0].recordId));
+    assert.equal(csvExport.text.includes('A-9001'), false);
+    assert.equal(csvExport.text.includes('89890001K'), false);
+    assert.equal(csvExport.text.toLowerCase().includes('soap'), false);
 
     const crossTenant = await request(
       secondUrl,
@@ -264,6 +320,10 @@ try {
     runtime_restart_persistence: true,
     original_binary_persisted: false,
     frozen_invoice_intent: true,
+    explicit_confirmation_required: true,
+    resumable_issue: true,
+    safe_json_export: true,
+    safe_csv_export: true,
   }, null, 2));
 } finally {
   await database.dropDatabase().catch(() => {});
