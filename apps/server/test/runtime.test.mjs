@@ -437,6 +437,31 @@ function kairosethRuntimeStores() {
         };
       },
     },
+    onboardingProfileStore: {
+      async create() { throw new Error('not used'); },
+      async get() { return null; },
+      async list() { return []; },
+      async bindIntegration() { throw new Error('not used'); },
+      async reserveLocalAgent() { throw new Error('not used'); },
+      async finalizeLocalAgent() { throw new Error('not used'); },
+      async failLocalAgent() { throw new Error('not used'); },
+    },
+    integrationProfileStore: {
+      async create() { throw new Error('not used'); },
+      async get() { return null; },
+      async getInternal() { return null; },
+      async findForContext() { return null; },
+      async findByOnboarding() { return null; },
+      async list() { return []; },
+      async setMapping() { throw new Error('not used'); },
+      async setWebhookSecretRef() { throw new Error('not used'); },
+      async setAuthBinding() { throw new Error('not used'); },
+      async disable() { throw new Error('not used'); },
+    },
+    resolveIntegrationSecretReference: async () => null,
+    kairosethAuthProvider: {
+      async resolveBearerDigest() { return null; },
+    },
   };
 }
 
@@ -498,6 +523,8 @@ test('kairoseth runtime fails closed when a productive store or backup provider 
     'importBatchStore',
     'localAgentRegistryStore',
     'aeatOutboxStore',
+    'onboardingProfileStore',
+    'integrationProfileStore',
   ]) {
     assert.throws(
       () => createPuenteRuntime({ ...base, [key]: null }),
@@ -508,5 +535,13 @@ test('kairoseth runtime fails closed when a productive store or backup provider 
   assert.throws(
     () => createPuenteRuntime({ ...base, backupStatusProvider: null }),
     /backupStatusProvider is required/,
+  );
+  assert.throws(
+    () => createPuenteRuntime({ ...base, resolveIntegrationSecretReference: null }),
+    /resolveIntegrationSecretReference is required/,
+  );
+  assert.throws(
+    () => createPuenteRuntime({ ...base, kairosethAuthProvider: null }),
+    /kairosethAuthProvider is required/,
   );
 });
