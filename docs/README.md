@@ -19,6 +19,7 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `aeat-live-gate.md` | Runbook y comando seguro para cerrar la prueba real de Fase 3 |
 | `universal-integration-kit-v1.md` | API/SDK, webhook low-code y patrón camaleónico de integración |
 | `universal-integration-matrix.md` | Matriz completa ERP/CRM/software propio/Excel/legacy, selector por capacidades y Universal Adapter Manifest v1 |
+| `http-json-starter-kits.md` | Starter kits Node/Python/PHP/cURL para API lifecycle sin duplicar reglas fiscales |
 | `csv-xlsx-durable-batches.md` | Confirmación, persistencia MongoDB, lease, reanudación y export de lotes CSV/XLSX |
 | `kairoseth-mongodb-runtime.md` | Perfil productivo Hostinger + MongoDB sin SQLite, stores inyectados, outbox, backup status y observabilidad |
 | `woocommerce-compatibility.md` | Matriz WP/Woo/PHP, HPOS y ZIP reproducible del conector WooCommerce |
