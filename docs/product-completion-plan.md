@@ -90,11 +90,10 @@ Hecho:
 Hecho:
 
 - starter kits HTTP/JSON y ejemplos multi-lenguaje para Node.js, Python, PHP y cURL, con gate CI y sin lógica fiscal en cliente;
-- política explícita de retención de archivos processed/error del Local Agent: default keep, poda raw-source opt-in por antigüedad y conservación de metadata sanitizada.
+- política explícita de retención de archivos processed/error del Local Agent: default keep, poda raw-source opt-in por antigüedad y conservación de metadata sanitizada;
+- formulario manual universal con payload neutral, mapping server-side, preflight obligatorio, confirmación humana, idempotencia estable y status/QR.
 
-Pendiente:
-
-- formulario manual universal.
+**P2 cerrado:** ya no quedan gaps universales declarados que bloqueen el cierre técnico del producto. El siguiente tramo es congelar el candidato final (#43) y preparar el piloto (#53).
 
 ### P3 — Candidato final (#43)
 
