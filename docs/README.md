@@ -29,7 +29,8 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `testing-quality.md` | Pirámide de pruebas y gates |
 | `operations-observability.md` | Logs, métricas, trazas, reintentos y diagnósticos |
 | `production-readiness.md` | Gates de Fase 6, backup/restore, HA, runbooks y criterios de release |
-| `roadmap.md` | Fases de implementación y criterios de salida |
+| `roadmap.md` | Fases de implementación, prioridad product-first y criterios de salida |
+| `product-completion-plan.md` | Camino crítico para terminar producto antes de pricing/billing |
 | `engineering-rules.md` | Reglas globales de ingeniería |
 | `adr/` | Decisiones arquitectónicas persistentes |
 
