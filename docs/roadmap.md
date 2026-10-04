@@ -2,6 +2,20 @@
 
 Regla: **finish before advancing**, con la excepción controlada de ADR-0003 para gates exclusivamente externos que sigan bloqueando releases/pilotos.
 
+## Prioridad vigente — product-first (2026-10-04)
+
+Hasta cerrar el producto y su piloto, el orden obligatorio es:
+
+1. completar gaps técnicos de producto que afecten a un canal soportado;
+2. cerrar persistencia productiva Kairoseth/Hostinger + MongoDB donde corresponda;
+3. congelar el candidato final y regenerar evidencia/declaración de esa versión;
+4. ejecutar el piloto progresivo con observabilidad y rollback;
+5. solo después retomar pricing, billing, checkout y mejoras del pipeline comercial.
+
+Quedan **deferidos** durante este tramo: pricing, cuotas, checkout, billing self-service y nuevas mejoras CRM/comerciales. La foundation comercial ya existente no se elimina, pero no compite por prioridad con el cierre técnico.
+
+Camino crítico actual: **#84 → gaps universales restantes de #55 → cierre #43 → piloto #53**.
+
 ## Fase 0 — Foundation ✅
 
 - [x] Documentación base.
@@ -189,15 +203,22 @@ Conectores ERP/CRM adicionales, portal multiempresa, herramientas para asesoría
 - [x] Selector capability-first inicial.
 - [x] Gate CI del manifest de referencia.
 - [x] Productizar emisión por lotes CSV/XLSX: endpoint explícito post-preflight, validación all-or-nothing previa al inicio e idempotencia estable por sesión/fila para retry seguro.
-- [ ] Manifest/capabilities integrado en onboarding visual.
+- [x] Manifest/capabilities integrado en onboarding visual (#88).
 - [ ] Starter kits HTTP/JSON para software propio.
 - [x] Local Agent v1 foundation: SQLite privado + cola offline + leases/recovery + checkpoint + discovery watch-folder + HTTPS saliente.
 - [x] Local Agent v1 ingest: watch-folder -> parser -> MappingProfile server-side -> preflight -> issue + processed/error quarantine.
 - [x] Local Agent v1 data minimization: redacción de payload/result terminal preservando idempotencia y recordId.
 - [ ] Local Agent v1 archive retention: política explícita para ficheros en processed/error (sin borrado automático por defecto).
-- [ ] Local Agent v1: empaquetado/daemon por sistema operativo.
-- [ ] Adaptadores DB read-only: PostgreSQL/MySQL-MariaDB/SQL Server.
-- [ ] SFTP/drop-folder.
+- [x] Local Agent v1: bundle reproducible + instalación nativa + upgrade/rollback en Linux, Windows y macOS (#67, #68, #69).
+- [x] Adaptadores DB read-only: PostgreSQL/MySQL-MariaDB/SQL Server con CI real (#61, #62).
+- [x] SFTP/drop-folder read-only/no destructivo con host-key pinning (#64).
 - [ ] Formulario manual universal.
 
-**Regla:** esta expansión no modifica el motor fiscal. El piloto/release v0.1.0 mantiene sus propios gates y no se da por cerrado por el avance de adapters.
+**Pendientes reales de expansión antes de considerar el producto funcionalmente completo:**
+
+- U10 / #84: lotes CSV/XLSX durables en MongoDB Kairoseth, confirmación explícita, reanudación e histórico/export;
+- starter kits HTTP/JSON y ejemplos para software propio;
+- formulario manual universal con el mismo preflight/core;
+- política explícita de retención de archivos `processed/error` del Local Agent.
+
+**Regla:** esta expansión no modifica el motor fiscal. El piloto/release v0.1.0 mantiene sus propios gates y no se da por cerrado por el avance de adapters. El pricing/billing queda fuera del camino crítico hasta completar estos pendientes de producto y el piloto.

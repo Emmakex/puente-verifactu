@@ -34,7 +34,7 @@ Para cliente, catálogo, activación y futura comercialización existe **un solo
 - **técnica:** `Puente VeriFactu` / `puente-verifactu`;
 - **comercial:** `Kairoseth Fiscal` / `kairoseth-fiscal`, siguiendo el patrón de `Kairoseth Cargo`.
 
-El nombre comercial está seleccionado y ya existe en Kairoseth Platform. La URL canónica es `/products/kairoseth-fiscal` y la ruta técnica `/products/puente-verifactu` redirige permanentemente a esa superficie comercial. El producto permanece en **acceso controlado** hasta cerrar los gates finales de release/piloto y el billing específico.
+El nombre comercial está seleccionado y ya existe en Kairoseth Platform. La URL canónica es `/products/kairoseth-fiscal` y la ruta técnica `/products/puente-verifactu` redirige permanentemente a esa superficie comercial. El producto permanece en **acceso controlado**. Desde 2026-10-04 la prioridad es cerrar desarrollo de producto + release + piloto; pricing, billing y checkout quedan expresamente después de ese cierre.
 
 Los adapters son capacidades/modos de conexión de esa extensión. No son productos independientes.
 
@@ -142,6 +142,17 @@ Los adapters pueden evolucionar y versionarse de forma independiente, pero:
 - no alteran el core;
 - no se comercializan como producto separado dentro del diseño base;
 - siempre reportan que pertenecen a `kairoseth/extensions/puente-verifactu`.
+
+## Prioridad de cierre de producto
+
+Orden vigente:
+
+1. completar U10/#84 en MongoDB Kairoseth;
+2. cerrar los gaps universales que todavía afectan al producto utilizable (starter kits, manual fallback y retención Local Agent);
+3. congelar candidato final y regenerar evidencia de release;
+4. aprobar declaración responsable de ese candidato;
+5. ejecutar piloto progresivo #53;
+6. después reabrir pricing/billing/comercialización.
 
 ## Roadmap de integración con Kairoseth Platform
 
