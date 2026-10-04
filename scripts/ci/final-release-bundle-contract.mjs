@@ -25,6 +25,7 @@ const declaration = [
   '# DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN',
   ...[...'abcdefghijkl'].map((letter) => `**${letter}) Campo obligatorio:** valor válido`),
   'Puente VeriFactu versión 0.1.0',
+  'Perfil productivo Kairoseth sobre Hostinger con persistencia MongoDB',
   'Productor Ejemplo',
   '00000000T',
   'Calle Ejemplo 1',
@@ -56,6 +57,23 @@ assert.match(bundle.release_evidence_sha256, /^[0-9a-f]{64}$/);
 const persisted = JSON.parse(await readFile(outputPath, 'utf8'));
 assert.deepEqual(persisted, bundle);
 assert.equal((await stat(outputPath)).mode & 0o777, 0o600);
+
+const staleReleasePath = join(dir, 'release-evidence-stale-profile.json');
+await writeFile(staleReleasePath, JSON.stringify({
+  source: { commit },
+  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'sqlite-single-node' },
+  release: { status: 'release_candidate', blockers: [] },
+  artifacts: [],
+  ci: { workflow: 'CI', run_id: '1', run_number: '1', result: 'success' },
+}, null, 2));
+await assert.rejects(
+  () => buildFinalReleaseBundle({
+    releaseEvidencePath: staleReleasePath,
+    declarationPath,
+    expectedCommit: commit,
+  }),
+  (error) => error.code === 'VF_FINAL_RELEASE_PROFILE_INVALID',
+);
 
 console.log(JSON.stringify({
   schema_version: 1,
