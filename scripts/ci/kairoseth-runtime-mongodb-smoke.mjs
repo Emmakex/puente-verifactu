@@ -228,6 +228,23 @@ try {
     quarantined.lastResult.reason,
     'lease_expired_after_dispatch_start',
   );
+  const quarantinedStats = await aeatOutboxForWorker.stats(101);
+  assert.equal(quarantinedStats.reconciliationRequired, 1);
+
+  const reconciled = await aeatOutboxForWorker.resolveReconciliation(
+    'aeat_runtime_expired',
+    {
+      action: 'complete',
+      result: {
+        kind: 'manual_reconciliation',
+        action: 'complete',
+        outcome: 'verified_not_pending',
+      },
+      now: 102,
+    },
+  );
+  assert.equal(reconciled.state, 'completed');
+  assert.equal((await aeatOutboxForWorker.stats(102)).reconciliationRequired, 0);
 
   const stores = () => {
     const fiscalRecordStore = createMongoKairosethFiscalRecordStore({ database });
