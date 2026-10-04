@@ -20,3 +20,12 @@ export {
   mongoIntegrationProfileIndexes,
   normalizeMongoIntegrationCollectionName,
 } from './mongodb-integration-profiles.mjs';
+
+export {
+  MongoKairosethImportSessionStore,
+  MongoKairosethImportBatchStore,
+  createMongoKairosethImportSessionStore,
+  createMongoKairosethImportBatchStore,
+  mongoImportSessionIndexes,
+  mongoImportBatchIndexes,
+} from './mongodb-imports.mjs';
