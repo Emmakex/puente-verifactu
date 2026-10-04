@@ -81,6 +81,8 @@ await writeFile(policyPath, JSON.stringify({
   stop_on_blocked: true,
   require_verified_backup: true,
   backup_evidence_kind: 'kairoseth-managed-mongodb-backup-evidence',
+  max_backup_age_hours: 26,
+  max_restore_drill_age_days: 90,
   rollback_mode: 'code-first-no-automatic-db-restore',
 }, null, 2));
 
@@ -107,6 +109,8 @@ assert.equal(receipt.operational_readiness.backup_provider, 'kairoseth-managed-m
 assert.equal(receipt.operational_readiness.backup_reference, 'mongo-backup-ref-1');
 assert.equal(receipt.operational_readiness.restore_drill_reference, 'mongo-restore-drill-ref-1');
 assert.equal(receipt.pilot_policy.backup_evidence_kind, 'kairoseth-managed-mongodb-backup-evidence');
+assert.equal(receipt.pilot_policy.max_backup_age_hours, 26);
+assert.equal(receipt.pilot_policy.max_restore_drill_age_days, 90);
 assert.equal(receipt.pilot_policy.max_operations, 5);
 assert.equal(receipt.contains_personal_data, false);
 
@@ -142,6 +146,37 @@ await assert.rejects(
     expectedCommit: commit,
   }),
   (error) => error.code === 'VF_PILOT_BACKUP_ENCRYPTION_REQUIRED',
+);
+
+const staleBackup = join(dir, 'backup-stale.json');
+await writeFile(staleBackup, JSON.stringify({
+  schemaVersion: 1,
+  kind: 'kairoseth-managed-mongodb-backup-evidence',
+  deploymentProfile: 'kairoseth-hostinger-mongodb',
+  status: 'ok',
+  provider: 'kairoseth-managed-mongodb-backup',
+  backup: {
+    createdAt: '2026-09-30T00:00:00Z',
+    encryptedAtRest: true,
+    reference: 'stale-backup-ref',
+  },
+  restoreDrill: {
+    performedAt: '2026-10-03T11:30:00Z',
+    status: 'ok',
+    reference: 'restore-ref',
+  },
+}));
+await assert.rejects(
+  () => buildPilotReadiness({
+    bundlePath,
+    approvalPath,
+    opsStatusPath: opsPath,
+    backupReportPath: staleBackup,
+    policyPath,
+    expectedCommit: commit,
+    generatedAt: '2026-10-03T12:30:00Z',
+  }),
+  (error) => error.code === 'VF_PILOT_BACKUP_TOO_OLD',
 );
 
 const notApproved = join(dir, 'approval-no.json');
