@@ -189,7 +189,7 @@ export class MongoKairosethAeatOutboxStore {
                 $cond: [
                   { $eq: ['$state', 'pending'] },
                   '$createdAt',
-                  null,
+                  Number.MAX_SAFE_INTEGER,
                 ],
               },
             },
@@ -198,7 +198,7 @@ export class MongoKairosethAeatOutboxStore {
                 $cond: [
                   { $eq: ['$state', 'reconciliation_required'] },
                   '$updatedAt',
-                  null,
+                  Number.MAX_SAFE_INTEGER,
                 ],
               },
             },
@@ -207,10 +207,18 @@ export class MongoKairosethAeatOutboxStore {
       ])
       .next();
 
-    const oldestPendingAt = docs?.oldestPendingAt == null ? null : Number(docs.oldestPendingAt);
-    const oldestReconciliationAt = docs?.oldestReconciliationAt == null
+    const pendingValue = docs?.oldestPendingAt == null
+      ? null
+      : Number(docs.oldestPendingAt);
+    const reconciliationValue = docs?.oldestReconciliationAt == null
       ? null
       : Number(docs.oldestReconciliationAt);
+    const oldestPendingAt = pendingValue === Number.MAX_SAFE_INTEGER
+      ? null
+      : pendingValue;
+    const oldestReconciliationAt = reconciliationValue === Number.MAX_SAFE_INTEGER
+      ? null
+      : reconciliationValue;
     return Object.freeze({
       total: Number(docs?.total ?? 0),
       pending: Number(docs?.pending ?? 0),
