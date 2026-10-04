@@ -15,6 +15,7 @@ import {
 const DEFAULT_TTL_MS = 15 * 60 * 1000;
 const DEFAULT_MAX_FILE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_MAX_SESSIONS = 100;
+const DEFAULT_BATCH_LEASE_MS = 60 * 1000;
 const ALLOWED_CONSTANT_PATHS = new Set([
   'series',
   'invoiceType',
@@ -106,6 +107,21 @@ function batchFingerprint(batch) {
     .digest('hex');
 }
 
+function sanitizedBatchError(error) {
+  const status = Number.isInteger(error?.status) ? error.status : 500;
+  return {
+    code: String(error?.code ?? 'VF_IMPORT_ROW_ISSUE_FAILED').slice(0, 128),
+    status,
+    retryable: Boolean(error?.retryable) || status >= 500,
+  };
+}
+
+function csvCell(value) {
+  const text = value == null ? '' : String(value);
+  if (!/[",\r\n]/.test(text)) return text;
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
 function publicBatch(batch) {
   const statusCounts = {
     pending: 0,
@@ -144,18 +160,27 @@ export class ImportSessionService {
     ttlMs = DEFAULT_TTL_MS,
     maxFileBytes = DEFAULT_MAX_FILE_BYTES,
     maxSessions = DEFAULT_MAX_SESSIONS,
+    batchLeaseMs = DEFAULT_BATCH_LEASE_MS,
     store = new MemoryImportSessionStore(),
     batchStore = new MemoryImportBatchStore(),
   } = {}) {
-    if (!(ttlMs > 0) || !(maxFileBytes > 0) || !Number.isInteger(maxSessions) || maxSessions < 1) {
-      throw new TypeError('Import session limits must be positive and maxSessions must be an integer');
+    if (
+      !(ttlMs > 0)
+      || !(maxFileBytes > 0)
+      || !Number.isInteger(maxSessions)
+      || maxSessions < 1
+      || !(batchLeaseMs > 0)
+    ) {
+      throw new TypeError(
+        'Import session limits, batch lease and maxSessions must be positive',
+      );
     }
     for (const method of ['purgeExpired', 'ensureCapacity', 'put', 'get', 'delete']) {
       if (typeof store?.[method] !== 'function') {
         throw new TypeError(`Import session store must implement ${method}()`);
       }
     }
-    for (const method of ['create', 'get']) {
+    for (const method of ['create', 'get', 'acquireLease', 'updateRow', 'releaseLease']) {
       if (typeof batchStore?.[method] !== 'function') {
         throw new TypeError(`Import batch store must implement ${method}()`);
       }
@@ -164,6 +189,7 @@ export class ImportSessionService {
     this.ttlMs = ttlMs;
     this.maxFileBytes = maxFileBytes;
     this.maxSessions = maxSessions;
+    this.batchLeaseMs = batchLeaseMs;
     this.store = store;
     this.batchStore = batchStore;
   }
@@ -365,6 +391,149 @@ export class ImportSessionService {
       throw apiError('VF_IMPORT_BATCH_NOT_FOUND', 'Import batch not found', 404);
     }
     return publicBatch(batch);
+  }
+
+  async issueBatch(batchId, context, bridge) {
+    requireContext(context);
+    if (!bridge || typeof bridge.issue !== 'function') {
+      throw apiError('VF_IMPORT_ISSUE_BRIDGE_UNAVAILABLE', 'Issue bridge is unavailable', 500);
+    }
+
+    const existing = await this.batchStore.get(batchId, context);
+    if (!existing) {
+      throw apiError('VF_IMPORT_BATCH_NOT_FOUND', 'Import batch not found', 404);
+    }
+    if (existing.status === 'completed') return publicBatch(existing);
+
+    const now = this.clock();
+    const leaseToken = `lease_${randomUUID().replaceAll('-', '')}`;
+    const leased = await this.batchStore.acquireLease({
+      batchId,
+      organizationId: context.organizationId,
+      installationId: context.installationId,
+      leaseToken,
+      now,
+      expiresAt: now + this.batchLeaseMs,
+    });
+
+    if (!leased) {
+      const current = await this.batchStore.get(batchId, context);
+      if (current?.status === 'completed') return publicBatch(current);
+      throw apiError('VF_IMPORT_BATCH_BUSY', 'Import batch is already being processed', 409);
+    }
+
+    let finalStatus = 'partial';
+    let released = false;
+    try {
+      for (const row of leased.rows) {
+        const eligible = row.status === 'pending'
+          || (row.status === 'failed' && row.error?.retryable === true);
+        if (!eligible) continue;
+
+        const attempts = Number(row.attempts ?? 0) + 1;
+        try {
+          const resource = await bridge.issue(
+            structuredClone(row.intent),
+            context,
+            { idempotencyKey: row.idempotencyKey },
+          );
+          await this.batchStore.updateRow({
+            batchId,
+            organizationId: context.organizationId,
+            installationId: context.installationId,
+            leaseToken,
+            row: row.row,
+            patch: {
+              status: 'issued',
+              recordId: resource?.recordId ?? null,
+              fiscalStatus: resource?.status ?? null,
+              duplicate: Boolean(resource?.duplicate),
+              error: null,
+              attempts,
+            },
+            now: this.clock(),
+          });
+        } catch (error) {
+          await this.batchStore.updateRow({
+            batchId,
+            organizationId: context.organizationId,
+            installationId: context.installationId,
+            leaseToken,
+            row: row.row,
+            patch: {
+              status: 'failed',
+              recordId: null,
+              fiscalStatus: null,
+              duplicate: false,
+              error: sanitizedBatchError(error),
+              attempts,
+            },
+            now: this.clock(),
+          });
+        }
+      }
+
+      const current = await this.batchStore.get(batchId, context);
+      finalStatus = current?.rows?.every((row) => row.status === 'issued')
+        ? 'completed'
+        : 'partial';
+      const releasedBatch = await this.batchStore.releaseLease({
+        batchId,
+        organizationId: context.organizationId,
+        installationId: context.installationId,
+        leaseToken,
+        status: finalStatus,
+        now: this.clock(),
+      });
+      released = true;
+      return publicBatch(releasedBatch);
+    } finally {
+      if (!released) {
+        await this.batchStore.releaseLease({
+          batchId,
+          organizationId: context.organizationId,
+          installationId: context.installationId,
+          leaseToken,
+          status: finalStatus,
+          now: this.clock(),
+        }).catch(() => {});
+      }
+    }
+  }
+
+  async exportBatch(batchId, context, format = 'json') {
+    requireContext(context);
+    const batch = await this.batchStore.get(batchId, context);
+    if (!batch) {
+      throw apiError('VF_IMPORT_BATCH_NOT_FOUND', 'Import batch not found', 404);
+    }
+    const publicValue = publicBatch(batch);
+    if (format === 'json') return publicValue;
+    if (format !== 'csv') {
+      throw apiError('VF_IMPORT_EXPORT_FORMAT_INVALID', 'Unsupported import export format', 406);
+    }
+
+    const header = [
+      'row',
+      'status',
+      'recordId',
+      'duplicate',
+      'fiscalStatus',
+      'errorCode',
+      'retryable',
+      'attempts',
+    ];
+    const rows = publicValue.rows.map((row) => [
+      row.row,
+      row.status,
+      row.recordId,
+      row.duplicate,
+      row.fiscalStatus,
+      row.error?.code ?? null,
+      row.error?.retryable ?? null,
+      row.attempts,
+    ].map(csvCell).join(','));
+    return [header.join(','), ...rows].join('\n') + '\n';
   }
 
   async remove(importId, context) {
