@@ -116,7 +116,7 @@ export class FxAwareBridgeService extends UniversalBridgeService {
     return this.preflight(applyMapping(source, profile), context);
   }
 
-  async issue(input, context, { idempotencyKey } = {}) {
+  async issue(input, context, { idempotencyKey, integrationProfileId = null } = {}) {
     if (!idempotencyKey || typeof idempotencyKey !== 'string') {
       throw apiError('VF_API_IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key is required', 400);
     }
@@ -157,6 +157,8 @@ export class FxAwareBridgeService extends UniversalBridgeService {
         organizationId: context.organizationId,
         installationId: context.installationId,
         sourceInvoiceId: prepared.sourceIntent.sourceInvoiceId,
+        sourceSystem: context.sourceSystem,
+        integrationProfileId: integrationProfileId ?? null,
         sourceCurrency: prepared.sourceIntent.currency,
         fiscalCurrency: 'EUR',
         currencyConversion: prepared.conversion,
@@ -173,8 +175,11 @@ export class FxAwareBridgeService extends UniversalBridgeService {
     }
   }
 
-  async issueMapped(source, profile, context, options) {
-    return this.issue(applyMapping(source, profile), context, options);
+  async issueMapped(source, profile, context, options = {}) {
+    return this.issue(applyMapping(source, profile), context, {
+      ...options,
+      integrationProfileId: profile?.id ?? null,
+    });
   }
 }
 
