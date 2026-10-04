@@ -32,3 +32,14 @@ export {
   normalizeMongoImportSessionCollectionName,
   normalizeMongoImportBatchCollectionName,
 } from './mongodb-import-batches.mjs';
+
+
+export {
+  MongoKairosethFiscalRecordStore,
+  MongoKairosethIntegrationStore,
+  createMongoKairosethFiscalRecordStore,
+  createMongoKairosethIntegrationStore,
+  mongoFiscalRecordIndexes,
+  mongoIntegrationRecordIndexes,
+  mongoIntegrationRequestIndexes,
+} from './mongodb-dataplane.mjs';
