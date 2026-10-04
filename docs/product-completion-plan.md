@@ -54,6 +54,8 @@ Criterios de salida:
 
 ### P1.5 — Persistencia data-plane Kairoseth en MongoDB (#91)
 
+**Microfase activa:** cadena fiscal + API records + Idempotency-Key mediante stores MongoDB inyectados. SQLite sigue temporalmente para outbox/observabilidad hasta la siguiente microfase del mismo blocker.
+
 Tras U10 hay que eliminar la dependencia productiva de SQLite en el runtime Kairoseth para:
 
 - cadena fiscal / operación idempotente;
