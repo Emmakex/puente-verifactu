@@ -8,7 +8,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "check": "node scripts/ci/repo-check.mjs && node scripts/ci/runbooks-check.mjs && node scripts/ci/backup-lifecycle-contract.mjs && node scripts/ci/release-evidence-check.mjs && node scripts/ci/aeat-certificate-preflight-contract.mjs && node scripts/ci/aeat-evidence-bundle-contract.mjs && node scripts/ci/aeat-official-reconciliation-contract.mjs && node scripts/ci/aeat-live-reconciliation-cli-contract.mjs && node scripts/ci/aeat-controlled-reconciliation-seed-contract.mjs && node scripts/ci/aeat-controlled-rejection-profile-contract.mjs && node scripts/ci/aeat-final-gate-evidence-contract.mjs && node scripts/ci/responsible-declaration-contract.mjs && node scripts/ci/final-release-bundle-contract.mjs && node scripts/ci/connector-version-neutrality.mjs && node scripts/ci/pilot-readiness-contract.mjs && node scripts/ci/universal-adapter-contract.mjs && node scripts/ci/kairoseth-extension-product-check.mjs && node scripts/ci/local-agent-contract.mjs && node scripts/ci/local-agent-package-check.mjs && node scripts/ci/local-agent-service-install-contract.mjs && node scripts/ci/kairoseth-hostinger-mongodb-contract.mjs",
+    "check": "node scripts/ci/repo-check.mjs && node scripts/ci/runbooks-check.mjs && node scripts/ci/backup-lifecycle-contract.mjs && node scripts/ci/release-evidence-check.mjs && node scripts/ci/aeat-certificate-preflight-contract.mjs && node scripts/ci/aeat-evidence-bundle-contract.mjs && node scripts/ci/aeat-official-reconciliation-contract.mjs && node scripts/ci/aeat-live-reconciliation-cli-contract.mjs && node scripts/ci/aeat-controlled-reconciliation-seed-contract.mjs && node scripts/ci/aeat-controlled-rejection-profile-contract.mjs && node scripts/ci/aeat-final-gate-evidence-contract.mjs && node scripts/ci/responsible-declaration-contract.mjs && node scripts/ci/final-release-bundle-contract.mjs && node scripts/ci/connector-version-neutrality.mjs && node scripts/ci/pilot-readiness-contract.mjs && node scripts/ci/universal-adapter-contract.mjs && node scripts/ci/kairoseth-extension-product-check.mjs && node scripts/ci/local-agent-contract.mjs && node scripts/ci/local-agent-package-check.mjs && node scripts/ci/local-agent-service-install-contract.mjs && node scripts/ci/kairoseth-hostinger-mongodb-contract.mjs && node scripts/ci/api-lifecycle-contract.mjs",
     "test": "node --test",
     "preflight:demo": "node connectors/file-import/src/cli.mjs --csv examples/file-import/facturas.csv --profile examples/file-import/mapping.json",
     "mapping:demo": "node connectors/file-import/src/cli.mjs --file examples/file-import/facturas.csv --infer",
@@ -68,6 +68,7 @@
     "local-agent:upgrade:smoke": "node --test packages/local-agent/test/upgrade.test.mjs",
     "local-agent:upgrade:prepare": "node packages/local-agent/src/upgrade-cli.mjs prepare",
     "kairoseth:mongodb:check": "node scripts/ci/kairoseth-hostinger-mongodb-contract.mjs",
-    "kairoseth:mongodb:smoke": "bash scripts/ci/kairoseth-mongodb-registry-smoke.sh"
+    "kairoseth:mongodb:smoke": "bash scripts/ci/kairoseth-mongodb-registry-smoke.sh",
+    "api:lifecycle:check": "node scripts/ci/api-lifecycle-contract.mjs"
   }
 }
