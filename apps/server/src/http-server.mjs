@@ -6,9 +6,12 @@ const STATIC_FILES = Object.freeze({
   '/': ['index.html', 'text/html; charset=utf-8'],
   '/index.html': ['index.html', 'text/html; charset=utf-8'],
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
+  '/manual.html': ['manual.html', 'text/html; charset=utf-8'],
+  '/manual.js': ['manual.js', 'text/javascript; charset=utf-8'],
   '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
   '/src/model.mjs': ['src/model.mjs', 'text/javascript; charset=utf-8'],
   '/src/capabilities.mjs': ['src/capabilities.mjs', 'text/javascript; charset=utf-8'],
+  '/src/manual-model.mjs': ['src/manual-model.mjs', 'text/javascript; charset=utf-8'],
 });
 
 function securityHeaders({ staticContent = false, api = false } = {}) {
