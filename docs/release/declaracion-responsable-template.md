@@ -12,7 +12,7 @@ PV
 0.1.0
 
 **d) Componentes, hardware y software, breve descripción y principales funcionalidades:**  
-Puente VeriFactu es un sistema informático de facturación modular para integración con sistemas empresariales. Incluye núcleo fiscal canónico, registros de alta y anulación, encadenamiento y huella SHA-256, adaptador AEAT VERI*FACTU, outbox durable, reconciliación oficial, API/SDK, importación CSV/XLSX, webhooks y conectores WooCommerce/PrestaShop. El perfil objetivo de esta versión es software sobre servidor de propósito general, SQLite single-node, sin hardware propietario obligatorio.
+Puente VeriFactu es un sistema informático de facturación modular para integración con sistemas empresariales. Incluye núcleo fiscal canónico, registros de alta y anulación, encadenamiento y huella SHA-256, adaptador AEAT VERI*FACTU, outbox durable, reconciliación oficial, API/SDK, importación CSV/XLSX, webhooks, captura manual y conectores WooCommerce/PrestaShop. El perfil productivo de esta versión corresponde a Kairoseth Fiscal sobre infraestructura Hostinger con persistencia MongoDB inyectada para cadena fiscal, API/idempotencia, importaciones, perfiles de integración y outbox AEAT. El runtime productivo Kairoseth no usa SQLite como persistencia de control-plane o data-plane y no requiere hardware propietario obligatorio.
 
 **e) Indicación de si el sistema se ha producido para funcionar exclusivamente como «VERI*FACTU»:**  
 S - Sí.
@@ -42,7 +42,7 @@ La persona o entidad productora hace constar que Puente VeriFactu, versión 0.1.
 
 - Contacto adicional: <CONTACTO_OPCIONAL>
 - Sitio web del productor/producto: <URL_OPCIONAL>
-- Perfil de despliegue: SQLite single-node.
+- Perfil de despliegue: Kairoseth / Hostinger / MongoDB (`kairoseth-hostinger-mongodb`).
 - Conector WooCommerce: 0.2.0.
 - Conector PrestaShop: 0.4.0.
 - Evidencia externa AEAT: `docs/release/aeat-gate-6-evidence-2026-10-03.md`.
