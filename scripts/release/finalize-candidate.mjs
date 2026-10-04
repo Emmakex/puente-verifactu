@@ -127,12 +127,12 @@ export async function buildFinalReleaseBundle({
   }
 
   const version = required(release?.product?.version, 'release.product.version');
-  ensureArtifacts(release?.artifacts);
   if (release?.product?.deployment_profile !== PRODUCTIVE_DEPLOYMENT_PROFILE) {
     const error = new Error(`Release evidence must target ${PRODUCTIVE_DEPLOYMENT_PROFILE}`);
     error.code = 'VF_FINAL_RELEASE_PROFILE_MISMATCH';
     throw error;
   }
+  ensureArtifacts(release?.artifacts);
   ensureDeclaration(declaration, version);
 
   const bundle = {
