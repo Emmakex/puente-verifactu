@@ -490,6 +490,28 @@ test('kairoseth runtime starts without SQLite databasePath and uses injected hea
     assert.equal(ready.status, 200);
     assert.equal((await ready.json()).status, 'ready');
 
+    const issueRequest = () => fetch(baseUrl + '/v1/fiscal-records', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${apiToken}`,
+        'content-type': 'application/json',
+        'idempotency-key': 'runtime-kairoseth-async-store-1',
+      },
+      body: JSON.stringify({ intent: validIntent() }),
+    });
+
+    const issuedResponse = await issueRequest();
+    assert.equal(issuedResponse.status, 202);
+    const issued = await issuedResponse.json();
+    assert.match(issued.recordId, /^fr_[a-f0-9]{24}$/);
+    assert.equal(issued.duplicate, false);
+
+    const retriedResponse = await issueRequest();
+    assert.equal(retriedResponse.status, 200);
+    const retried = await retriedResponse.json();
+    assert.equal(retried.recordId, issued.recordId);
+    assert.equal(retried.duplicate, true);
+
     const snapshot = await runtime.operationalObserver.snapshotAsync();
     assert.equal(snapshot.mode, 'kairoseth-mongodb');
     assert.equal(snapshot.database.ok, true);
