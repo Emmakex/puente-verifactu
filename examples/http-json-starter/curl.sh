@@ -32,17 +32,17 @@ case "$COMMAND" in
     ;;
   cancel)
     RECORD_ID="${2:?recordId is required}"
-    SOURCE_CANCELLATION_ID="${3:?sourceCancellationId is required}"
+    CANCEL_JSON="${3:?cancel JSON file is required}"
     IDEMPOTENCY_KEY="${4:?Idempotency key is required}"
     curl --fail-with-body --silent --show-error \
       -X POST "$BASE_URL/v1/fiscal-records/$RECORD_ID/cancel" \
       -H "$auth_header" \
       -H "Content-Type: application/json" \
       -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
-      --data-binary "{\"sourceCancellationId\":\"$SOURCE_CANCELLATION_ID\"}"
+      --data-binary "@$CANCEL_JSON"
     ;;
   *)
-    echo "Usage: $0 preflight <json> | issue|rectify <json> <idempotency-key> | status <recordId> | cancel <recordId> <sourceCancellationId> <idempotency-key>" >&2
+    echo "Usage: $0 preflight <json> | issue|rectify <json> <idempotency-key> | status <recordId> | cancel <recordId> <cancel-json> <idempotency-key>" >&2
     exit 2
     ;;
 esac
