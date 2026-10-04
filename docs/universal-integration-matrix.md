@@ -89,22 +89,20 @@ El origen envía eventos HTTP firmados. Puente resuelve tenant, secreto y mappin
 
 Ruta: `file_upload`.
 
-Flujo objetivo:
+Flujo productivo Kairoseth:
 
 ```text
 subir -> detectar columnas -> confirmar mapping -> preflight por fila
-      -> confirmación explícita -> emisión -> resultado por fila
+      -> confirmación explícita -> batch durable MongoDB
+      -> lease -> emisión idempotente -> reanudación
+      -> histórico/estado -> export JSON/CSV
 ```
 
-La plantilla del cliente no tiene que cambiar.
+La plantilla del cliente no tiene que cambiar. El binario original no se persiste:
+MongoDB conserva la sesión temporal parseada con TTL y, tras confirmar, los
+`InvoiceIntent` congelados necesarios para reanudación/idempotencia.
 
-Evolución prevista:
-
-- histórico de lotes;
-- reanudación segura;
-- idempotencia por lote/fila;
-- export de resultados;
-- cuarentena de filas con error.
+La emisión directa desde una sesión no confirmada está prohibida.
 
 ### E. Software propio
 
@@ -252,16 +250,16 @@ Todos los canales deben cumplir:
 - [x] processed/error quarantine por batch;
 - [x] opt-in explícito antes de permitir emisión desde watch-folder;
 - [x] redacción de payload/result al cerrar el lote, preservando fingerprint e idempotencia;
-- [ ] DB read-only;
-- [ ] empaquetado/servicio por sistema operativo.
+- [x] DB read-only PostgreSQL/MySQL/MariaDB/SQL Server con evidencia CI real;
+- [x] empaquetado/servicio Linux, Windows y macOS con upgrade/rollback.
 
 ### U4 — Conectores de datos
 
-- PostgreSQL;
-- MySQL/MariaDB;
-- SQL Server;
-- SFTP;
-- formatos adicionales.
+- [x] PostgreSQL;
+- [x] MySQL/MariaDB;
+- [x] SQL Server;
+- [x] SFTP read-only/no destructivo;
+- [ ] formatos adicionales cuando exista un caso de producto que los requiera.
 
 ### U5 — Manual universal
 
