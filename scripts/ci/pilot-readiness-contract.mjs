@@ -78,6 +78,8 @@ await writeFile(policyPath, JSON.stringify({
   deployment_profile: 'kairoseth-hostinger-mongodb',
   max_operations: 5,
   max_duration_minutes: 120,
+  max_backup_age_hours: 26,
+  max_restore_drill_age_days: 90,
   stop_on_warning: true,
   stop_on_rejection: true,
   stop_on_reconciliation_required: true,
@@ -107,12 +109,47 @@ assert.equal(receipt.operational_readiness.reconciliation_required, 0);
 assert.equal(receipt.operational_readiness.blocked, 0);
 assert.equal(receipt.operational_readiness.backup_sha256, backupSha);
 assert.equal(receipt.pilot_policy.max_operations, 5);
+assert.equal(receipt.pilot_policy.max_backup_age_hours, 26);
+assert.equal(receipt.pilot_policy.max_restore_drill_age_days, 90);
 assert.equal(receipt.contains_personal_data, false);
 
 const persisted = JSON.parse(await readFile(outputPath, 'utf8'));
 assert.deepEqual(persisted, receipt);
 assert.equal((await stat(outputPath)).mode & 0o777, 0o600);
 
+
+
+const staleBackupPath = join(dir, 'backup-stale.json');
+await writeFile(staleBackupPath, JSON.stringify({
+  schemaVersion: 1,
+  kind: 'kairoseth-managed-backup-readiness',
+  deploymentProfile: 'kairoseth-hostinger-mongodb',
+  status: 'ok',
+  provider: 'fixture-managed-backup',
+  newestBackup: {
+    createdAt: '2026-09-30T00:00:00Z',
+    sha256: backupSha,
+    remote: true,
+    encryptedAtRest: true,
+  },
+  restoreDrill: {
+    performedAt: '2026-10-03T11:30:00Z',
+    backupSha256: backupSha,
+    result: 'ok',
+  },
+}, null, 2));
+await assert.rejects(
+  () => buildPilotReadiness({
+    bundlePath,
+    approvalPath,
+    opsStatusPath: opsPath,
+    backupReportPath: staleBackupPath,
+    policyPath,
+    expectedCommit: commit,
+    generatedAt: '2026-10-03T12:30:00Z',
+  }),
+  (error) => error.code === 'VF_PILOT_BACKUP_TOO_OLD',
+);
 
 const wrongProfileOps = join(dir, 'ops-wrong-profile.json');
 await writeFile(wrongProfileOps, JSON.stringify({
