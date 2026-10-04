@@ -8,7 +8,6 @@ const dir = await mkdtemp(join(tmpdir(), 'pv-pilot-readiness-'));
 const commit = '0123456789abcdef0123456789abcdef01234567';
 const declarationSha = 'a'.repeat(64);
 const releaseEvidenceSha = 'b'.repeat(64);
-const backupSha = 'c'.repeat(64);
 
 const bundlePath = join(dir, 'bundle.json');
 const approvalPath = join(dir, 'approval.json');
@@ -22,7 +21,7 @@ await writeFile(bundlePath, JSON.stringify({
   evidence_kind: 'puente-verifactu-final-release-bundle',
   status: 'candidate_evidence_complete',
   source_commit: commit,
-  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'sqlite-single-node' },
+  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'kairoseth-hostinger-mongodb' },
   ci: { run_id: '10', run_number: '11', result: 'success' },
   release: { status: 'release_candidate', blockers: 0 },
   declaration: { present: true, version_bound: true, sha256: declarationSha, content_in_bundle: false },
@@ -54,15 +53,26 @@ await writeFile(opsPath, JSON.stringify({
 
 await writeFile(backupPath, JSON.stringify({
   schemaVersion: 1,
+  kind: 'kairoseth-managed-mongodb-backup-evidence',
+  deploymentProfile: 'kairoseth-hostinger-mongodb',
   status: 'ok',
-  newestBackup: { sha256: backupSha },
-  restoreDrill: { backupSha256: backupSha },
+  provider: 'kairoseth-managed-mongodb-backup',
+  backup: {
+    createdAt: '2026-10-03T11:00:00Z',
+    encryptedAtRest: true,
+    reference: 'mongo-backup-ref-1',
+  },
+  restoreDrill: {
+    performedAt: '2026-10-03T11:30:00Z',
+    status: 'ok',
+    reference: 'mongo-restore-drill-ref-1',
+  },
 }, null, 2));
 
 await writeFile(policyPath, JSON.stringify({
   schema_version: 1,
   kind: 'puente-verifactu-pilot-policy',
-  deployment_profile: 'sqlite-single-node',
+  deployment_profile: 'kairoseth-hostinger-mongodb',
   max_operations: 5,
   max_duration_minutes: 120,
   stop_on_warning: true,
@@ -70,6 +80,7 @@ await writeFile(policyPath, JSON.stringify({
   stop_on_reconciliation_required: true,
   stop_on_blocked: true,
   require_verified_backup: true,
+  backup_evidence_kind: 'kairoseth-managed-mongodb-backup-evidence',
   rollback_mode: 'code-first-no-automatic-db-restore',
 }, null, 2));
 
@@ -91,13 +102,47 @@ assert.equal(receipt.declaration.sha256, declarationSha);
 assert.equal(receipt.operational_readiness.ops_status, 'ok');
 assert.equal(receipt.operational_readiness.reconciliation_required, 0);
 assert.equal(receipt.operational_readiness.blocked, 0);
-assert.equal(receipt.operational_readiness.backup_sha256, backupSha);
+assert.equal(receipt.product.deployment_profile, 'kairoseth-hostinger-mongodb');
+assert.equal(receipt.operational_readiness.backup_provider, 'kairoseth-managed-mongodb-backup');
+assert.equal(receipt.operational_readiness.backup_reference, 'mongo-backup-ref-1');
+assert.equal(receipt.operational_readiness.restore_drill_reference, 'mongo-restore-drill-ref-1');
+assert.equal(receipt.pilot_policy.backup_evidence_kind, 'kairoseth-managed-mongodb-backup-evidence');
 assert.equal(receipt.pilot_policy.max_operations, 5);
 assert.equal(receipt.contains_personal_data, false);
 
 const persisted = JSON.parse(await readFile(outputPath, 'utf8'));
 assert.deepEqual(persisted, receipt);
 assert.equal((await stat(outputPath)).mode & 0o777, 0o600);
+
+const unsafeBackup = join(dir, 'backup-unsafe.json');
+await writeFile(unsafeBackup, JSON.stringify({
+  schemaVersion: 1,
+  kind: 'kairoseth-managed-mongodb-backup-evidence',
+  deploymentProfile: 'kairoseth-hostinger-mongodb',
+  status: 'ok',
+  provider: 'kairoseth-managed-mongodb-backup',
+  backup: {
+    createdAt: '2026-10-03T11:00:00Z',
+    encryptedAtRest: false,
+    reference: 'https://storage.invalid/object?token=secret',
+  },
+  restoreDrill: {
+    performedAt: '2026-10-03T11:30:00Z',
+    status: 'ok',
+    reference: 'restore-ref',
+  },
+}));
+await assert.rejects(
+  () => buildPilotReadiness({
+    bundlePath,
+    approvalPath,
+    opsStatusPath: opsPath,
+    backupReportPath: unsafeBackup,
+    policyPath,
+    expectedCommit: commit,
+  }),
+  (error) => error.code === 'VF_PILOT_BACKUP_ENCRYPTION_REQUIRED',
+);
 
 const notApproved = join(dir, 'approval-no.json');
 await writeFile(notApproved, JSON.stringify({
