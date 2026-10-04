@@ -184,6 +184,15 @@ function validateBackupReport(report, policy, referenceTime) {
       'Kairoseth managed backup readiness report must be ok and match the candidate profile',
     );
   }
+  if (typeof report?.provider !== 'string' || !report.provider.trim()) {
+    throw pilotError('VF_PILOT_BACKUP_PROVIDER_MISSING', 'Managed backup provider reference is required');
+  }
+  if (report.containsSecrets !== false || report.containsFiscalData !== false) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_EVIDENCE_NOT_SANITIZED',
+      'Managed backup readiness evidence must explicitly exclude secrets and fiscal data',
+    );
+  }
   sha256(report?.newestBackup?.sha256, 'backup.newestBackup.sha256');
   if (report?.newestBackup?.encryptedAtRest !== true || report?.newestBackup?.remote !== true) {
     throw pilotError(
