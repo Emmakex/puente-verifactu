@@ -171,6 +171,10 @@ export class FxAwareBridgeService extends UniversalBridgeService {
         sourceCurrency: prepared.sourceIntent.currency,
         fiscalCurrency: 'EUR',
         currencyConversion: prepared.conversion,
+        _deliveryIssuer: Object.freeze({
+          name: prepared.fiscalIntent.issuer.name,
+          taxId: prepared.fiscalIntent.issuer.taxId,
+        }),
         status,
         fiscalRecord: fiscalized.record,
         presentation: this.presentationForRecord(fiscalized.record),

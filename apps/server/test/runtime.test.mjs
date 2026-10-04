@@ -450,6 +450,14 @@ function kairosethRuntimeStores() {
         };
       },
     },
+    enqueueDelivery: async ({ recordId }) => ({
+      status: 'queued',
+      jobId: `aeat_${recordId}`,
+      attempts: 0,
+      retryable: true,
+      reconciliationRequired: false,
+    }),
+    resolveDelivery: async (delivery) => delivery,
     onboardingProfileStore: {
       async create() { throw new Error('not used'); },
       async get() { return null; },
@@ -570,6 +578,14 @@ test('kairoseth runtime fails closed when a productive store or backup provider 
   assert.throws(
     () => createPuenteRuntime({ ...base, backupStatusProvider: null }),
     /backupStatusProvider is required/,
+  );
+  assert.throws(
+    () => createPuenteRuntime({ ...base, enqueueDelivery: null }),
+    /enqueueDelivery is required/,
+  );
+  assert.throws(
+    () => createPuenteRuntime({ ...base, resolveDelivery: null }),
+    /resolveDelivery is required/,
   );
   assert.throws(
     () => createPuenteRuntime({ ...base, resolveIntegrationSecretReference: null }),

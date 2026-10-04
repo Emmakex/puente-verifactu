@@ -10,6 +10,11 @@ const aeatOutboxAdapter = readFileSync('packages/kairoseth-control-plane/src/mon
 const integrationRuntime = readFileSync('apps/server/src/integration-control-plane.mjs', 'utf8');
 const serverRuntime = readFileSync('apps/server/src/runtime.mjs', 'utf8');
 const authBridge = readFileSync('apps/server/src/kairoseth-auth-bridge.mjs', 'utf8');
+const productionMain = readFileSync('apps/server/src/kairoseth-main.mjs', 'utf8');
+const aeatDelivery = readFileSync('apps/server/src/aeat-delivery.mjs', 'utf8');
+const fiscalAuth = readFileSync('packages/kairoseth-control-plane/src/mongodb-fiscal-auth.mjs', 'utf8');
+const mongoInfrastructure = readFileSync('packages/kairoseth-control-plane/src/mongodb-infrastructure.mjs', 'utf8');
+const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 const product = JSON.parse(readFileSync('config/kairoseth-extension.json', 'utf8'));
 const index = readFileSync('packages/kairoseth-control-plane/src/index.mjs', 'utf8');
 
@@ -94,6 +99,31 @@ expect(authBridge.includes('rotateDataPlaneCredential'), 'KAIROSETH_AUTH_ROTATE_
 expect(authBridge.includes('revokeDataPlaneCredential'), 'KAIROSETH_AUTH_REVOKE_PROVIDER_REQUIRED');
 expect(!/tokenSha256|passwordHash|passwordScrypt/.test(integrationAdapter), 'KAIROSETH_INTEGRATION_AUTH_SECRET_PERSISTENCE_FORBIDDEN');
 
+expect(serverRuntime.includes("enqueueDelivery is required in kairoseth persistence mode"), 'KAIROSETH_AEAT_ENQUEUE_REQUIRED');
+expect(serverRuntime.includes("resolveDelivery is required in kairoseth persistence mode"), 'KAIROSETH_AEAT_STATUS_RESOLVER_REQUIRED');
+expect(serverRuntime.includes('enqueueDelivery,'), 'KAIROSETH_AEAT_ENQUEUE_WIRED_TO_BRIDGE');
+expect(serverRuntime.includes('resolveDelivery,'), 'KAIROSETH_AEAT_STATUS_WIRED_TO_BRIDGE');
+expect(aeatDelivery.includes('outbox.enqueue'), 'KAIROSETH_AEAT_DELIVERY_MUST_ENQUEUE_OUTBOX');
+expect(productionMain.includes("persistenceMode: 'kairoseth'"), 'KAIROSETH_PRODUCTION_ENTRYPOINT_MUST_SELECT_KAIROSETH');
+expect(productionMain.includes('new MongoClient'), 'KAIROSETH_PRODUCTION_ENTRYPOINT_MUST_OPEN_MONGODB');
+expect(productionMain.includes('verifyKairosethMongoIndexes'), 'KAIROSETH_PRODUCTION_ENTRYPOINT_MUST_VERIFY_INDEXES');
+expect(productionMain.includes('createAeatDeliveryQueue'), 'KAIROSETH_PRODUCTION_ENTRYPOINT_MUST_WIRE_AEAT_QUEUE');
+expect(productionMain.includes('new AeatOutboxWorker'), 'KAIROSETH_PRODUCTION_ENTRYPOINT_MUST_WIRE_AEAT_WORKER');
+expect(productionMain.includes('createAeatDispatchLoop'), 'KAIROSETH_PRODUCTION_ENTRYPOINT_MUST_START_AEAT_DISPATCH');
+expect(productionMain.includes('AeatVerifactuAdapter'), 'KAIROSETH_PRODUCTION_ENTRYPOINT_MUST_WIRE_AEAT_ADAPTER');
+expect(productionMain.includes('PV_KAIROSETH_BACKUP_REPORT_PATH'), 'KAIROSETH_PRODUCTION_BACKUP_EVIDENCE_REQUIRED');
+expect(productionMain.includes('PV_RESPONSIBLE_DECLARATION_PATH'), 'KAIROSETH_PRODUCTION_DECLARATION_REQUIRED');
+expect(productionMain.includes('PV_AEAT_ALLOW_PRODUCTION'), 'KAIROSETH_AEAT_PRODUCTION_EXPLICIT_GUARD_REQUIRED');
+expect(!productionMain.includes('PV_DATABASE_PATH'), 'KAIROSETH_PRODUCTION_SQLITE_PATH_FORBIDDEN');
+expect(!productionMain.includes('createSqlitePersistence'), 'KAIROSETH_PRODUCTION_SQLITE_FACTORY_FORBIDDEN');
+expect(fiscalAuth.includes('tokenSha256'), 'KAIROSETH_FISCAL_AUTH_HASH_REQUIRED');
+expect(fiscalAuth.includes('revokedAt'), 'KAIROSETH_FISCAL_AUTH_REVOCATION_REQUIRED');
+expect(fiscalAuth.includes('resolveBearerDigest'), 'KAIROSETH_FISCAL_AUTH_RESOLUTION_REQUIRED');
+expect(mongoInfrastructure.includes('kairoseth_fiscal_data_plane_credentials'), 'KAIROSETH_FISCAL_AUTH_INDEX_PLAN_REQUIRED');
+expect(packageJson.scripts?.['server:kairoseth'] === 'node apps/server/src/kairoseth-main.mjs', 'KAIROSETH_PRODUCTION_SCRIPT_REQUIRED');
+expect(packageJson.scripts?.['kairoseth:mongodb:init'] === 'node scripts/ops/kairoseth-mongodb-init.mjs', 'KAIROSETH_MONGODB_INIT_SCRIPT_REQUIRED');
+expect(packageJson.dependencies?.mongodb === '7.7.0', 'KAIROSETH_MONGODB_DRIVER_PIN_REQUIRED');
+
 if (failures.length) {
   console.error(JSON.stringify({ schema_version: 1, status: 'failed', check: 'kairoseth-hostinger-mongodb-contract', failures }, null, 2));
   process.exit(1);
@@ -125,4 +155,7 @@ console.log(JSON.stringify({
   backup_status: 'kairoseth-injected',
   observability: 'mongodb-aware',
   dynamic_auth_secret_persistence: false,
+  production_entrypoint: 'kairoseth-mongodb',
+  aeat_delivery_pipeline: 'durable-outbox-worker',
+  mongodb_driver: packageJson.dependencies.mongodb,
 }, null, 2));

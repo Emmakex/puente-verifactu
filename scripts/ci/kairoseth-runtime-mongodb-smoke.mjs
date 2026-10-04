@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { MongoClient } from 'mongodb';
 import { hashBearerToken } from '../../apps/server/src/auth.mjs';
+import { createAeatDeliveryQueue } from '../../apps/server/src/aeat-delivery.mjs';
 import { createPuenteRuntime } from '../../apps/server/src/runtime.mjs';
 import { AeatOutboxWorker } from '../../packages/aeat-adapter/src/outbox.mjs';
 import {
@@ -248,6 +249,8 @@ try {
 
   const stores = () => {
     const fiscalRecordStore = createMongoKairosethFiscalRecordStore({ database });
+    const aeatOutboxStore = createMongoKairosethAeatOutboxStore({ database });
+    const deliveryQueue = createAeatDeliveryQueue({ outbox: aeatOutboxStore });
     return {
       fiscalRecordStore,
       integrationDataStore: createMongoKairosethIntegrationStore({ database }),
@@ -256,7 +259,9 @@ try {
       localAgentRegistryStore: createMongoKairosethLocalAgentRegistryStore({ database }),
       onboardingProfileStore: createMongoKairosethOnboardingProfileStore({ database }),
       integrationProfileStore: createMongoKairosethIntegrationProfileStore({ database }),
-      aeatOutboxStore: createMongoKairosethAeatOutboxStore({ database }),
+      aeatOutboxStore,
+      enqueueDelivery: deliveryQueue.enqueue,
+      resolveDelivery: deliveryQueue.resolve,
       resolveIntegrationSecretReference: async () => null,
       kairosethAuthProvider: {
         async resolveBearerDigest() { return null; },
@@ -316,6 +321,37 @@ try {
   assert.equal(issueResponse.status, 202);
   const issued = await issueResponse.json();
   assert.match(issued.recordId, /^fr_[a-f0-9]{24}$/);
+  assert.equal(issued.status, 'queued');
+  assert.equal(issued.delivery.status, 'queued');
+  assert.equal(issued.delivery.jobId, 'aeat_' + issued.recordId);
+
+  const queuedJob = await aeatOutboxForWorker.get('aeat_' + issued.recordId);
+  assert.equal(queuedJob.state, 'pending');
+  assert.equal(queuedJob.payload.entries[0].record.hash, issued.fiscalRecord.hash);
+
+  const runtimeDeliveryWorker = new AeatOutboxWorker({
+    outbox: aeatOutboxForWorker,
+    adapter: {
+      async submit(payload) {
+        assert.equal(payload.entries[0].record.hash, issued.fiscalRecord.hash);
+        return {
+          kind: 'aeat_response',
+          status: 'accepted',
+          retryable: false,
+          records: [{ status: 'accepted' }],
+        };
+      },
+    },
+  });
+  const deliveredJob = await runtimeDeliveryWorker.run('aeat_' + issued.recordId);
+  assert.equal(deliveredJob.state, 'completed');
+
+  const deliveredStatus = await jsonRequest(
+    firstUrl,
+    '/v1/fiscal-records/' + issued.recordId + '/status',
+  );
+  assert.equal(deliveredStatus.response.status, 200);
+  assert.equal(deliveredStatus.payload.delivery.status, 'completed');
 
   const ops = await jsonRequest(firstUrl, '/v1/ops/status', {
     token: opsToken,

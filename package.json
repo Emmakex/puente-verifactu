@@ -70,6 +70,12 @@
     "kairoseth:mongodb:check": "node scripts/ci/kairoseth-hostinger-mongodb-contract.mjs",
     "kairoseth:mongodb:smoke": "bash scripts/ci/kairoseth-mongodb-registry-smoke.sh",
     "api:lifecycle:check": "node scripts/ci/api-lifecycle-contract.mjs",
-    "starter:http-json:check": "node scripts/ci/http-json-starter-contract.mjs"
+    "starter:http-json:check": "node scripts/ci/http-json-starter-contract.mjs",
+    "server:standalone": "node apps/server/src/main.mjs",
+    "server:kairoseth": "node apps/server/src/kairoseth-main.mjs",
+    "kairoseth:mongodb:init": "node scripts/ops/kairoseth-mongodb-init.mjs"
+  },
+  "dependencies": {
+    "mongodb": "7.7.0"
   }
 }
