@@ -1,0 +1,68 @@
+name: Candidate Release Evidence
+
+on:
+  push:
+    branches:
+      - ops/release-evidence-fe4c
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: fe4c6360a2b25d44f5044e202f7d2bc2faa626a7
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Verify release evidence contract
+        run: npm run release:evidence:check
+
+      - name: Generate exact candidate evidence
+        run: >
+          npm run release:evidence -- --
+          --commit fe4c6360a2b25d44f5044e202f7d2bc2faa626a7
+          --expect release_candidate
+          --ci-workflow CI
+          --ci-run-id 37224109793
+          --ci-run-number 335
+          --ci-result success
+          --output dist/release-evidence-fe4c.json
+
+      - name: Verify generated evidence identity
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const evidence = JSON.parse(await readFile('dist/release-evidence-fe4c.json', 'utf8'));
+          if (evidence.source.commit !== 'fe4c6360a2b25d44f5044e202f7d2bc2faa626a7') throw new Error('candidate commit mismatch');
+          if (evidence.release.status !== 'release_candidate') throw new Error('candidate status mismatch');
+          if ((evidence.release.blockers ?? []).length !== 0) throw new Error('candidate has blockers');
+          if (evidence.ci.result !== 'success' || Number(evidence.ci.run_number) !== 335) throw new Error('CI evidence mismatch');
+          if ((evidence.artifacts ?? []).length !== 3) throw new Error('artifact evidence incomplete');
+          console.log(JSON.stringify({
+            commit: evidence.source.commit,
+            status: evidence.release.status,
+            blockers: evidence.release.blockers.length,
+            ci: evidence.ci,
+            artifacts: evidence.artifacts.map(({ id, version, sha256 }) => ({ id, version, sha256 })),
+          }, null, 2));
+          NODE
+
+      - name: Upload release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: puente-verifactu-release-evidence-fe4c
+          path: dist/release-evidence-fe4c.json
+          if-no-files-found: error
+          retention-days: 14
