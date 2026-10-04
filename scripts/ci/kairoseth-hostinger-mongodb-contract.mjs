@@ -6,6 +6,7 @@ const onboardingRuntime = readFileSync('apps/server/src/onboarding-control-plane
 const integrationAdapter = readFileSync('packages/kairoseth-control-plane/src/mongodb-integration-profiles.mjs', 'utf8');
 const importAdapter = readFileSync('packages/kairoseth-control-plane/src/mongodb-import-batches.mjs', 'utf8');
 const dataPlaneAdapter = readFileSync('packages/kairoseth-control-plane/src/mongodb-dataplane.mjs', 'utf8');
+const aeatOutboxAdapter = readFileSync('packages/kairoseth-control-plane/src/mongodb-aeat-outbox.mjs', 'utf8');
 const integrationRuntime = readFileSync('apps/server/src/integration-control-plane.mjs', 'utf8');
 const serverRuntime = readFileSync('apps/server/src/runtime.mjs', 'utf8');
 const authBridge = readFileSync('apps/server/src/kairoseth-auth-bridge.mjs', 'utf8');
@@ -27,6 +28,10 @@ expect(product.infrastructure?.import_batches === 'mongodb-injected-durable', 'K
 expect(product.infrastructure?.fiscal_records === 'mongodb-injected-durable', 'KAIROSETH_FISCAL_RECORDS_MUST_USE_MONGODB');
 expect(product.infrastructure?.api_records === 'mongodb-injected-durable', 'KAIROSETH_API_RECORDS_MUST_USE_MONGODB');
 expect(product.infrastructure?.api_idempotency === 'mongodb-injected-lease', 'KAIROSETH_API_IDEMPOTENCY_MUST_USE_MONGODB');
+expect(product.infrastructure?.aeat_outbox === 'mongodb-injected-durable', 'KAIROSETH_AEAT_OUTBOX_MUST_USE_MONGODB');
+expect(product.infrastructure?.runtime_persistence === 'mongodb-only', 'KAIROSETH_RUNTIME_PERSISTENCE_MUST_BE_MONGODB_ONLY');
+expect(product.infrastructure?.backup_status === 'kairoseth-injected', 'KAIROSETH_BACKUP_STATUS_MUST_BE_INJECTED');
+expect(product.infrastructure?.observability === 'mongodb-aware', 'KAIROSETH_OBSERVABILITY_MUST_BE_MONGODB_AWARE');
 expect(adapter.includes('database.collection'), 'KAIROSETH_MONGODB_DATABASE_INJECTION_REQUIRED');
 expect(!/from ['"]mongodb['"]|require\(['"]mongodb['"]\)|new\s+MongoClient\s*\(/.test(adapter), 'KAIROSETH_MONGODB_CLIENT_MUST_BE_INJECTED');
 expect(!/MONGODB_URI|MONGO_URI|process\.env|mongodb\+srv:|mongodb:\/\//.test(adapter), 'KAIROSETH_MONGODB_CONNECTION_SECRET_FORBIDDEN');
@@ -57,10 +62,22 @@ expect(!/from ['"]mongodb['"]|require\(['"]mongodb['"]\)|new\s+MongoClient\s*\(/
 expect(!/MONGODB_URI|MONGO_URI|process\.env|mongodb\+srv:|mongodb:\/\//.test(dataPlaneAdapter), 'KAIROSETH_DATAPLANE_MONGO_SECRET_FORBIDDEN');
 expect(!/createCollection\s*\(|createIndex(?:es)?\s*\(/.test(dataPlaneAdapter), 'KAIROSETH_DATAPLANE_AUTO_INFRA_MUTATION_FORBIDDEN');
 expect(index.includes('mongodb-dataplane.mjs'), 'KAIROSETH_DATAPLANE_MONGODB_EXPORT_REQUIRED');
-expect(serverRuntime.includes('fiscalRecordStore ?? persistence.fiscalStore'), 'KAIROSETH_FISCAL_STORE_INJECTION_REQUIRED');
-expect(serverRuntime.includes('integrationDataStore ?? persistence.integrationStore'), 'KAIROSETH_API_STORE_INJECTION_REQUIRED');
-expect(serverRuntime.includes('importSessionStore ?? persistence.importStore'), 'KAIROSETH_IMPORT_SESSION_INJECTION_REQUIRED');
-expect(serverRuntime.includes('batchStore: importBatchStore'), 'KAIROSETH_IMPORT_BATCH_INJECTION_REQUIRED');
+expect(aeatOutboxAdapter.includes('database.collection'), 'KAIROSETH_AEAT_OUTBOX_MONGODB_INJECTION_REQUIRED');
+expect(!/from ['"]mongodb['"]|require\(['"]mongodb['"]\)|new\s+MongoClient\s*\(/.test(aeatOutboxAdapter), 'KAIROSETH_AEAT_OUTBOX_MONGO_CLIENT_MUST_BE_INJECTED');
+expect(!/MONGODB_URI|MONGO_URI|process\.env|mongodb\+srv:|mongodb:\/\//.test(aeatOutboxAdapter), 'KAIROSETH_AEAT_OUTBOX_MONGO_SECRET_FORBIDDEN');
+expect(!/createCollection\s*\(|createIndex(?:es)?\s*\(/.test(aeatOutboxAdapter), 'KAIROSETH_AEAT_OUTBOX_AUTO_INFRA_MUTATION_FORBIDDEN');
+expect(index.includes('mongodb-aeat-outbox.mjs'), 'KAIROSETH_AEAT_OUTBOX_MONGODB_EXPORT_REQUIRED');
+expect(serverRuntime.includes("persistenceMode: requestedPersistenceMode = 'standalone'"), 'KAIROSETH_RUNTIME_MODE_REQUIRED');
+expect(serverRuntime.includes("if (mode === 'standalone')"), 'KAIROSETH_STANDALONE_BOUNDARY_REQUIRED');
+expect(serverRuntime.includes("mode === 'kairoseth'") || serverRuntime.includes("mode === 'standalone'"), 'KAIROSETH_RUNTIME_MODE_BRANCH_REQUIRED');
+expect(serverRuntime.includes("selectedFiscalStore = requiredInjectedStore"), 'KAIROSETH_FISCAL_STORE_REQUIRED_IN_PRODUCTIVE_MODE');
+expect(serverRuntime.includes("selectedIntegrationStore = requiredInjectedStore"), 'KAIROSETH_API_STORE_REQUIRED_IN_PRODUCTIVE_MODE');
+expect(serverRuntime.includes("selectedImportSessionStore = requiredInjectedStore"), 'KAIROSETH_IMPORT_SESSION_REQUIRED_IN_PRODUCTIVE_MODE');
+expect(serverRuntime.includes("selectedImportBatchStore = requiredInjectedStore"), 'KAIROSETH_IMPORT_BATCH_REQUIRED_IN_PRODUCTIVE_MODE');
+expect(serverRuntime.includes("selectedAeatOutbox = requiredInjectedStore"), 'KAIROSETH_AEAT_OUTBOX_REQUIRED_IN_PRODUCTIVE_MODE');
+expect(serverRuntime.includes("backupStatusProvider is required in kairoseth persistence mode"), 'KAIROSETH_BACKUP_STATUS_PROVIDER_REQUIRED');
+expect(serverRuntime.includes("database: null"), 'KAIROSETH_RUNTIME_MUST_EXPOSE_NO_SQLITE_DATABASE');
+expect(serverRuntime.indexOf("createSqlitePersistence") < serverRuntime.indexOf("if (mode === 'standalone')") || serverRuntime.includes("standalonePersistence = createSqlitePersistence"), 'KAIROSETH_SQLITE_MUST_BE_STANDALONE_ONLY');
 expect(integrationRuntime.includes('createHybridIntegrationResolvers'), 'KAIROSETH_HYBRID_INTEGRATION_RESOLVER_REQUIRED');
 expect(integrationRuntime.includes('dynamicProfiles.resolveMappingProfile'), 'KAIROSETH_DYNAMIC_MAPPING_RESOLVER_REQUIRED');
 expect(!serverRuntime.includes('integrationProfileStore ?? persistence'), 'KAIROSETH_INTEGRATION_SQLITE_FALLBACK_FORBIDDEN');
@@ -98,5 +115,9 @@ console.log(JSON.stringify({
   fiscal_records: 'mongodb-durable',
   api_records: 'mongodb-durable',
   api_idempotency: 'mongodb-lease',
+  aeat_outbox: 'mongodb-durable',
+  runtime_persistence: 'mongodb-only',
+  backup_status: 'kairoseth-injected',
+  observability: 'mongodb-aware',
   dynamic_auth_secret_persistence: false,
 }, null, 2));
