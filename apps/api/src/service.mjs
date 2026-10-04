@@ -126,6 +126,7 @@ export class UniversalBridgeService {
     fiscalService,
     store = new MemoryIntegrationStore(),
     enqueueDelivery = null,
+    resolveDelivery = null,
     presentationEnvironment = 'test',
   } = {}) {
     if (!fiscalService) throw new TypeError('fiscalService is required');
@@ -134,7 +135,14 @@ export class UniversalBridgeService {
     }
     this.fiscalService = fiscalService;
     this.store = store;
+    if (enqueueDelivery !== null && typeof enqueueDelivery !== 'function') {
+      throw new TypeError('enqueueDelivery must be a function when configured');
+    }
+    if (resolveDelivery !== null && typeof resolveDelivery !== 'function') {
+      throw new TypeError('resolveDelivery must be a function when configured');
+    }
     this.enqueueDelivery = enqueueDelivery;
+    this.resolveDelivery = resolveDelivery;
     this.presentationEnvironment = presentationEnvironment;
   }
 
@@ -161,8 +169,9 @@ export class UniversalBridgeService {
   publicResource(resource) {
     const presented = this.withPresentation(resource);
     if (!presented) return presented;
+    const { _deliveryIssuer: _ignoredDeliveryIssuer, ...safe } = presented;
     return Object.freeze({
-      ...presented,
+      ...safe,
       delivery: sanitizeDeliveryStatus(presented.delivery),
     });
   }
@@ -263,6 +272,10 @@ export class UniversalBridgeService {
         sourceInvoiceId: intent.sourceInvoiceId,
         sourceSystem: context.sourceSystem,
         integrationProfileId: integrationProfileId ?? null,
+        _deliveryIssuer: Object.freeze({
+          name: intent.issuer.name,
+          taxId: intent.issuer.taxId,
+        }),
         status,
         fiscalRecord: fiscalized.record,
         presentation: this.presentationForRecord(fiscalized.record),
@@ -316,7 +329,14 @@ export class UniversalBridgeService {
   }
 
   async status(recordId, context) {
-    const resource = await this.get(recordId, context);
+    const stored = this.assertResourceAccess(await this.store.get(recordId), context);
+    const currentDelivery = this.resolveDelivery
+      ? await this.resolveDelivery(stored.delivery)
+      : stored.delivery;
+    const resource = this.publicResource({
+      ...stored,
+      delivery: currentDelivery,
+    });
     return Object.freeze({
       schemaVersion: 1,
       recordId: resource.recordId,
@@ -359,7 +379,7 @@ export class UniversalBridgeService {
       throw apiError('VF_API_CANCELLATION_ID_INVALID', 'sourceCancellationId is required and must not exceed 160 characters', 400);
     }
 
-    const original = await this.get(recordId, context);
+    const original = this.assertResourceAccess(await this.store.get(recordId), context);
     if (original.fiscalRecord?.recordType !== 'alta') {
       throw apiError('VF_API_CANCELLATION_SOURCE_INVALID', 'Only an alta fiscal record can be cancelled', 409);
     }
@@ -408,8 +428,16 @@ export class UniversalBridgeService {
       let status = 'fiscalized';
       let delivery = null;
       if (this.enqueueDelivery) {
+        if (!original._deliveryIssuer?.name || !original._deliveryIssuer?.taxId) {
+          throw apiError(
+            'VF_AEAT_DELIVERY_ISSUER_CONTEXT_MISSING',
+            'Original invoice issuer context is required for AEAT cancellation delivery',
+            500,
+          );
+        }
         delivery = await this.enqueueDelivery({
           operation: 'cancel',
+          issuer: original._deliveryIssuer,
           cancellation: request,
           originalRecord: original.fiscalRecord,
           record: fiscalized.record,
@@ -428,6 +456,7 @@ export class UniversalBridgeService {
         sourceInvoiceId: original.sourceInvoiceId ?? null,
         sourceCancellationId,
         cancellationOfRecordId: recordId,
+        _deliveryIssuer: original._deliveryIssuer,
         status,
         fiscalRecord: fiscalized.record,
         presentation: null,
