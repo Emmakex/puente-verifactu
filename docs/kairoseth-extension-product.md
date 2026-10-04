@@ -5,6 +5,8 @@
 
 ## Posición dentro de Kairoseth
 
+**Estado comercial sincronizado (2026-10-04):** Kairoseth Fiscal es la faceta comercial seleccionada. `Puente VeriFactu` permanece como identidad técnica estable; no se renombra el repositorio, `product_id`, API ni contratos.
+
 Puente VeriFactu no es una colección de productos separados por ERP ni un servicio aislado fuera del ecosistema.
 
 La estructura de producto es:
@@ -30,9 +32,9 @@ Kairoseth
 Para cliente, catálogo, activación y futura comercialización existe **un solo producto/extensión**, pero con dos identidades coordinadas:
 
 - **técnica:** `Puente VeriFactu` / `puente-verifactu`;
-- **comercial:** faceta Kairoseth con nombre propio, siguiendo el patrón de `Kairoseth Cargo`.
+- **comercial:** `Kairoseth Fiscal` / `kairoseth-fiscal`, siguiendo el patrón de `Kairoseth Cargo`.
 
-El nombre comercial definitivo queda pendiente de naming; no debe bloquear el desarrollo técnico. Cuando se fije, la URL comercial será `/products/<slug-comercial>` y la ruta técnica `/products/puente-verifactu` podrá redirigir de forma permanente.
+El nombre comercial está seleccionado y ya existe en Kairoseth Platform. La URL canónica es `/products/kairoseth-fiscal` y la ruta técnica `/products/puente-verifactu` redirige permanentemente a esa superficie comercial. El producto permanece en **acceso controlado** hasta cerrar los gates finales de release/piloto y el billing específico.
 
 Los adapters son capacidades/modos de conexión de esa extensión. No son productos independientes.
 
@@ -88,7 +90,7 @@ La entrada conceptual del usuario será:
 ```text
 Kairoseth
   -> Extensions
-  -> <faceta comercial de Puente VeriFactu>
+  -> Kairoseth Fiscal
   -> Activar / Configurar
   -> ¿Qué puede hacer tu sistema?
   -> seleccionar canal
@@ -108,7 +110,7 @@ El producto queda identificado internamente por:
 - product_id: `puente-verifactu`;
 - technical name: `Puente VeriFactu`;
 - technical slug: `puente-verifactu`;
-- commercial facade: habilitada, naming pendiente;
+- commercial facade: `Kairoseth Fiscal` (`kairoseth-fiscal`), acceso controlado;
 - patrón comercial: `Puente DeCA → Kairoseth Cargo`;
 - versión del producto: `0.1.0`;
 - manifest: `config/kairoseth-extension.json`.
