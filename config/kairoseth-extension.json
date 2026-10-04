@@ -67,6 +67,7 @@
     "local_agent_registry": "mongodb-injected",
     "deployment_boundary": "kairoseth-hostinger",
     "onboarding_profiles": "mongodb-injected",
-    "integration_profiles": "mongodb-injected"
+    "integration_profiles": "mongodb-injected",
+    "data_plane_auth": "kairoseth-injected"
   }
 }

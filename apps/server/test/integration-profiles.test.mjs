@@ -99,6 +99,11 @@ class MemoryIntegrationProfileStore {
       ...this.clone(record),
       mappingProfile: this.clone(record.mappingProfile),
       webhookSecretRef: record.webhookSecretRef ?? null,
+      authBinding: structuredClone(record.authBinding ?? {
+        provider: 'kairoseth',
+        status: 'unbound',
+        credentialId: null,
+      }),
     };
     this.rows.set(this.key(record.organizationId, record.profileId), row);
     return this.public(row);
@@ -119,6 +124,11 @@ class MemoryIntegrationProfileStore {
       mappingProfile: this.clone(row.mappingProfile),
       mappingProfileId: row.mappingProfile?.id ?? null,
       webhookSecretConfigured: Boolean(row.webhookSecretRef),
+      authBinding: structuredClone(row.authBinding ?? {
+        provider: 'kairoseth',
+        status: 'unbound',
+        credentialId: null,
+      }),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
@@ -170,6 +180,18 @@ class MemoryIntegrationProfileStore {
     return this.public(row);
   }
 
+  async setAuthBinding({ organizationId, profileId, credentialId, status, now }) {
+    const row = this.rows.get(this.key(organizationId, profileId));
+    if (!row) throw Object.assign(new Error('not found'), { code: 'VF_INTEGRATION_PROFILE_NOT_FOUND', status: 404 });
+    row.authBinding = {
+      provider: 'kairoseth',
+      credentialId,
+      status,
+    };
+    row.updatedAt = now;
+    return this.public(row);
+  }
+
   async disable({ organizationId, profileId, now }) {
     const row = this.rows.get(this.key(organizationId, profileId));
     if (!row) throw Object.assign(new Error('not found'), { code: 'VF_INTEGRATION_PROFILE_NOT_FOUND', status: 404 });
@@ -206,6 +228,8 @@ async function jsonRequest(baseUrl, token, path, { method = 'GET', body } = {}) 
 
 test('dynamic Mongo integration profile wins over static config and stamps server identity', async () => {
   const store = new MemoryIntegrationProfileStore();
+  const scopedToken = 'kairoseth_scoped_dynamic_' + 'x'.repeat(32);
+  const scopedCredentialId = 'dynamic-kcred-1';
   await store.create({
     profileId: dynamicProfileId,
     organizationId: 'org-dynamic',
@@ -218,6 +242,11 @@ test('dynamic Mongo integration profile wins over static config and stamps serve
     status: 'active',
     mappingProfile: mapping(dynamicProfileId, 'numero'),
     webhookSecretRef: null,
+    authBinding: {
+      provider: 'kairoseth',
+      status: 'active',
+      credentialId: scopedCredentialId,
+    },
     now: 1,
   });
 
@@ -225,6 +254,21 @@ test('dynamic Mongo integration profile wins over static config and stamps serve
     databasePath: ':memory:',
     authConfig: authConfig(),
     integrationProfileStore: store,
+    kairosethAuthProvider: {
+      resolveBearerDigest: async (digest) => (
+        digest === hashBearerToken(scopedToken)
+          ? {
+              credentialId: scopedCredentialId,
+              organizationId: 'org-dynamic',
+              installationId: 'install-dynamic',
+              sourceSystem: 'universal-rest',
+              profileId: dynamicProfileId,
+              rateLimitPerMinute: 500,
+              permissions: [],
+            }
+          : null
+      ),
+    },
     integrationConfig: {
       integrations: [{
         id: dynamicProfileId,
@@ -240,7 +284,7 @@ test('dynamic Mongo integration profile wins over static config and stamps serve
 
   try {
     const baseUrl = await listen(runtime);
-    const preflight = await jsonRequest(baseUrl, apiToken, '/v1/preflight', {
+    const preflight = await jsonRequest(baseUrl, scopedToken, '/v1/preflight', {
       method: 'POST',
       body: {
         profileId: dynamicProfileId,
@@ -252,7 +296,7 @@ test('dynamic Mongo integration profile wins over static config and stamps serve
     assert.equal(preflight.body.preview.number, '1');
     assert.equal(preflight.body.preview.organizationId, 'org-dynamic');
     assert.equal(preflight.body.preview.installationId, 'install-dynamic');
-    assert.equal(preflight.body.preview.sourceSystem, 'dynamic-api');
+    assert.equal(preflight.body.preview.sourceSystem, 'universal-rest');
 
     const list = await jsonRequest(baseUrl, managerToken, '/v1/control-plane/integration-profiles');
     assert.equal(list.response.status, 200);
@@ -278,6 +322,11 @@ test('disabled dynamic profile does not fall back to static config', async () =>
     status: 'disabled',
     mappingProfile: mapping(dynamicProfileId, 'numero'),
     webhookSecretRef: null,
+    authBinding: {
+      provider: 'kairoseth',
+      status: 'active',
+      credentialId: 'data-plane',
+    },
     now: 1,
   });
 
@@ -385,6 +434,11 @@ test('webhook secret references stay opaque and resolve only through Kairoseth',
     status: 'active',
     mappingProfile: mapping(dynamicProfileId),
     webhookSecretRef: 'secret:webhook:001',
+    authBinding: {
+      provider: 'kairoseth',
+      status: 'active',
+      credentialId: 'cred-webhook',
+    },
     now: 1,
   });
 
@@ -401,8 +455,11 @@ test('webhook secret references stay opaque and resolve only through Kairoseth',
 
   const resolved = await control.resolveWebhookSecret({
     context: {
+      credentialId: 'cred-webhook',
       organizationId: 'org-dynamic',
       installationId: 'install-dynamic',
+      sourceSystem: 'universal-webhook',
+      profileId: dynamicProfileId,
     },
     profileId: dynamicProfileId,
   });
@@ -425,4 +482,189 @@ test('webhook secret references stay opaque and resolve only through Kairoseth',
     ),
     (error) => error.code === 'VF_INTEGRATION_SECRET_INPUT_INVALID',
   );
+});
+
+class FakeKairosethAuthProvider {
+  constructor() {
+    this.byDigest = new Map();
+    this.byCredential = new Map();
+    this.sequence = 0;
+  }
+
+  make(identity) {
+    this.sequence += 1;
+    const credentialId = `kcred-${this.sequence}`;
+    const token = `kairoseth_data_plane_${String(this.sequence).padStart(4, '0')}_${'x'.repeat(32)}`;
+    const digest = hashBearerToken(token);
+    const context = {
+      credentialId,
+      organizationId: identity.organizationId,
+      installationId: identity.installationId,
+      sourceSystem: identity.sourceSystem,
+      profileId: identity.profileId,
+      rateLimitPerMinute: 500,
+      permissions: [],
+    };
+    this.byDigest.set(digest, context);
+    this.byCredential.set(credentialId, { digest, context });
+    return { credentialId, token, ...identity };
+  }
+
+  async provisionDataPlaneCredential(identity) {
+    return this.make(identity);
+  }
+
+  async rotateDataPlaneCredential({ credentialId, ...identity }) {
+    const previous = this.byCredential.get(credentialId);
+    if (previous) this.byDigest.delete(previous.digest);
+    this.byCredential.delete(credentialId);
+    return this.make(identity);
+  }
+
+  async revokeDataPlaneCredential({ credentialId }) {
+    const previous = this.byCredential.get(credentialId);
+    if (previous) this.byDigest.delete(previous.digest);
+    this.byCredential.delete(credentialId);
+    return true;
+  }
+
+  async resolveBearerDigest(digest) {
+    return this.byDigest.get(digest) ?? null;
+  }
+}
+
+test('Kairoseth Auth provisions, rotates and revokes dynamic API credentials without token persistence', async () => {
+  const store = new MemoryIntegrationProfileStore();
+  const profileId = 'int_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+  await store.create({
+    profileId,
+    organizationId: 'org-dynamic',
+    installationId: 'int-api-01',
+    onboardingProfileId: null,
+    channel: 'rest_api',
+    adapter: 'universal-rest',
+    sourceType: 'api',
+    deploymentMode: 'server-to-server',
+    status: 'active',
+    mappingProfile: mapping(profileId),
+    webhookSecretRef: null,
+    now: 1,
+  });
+
+  const provider = new FakeKairosethAuthProvider();
+  const runtime = createPuenteRuntime({
+    databasePath: ':memory:',
+    authConfig: authConfig(),
+    integrationProfileStore: store,
+    kairosethAuthProvider: provider,
+    sif: { systemId: 'PV', installationNumber: '001', timeZone: 'Europe/Madrid' },
+    clock: () => new Date('2026-09-15T09:00:00Z'),
+  });
+
+  try {
+    const baseUrl = await listen(runtime);
+
+    const injectedIdentity = await jsonRequest(
+      baseUrl,
+      managerToken,
+      `/v1/control-plane/integration-profiles/${profileId}/credential`,
+      {
+        method: 'POST',
+        body: { installationId: 'attacker-choice' },
+      },
+    );
+    assert.equal(injectedIdentity.response.status, 400);
+    assert.equal(injectedIdentity.body.error.code, 'VF_INTEGRATION_CREDENTIAL_INPUT_FORBIDDEN');
+
+    const provisioned = await jsonRequest(
+      baseUrl,
+      managerToken,
+      `/v1/control-plane/integration-profiles/${profileId}/credential`,
+      { method: 'POST', body: {} },
+    );
+    assert.equal(provisioned.response.status, 201);
+    assert.equal(provisioned.body.profile.authBinding.provider, 'kairoseth');
+    assert.equal(provisioned.body.profile.authBinding.status, 'active');
+    assert.match(provisioned.body.credential.token, /^kairoseth_data_plane_/);
+    assert.equal(provisioned.body.credentialShownOnce, true);
+    const firstToken = provisioned.body.credential.token;
+    const firstCredentialId = provisioned.body.credential.credentialId;
+
+    const persisted = await store.getInternal('org-dynamic', profileId);
+    assert.equal(persisted.authBinding.credentialId, firstCredentialId);
+    assert.equal(JSON.stringify(persisted).includes(firstToken), false);
+    assert.equal('token' in persisted.authBinding, false);
+    assert.equal('tokenSha256' in persisted.authBinding, false);
+
+    const firstPreflight = await jsonRequest(baseUrl, firstToken, '/v1/preflight', {
+      method: 'POST',
+      body: { profileId, source: source() },
+    });
+    assert.equal(firstPreflight.response.status, 200);
+    assert.equal(firstPreflight.body.ok, true);
+    assert.equal(firstPreflight.body.preview.organizationId, 'org-dynamic');
+    assert.equal(firstPreflight.body.preview.installationId, 'int-api-01');
+    assert.equal(firstPreflight.body.preview.sourceSystem, 'universal-rest');
+
+    const directIntentBypass = await jsonRequest(baseUrl, firstToken, '/v1/preflight', {
+      method: 'POST',
+      body: { intent: {} },
+    });
+    assert.equal(directIntentBypass.response.status, 403);
+    assert.equal(
+      directIntentBypass.body.error.code,
+      'VF_API_INTEGRATION_PROFILE_SCOPE_REQUIRED',
+    );
+
+    const wrongProfile = await jsonRequest(baseUrl, firstToken, '/v1/preflight', {
+      method: 'POST',
+      body: {
+        profileId: 'int_cccccccccccccccccccccccccccccccc',
+        source: source(),
+      },
+    });
+    assert.equal(wrongProfile.response.status, 403);
+    assert.equal(wrongProfile.body.error.code, 'VF_API_INTEGRATION_PROFILE_SCOPE_REQUIRED');
+
+    const rotated = await jsonRequest(
+      baseUrl,
+      managerToken,
+      `/v1/control-plane/integration-profiles/${profileId}/credential/rotate`,
+      { method: 'POST', body: {} },
+    );
+    assert.equal(rotated.response.status, 200);
+    const secondToken = rotated.body.credential.token;
+    assert.notEqual(secondToken, firstToken);
+    assert.notEqual(rotated.body.credential.credentialId, firstCredentialId);
+
+    const oldToken = await jsonRequest(baseUrl, firstToken, '/v1/preflight', {
+      method: 'POST',
+      body: { profileId, source: source() },
+    });
+    assert.equal(oldToken.response.status, 401);
+
+    const secondPreflight = await jsonRequest(baseUrl, secondToken, '/v1/preflight', {
+      method: 'POST',
+      body: { profileId, source: source() },
+    });
+    assert.equal(secondPreflight.response.status, 200);
+    assert.equal(secondPreflight.body.ok, true);
+
+    const revoked = await jsonRequest(
+      baseUrl,
+      managerToken,
+      `/v1/control-plane/integration-profiles/${profileId}/credential/revoke`,
+      { method: 'POST', body: {} },
+    );
+    assert.equal(revoked.response.status, 200);
+    assert.equal(revoked.body.profile.authBinding.status, 'revoked');
+
+    const revokedToken = await jsonRequest(baseUrl, secondToken, '/v1/preflight', {
+      method: 'POST',
+      body: { profileId, source: source() },
+    });
+    assert.equal(revokedToken.response.status, 401);
+  } finally {
+    await runtime.close();
+  }
 });

@@ -328,6 +328,51 @@ Rutas de control:
 
 En canales Local Agent, el IntegrationProfile se materializa automáticamente durante el provisioning y utiliza el mismo `installationId` que la credencial del agente. Así el agente solo envía `profileId + source`; MappingProfile y autoridad fiscal permanecen server-side.
 
+### Auth Bridge de Kairoseth
+
+Los IntegrationProfile `rest_api` y `webhook` usan la autenticación existente de Kairoseth. Puente VeriFactu no crea una colección de usuarios/tokens ni guarda hashes de estas credenciales.
+
+El runtime recibe un provider:
+
+```js
+const runtime = createPuenteRuntime({
+  // ...
+  kairosethAuthProvider: {
+    resolveBearerDigest,
+    provisionDataPlaneCredential,
+    rotateDataPlaneCredential,
+    revokeDataPlaneCredential,
+  },
+});
+```
+
+Contrato:
+
+- `provisionDataPlaneCredential()` recibe `profileId + organizationId + installationId + sourceSystem`;
+- Kairoseth devuelve `credentialId` y, si aplica, un bearer token mostrado una sola vez;
+- Puente verifica que la identidad devuelta coincide exactamente con el IntegrationProfile;
+- MongoDB conserva únicamente `authBinding.provider/status/credentialId`;
+- token y hash del token permanecen en el sistema de Auth Kairoseth;
+- `resolveBearerDigest()` transforma un digest en contexto data-plane;
+- cualquier contexto con permisos de control plane es rechazado;
+- para resolver un perfil dinámico deben coincidir organization, installation, credentialId y sourceSystem.
+
+Lifecycle:
+
+- `POST /v1/control-plane/integration-profiles/{id}/credential`;
+- `POST /v1/control-plane/integration-profiles/{id}/credential/rotate`;
+- `POST /v1/control-plane/integration-profiles/{id}/credential/revoke`.
+
+Estas rutas solo aplican a `rest_api` y `webhook`. Local Agent conserva su registry y su credencial específica; captura manual/file upload usa el contexto de usuario Kairoseth y no crea bearer de integración.
+
+El autenticador HTTP mantiene compatibilidad en este orden:
+
+1. credenciales estáticas del runtime standalone/reference;
+2. credenciales Local Agent;
+3. Auth data-plane de Kairoseth.
+
+No existe fallback desde una credencial dinámica inválida hacia otra identidad.
+
 ## Rate limiting
 
 Se aplica por `credentialId`; cada credencial define `rateLimitPerMinute`, incluida la credencial operacional. En este perfil single-node el contador vive en memoria. Un deployment multi-réplica deberá sustituirlo por rate limiting compartido en Fase 6.
