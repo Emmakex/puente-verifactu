@@ -131,6 +131,12 @@ function validateApproval(approval, bundle, expectedCommit) {
   if (approval.candidate_commit !== expectedCommit) {
     throw pilotError('VF_PILOT_APPROVAL_COMMIT_MISMATCH', 'Pilot approval does not match expected commit');
   }
+  if (approval.deployment_profile !== bundle.product.deployment_profile) {
+    throw pilotError(
+      'VF_PILOT_APPROVAL_PROFILE_MISMATCH',
+      'Pilot approval does not match the candidate deployment profile',
+    );
+  }
   if (approval.declaration_sha256 !== bundle.declaration.sha256) {
     throw pilotError('VF_PILOT_APPROVAL_DECLARATION_MISMATCH', 'Pilot approval does not match the declaration fingerprint');
   }
