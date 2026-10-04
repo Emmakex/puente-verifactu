@@ -22,6 +22,9 @@
     "issueEnabled": false,
     "minAgeMs": 2000,
     "maxFileBytes": 5242880,
-    "maxRows": 10000
+    "maxRows": 10000,
+    "archiveRetention": {
+      "mode": "keep"
+    }
   }
 }
