@@ -36,6 +36,10 @@ expect(product.infrastructure?.local_agent_direct_aeat_authority === false, 'KAI
 expect(product.technical_identity?.name === 'Puente VeriFactu', 'KAIROSETH_TECHNICAL_NAME_INVALID');
 expect(product.technical_identity?.slug === 'puente-verifactu', 'KAIROSETH_TECHNICAL_SLUG_INVALID');
 expect(product.commercial_facade?.enabled === true, 'KAIROSETH_COMMERCIAL_FACADE_DISABLED');
+expect(product.commercial_facade?.status === 'selected_controlled_access', 'KAIROSETH_COMMERCIAL_STATUS_INVALID');
+expect(product.commercial_facade?.commercial_name === 'Kairoseth Fiscal', 'KAIROSETH_COMMERCIAL_NAME_INVALID');
+expect(product.commercial_facade?.commercial_slug === 'kairoseth-fiscal', 'KAIROSETH_COMMERCIAL_SLUG_INVALID');
+expect(product.commercial_facade?.canonical_route === '/products/kairoseth-fiscal', 'KAIROSETH_COMMERCIAL_CANONICAL_ROUTE_INVALID');
 expect(product.commercial_facade?.pattern_reference === 'Puente DeCA -> Kairoseth Cargo', 'KAIROSETH_COMMERCIAL_PATTERN_INVALID');
 expect(product.commercial_facade?.canonical_route_template === '/products/{commercial_slug}', 'KAIROSETH_COMMERCIAL_ROUTE_PATTERN_INVALID');
 expect(product.commercial_facade?.technical_route === '/products/puente-verifactu', 'KAIROSETH_TECHNICAL_ROUTE_INVALID');
