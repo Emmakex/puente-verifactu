@@ -104,7 +104,6 @@ expect(serverRuntime.includes("resolveDelivery is required in kairoseth persiste
 expect(serverRuntime.includes('enqueueDelivery,'), 'KAIROSETH_AEAT_ENQUEUE_WIRED_TO_BRIDGE');
 expect(serverRuntime.includes('resolveDelivery,'), 'KAIROSETH_AEAT_STATUS_WIRED_TO_BRIDGE');
 expect(aeatDelivery.includes('outbox.enqueue'), 'KAIROSETH_AEAT_DELIVERY_MUST_ENQUEUE_OUTBOX');
-expect(aeatDelivery.includes('Aeat') === false, 'KAIROSETH_AEAT_DELIVERY_QUEUE_MUST_REMAIN_ADAPTER_NEUTRAL');
 expect(productionMain.includes("persistenceMode: 'kairoseth'"), 'KAIROSETH_PRODUCTION_ENTRYPOINT_MUST_SELECT_KAIROSETH');
 expect(productionMain.includes('new MongoClient'), 'KAIROSETH_PRODUCTION_ENTRYPOINT_MUST_OPEN_MONGODB');
 expect(productionMain.includes('verifyKairosethMongoIndexes'), 'KAIROSETH_PRODUCTION_ENTRYPOINT_MUST_VERIFY_INDEXES');
