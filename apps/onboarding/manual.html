@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kairoseth Fiscal — Captura manual</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">Kairoseth Fiscal</a>
+    <div class="language" role="group" aria-label="Idioma / Language">
+      <button type="button" data-lang="es" class="is-active">ES</button>
+      <button type="button" data-lang="en">EN</button>
+    </div>
+  </header>
+
+  <main class="container manual-container">
+    <a class="back-link" href="/" data-i18n="back">← Volver a conexiones</a>
+    <section class="hero" aria-labelledby="manual-title">
+      <p class="eyebrow">Kairoseth Fiscal · Web</p>
+      <h1 id="manual-title" data-i18n="title">Captura manual de factura</h1>
+      <p class="lead" data-i18n="subtitle">Para autónomos y pequeñas empresas sin integración. Validamos primero y solo emitimos cuando confirmas.</p>
+      <div class="safety-note" role="note">✓ <span data-i18n="standardProfile">Captura manual v1: operaciones interiores sujetas a IVA estándar 21 %, 10 % o 4 %. Otros regímenes deben usar una integración configurada.</span></div>
+    </section>
+
+    <form id="manual-form" novalidate>
+      <section class="card">
+        <h2 data-i18n="invoice">Factura</h2>
+        <div class="form-grid">
+          <label class="field"><span data-i18n="series">Serie</span><input name="series" type="text" maxlength="40" autocomplete="off"></label>
+          <label class="field"><span class="required" data-i18n="number">Número</span><input name="number" type="text" maxlength="60" required autocomplete="off"></label>
+          <label class="field"><span class="required" data-i18n="issueDate">Fecha de expedición</span><input name="issueDate" type="date" required></label>
+          <label class="field"><span class="required" data-i18n="invoiceType">Tipo de factura</span><select id="invoice-type" name="invoiceType" required></select></label>
+          <label class="field field-wide"><span class="required" data-i18n="description">Concepto</span><input name="description" type="text" maxlength="500" required autocomplete="off"></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="business">Emisor</h2>
+        <div class="form-grid">
+          <label class="field"><span class="required" data-i18n="issuerName">Nombre o razón social</span><input name="issuerName" type="text" maxlength="120" required autocomplete="organization"></label>
+          <label class="field"><span class="required" data-i18n="issuerTaxId">NIF/CIF</span><input name="issuerTaxId" type="text" maxlength="32" required autocomplete="off"></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="customer">Cliente</h2>
+        <p data-i18n="recipientHelp">Obligatorio para F1 y rectificativas. Opcional para F2.</p>
+        <div class="form-grid">
+          <label class="field"><span data-i18n="recipientName">Nombre / razón social del cliente</span><input id="recipient-name" name="recipientName" type="text" maxlength="120" autocomplete="off"></label>
+          <label class="field"><span data-i18n="recipientTaxId">NIF/CIF del cliente</span><input id="recipient-tax-id" name="recipientTaxId" type="text" maxlength="32" autocomplete="off"></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 data-i18n="tax">Importes e IVA</h2>
+        <div class="form-grid">
+          <label class="field"><span class="required" data-i18n="baseAmount">Base imponible</span><input name="baseAmount" type="text" inputmode="decimal" placeholder="100.00" required autocomplete="off"></label>
+          <label class="field"><span class="required" data-i18n="rate">IVA</span><select name="rate"><option value="21">21 %</option><option value="10">10 %</option><option value="4">4 %</option></select></label>
+          <label class="field"><span class="required" data-i18n="taxAmount">Cuota IVA</span><input name="taxAmount" type="text" inputmode="decimal" placeholder="21.00" required autocomplete="off"></label>
+          <label class="field"><span class="required" data-i18n="totalAmount">Total</span><input name="totalAmount" type="text" inputmode="decimal" placeholder="121.00" required autocomplete="off"></label>
+        </div>
+        <button id="calculate-button" class="secondary" type="button" data-i18n="calculate">Calcular IVA y total</button>
+      </section>
+
+      <section id="rectification-section" class="card" hidden>
+        <h2 data-i18n="rectification">Rectificación</h2>
+        <div class="form-grid">
+          <label class="field">
+            <span class="required" data-i18n="rectificationType">Método de rectificación</span>
+            <select id="rectification-type" name="rectificationType">
+              <option value="I">I · Diferencias</option>
+              <option value="S">S · Sustitución</option>
+            </select>
+          </label>
+          <div></div>
+          <label id="corrected-base-field" class="field" hidden><span class="required" data-i18n="correctedBaseAmount">Base rectificada</span><input name="correctedBaseAmount" type="text" inputmode="decimal" autocomplete="off"></label>
+          <label id="corrected-tax-field" class="field" hidden><span class="required" data-i18n="correctedTaxAmount">Cuota rectificada</span><input name="correctedTaxAmount" type="text" inputmode="decimal" autocomplete="off"></label>
+        </div>
+      </section>
+
+      <section class="card action-card">
+        <div>
+          <h2 data-i18n="validate">Validar sin emitir</h2>
+          <p>Preflight · InvoiceIntent v1 · sin efectos fiscales</p>
+        </div>
+        <button id="validate-button" class="primary" type="submit" data-i18n="validate">Validar sin emitir</button>
+      </section>
+    </form>
+
+    <section id="preflight-result" class="card results" aria-live="polite" hidden>
+      <div id="preflight-summary"></div>
+      <div id="preflight-errors"></div>
+    </section>
+
+    <section id="issue-section" class="card" hidden>
+      <label class="confirm-box issue-confirm">
+        <input id="issue-confirm" type="checkbox">
+        <span data-i18n="confirm">He revisado los datos y confirmo la emisión fiscal.</span>
+      </label>
+      <button id="issue-button" class="primary" type="button" disabled data-i18n="issue">Emitir factura</button>
+    </section>
+
+    <section id="issued-result" class="card results success" aria-live="polite" hidden>
+      <h2 id="issued-heading"></h2>
+      <div id="issued-details"></div>
+      <button id="refresh-button" class="secondary" type="button" data-i18n="refresh">Actualizar estado</button>
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+  </main>
+
+  <script type="module" src="./manual.js"></script>
+</body>
+</html>
