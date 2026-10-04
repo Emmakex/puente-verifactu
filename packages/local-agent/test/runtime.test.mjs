@@ -100,6 +100,7 @@ test('Local Agent runOnce feeds watch-folder rows through preflight/issue and re
     assert.equal(result.processed, 2);
     assert.equal(result.completed, 2);
     assert.equal(result.settled, 1);
+    assert.equal(result.archivedSourceFilesDeleted, 0);
     assert.equal(runtime.status().queue.completed, 2);
     assert.equal(issued, 2);
 
