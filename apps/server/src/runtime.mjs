@@ -39,6 +39,8 @@ export function createPuenteRuntime({
   localAgentRegistryStore = null,
   onboardingProfileStore = null,
   integrationProfileStore = null,
+  importSessionStore = null,
+  importBatchStore = null,
   resolveIntegrationSecretReference = null,
   kairosethAuthProvider = null,
   supportedNativeConnectors = DEFAULT_NATIVE_CONNECTORS,
@@ -48,6 +50,12 @@ export function createPuenteRuntime({
     installationNumber: requiredString(sif?.installationNumber, 'sif.installationNumber'),
     timeZone: requiredString(sif?.timeZone, 'sif.timeZone'),
   };
+
+  if ((importSessionStore == null) !== (importBatchStore == null)) {
+    throw new TypeError(
+      'importSessionStore and importBatchStore must be injected together',
+    );
+  }
 
   const persistence = createSqlitePersistence({ path: requiredString(databasePath, 'databasePath') });
   // Single-node runtime recovery: after a process restart no in-flight HTTP request can still own
@@ -83,7 +91,12 @@ export function createPuenteRuntime({
     resolveEuroConversion: resolvers.resolveEuroConversion,
     presentationEnvironment,
   });
-  const imports = new ImportSessionService({ store: persistence.importStore });
+  const imports = new ImportSessionService({
+    // SQLite remains the standalone reference fallback. Kairoseth production injects
+    // tenant-aware MongoDB session/batch stores without giving Puente Mongo credentials.
+    store: importSessionStore ?? persistence.importStore,
+    ...(importBatchStore ? { batchStore: importBatchStore } : {}),
+  });
   const localAgents = new KairosethLocalAgentControlPlane({
     // SQLite is the single-node reference store only. Kairoseth production can inject
     // its shared tenant-aware persistence without changing the control-plane service.

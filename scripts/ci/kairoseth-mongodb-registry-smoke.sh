@@ -22,3 +22,4 @@ done
 docker exec "$name" mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep -q 1
 
 MONGODB_URI="mongodb://127.0.0.1:${port}" node scripts/ci/kairoseth-mongodb-registry-smoke.mjs
+MONGODB_URI="mongodb://127.0.0.1:${port}" node scripts/ci/kairoseth-import-batches-smoke.mjs

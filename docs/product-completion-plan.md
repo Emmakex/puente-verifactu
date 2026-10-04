@@ -21,6 +21,10 @@ Mientras este plan no esté cerrado:
 
 ### P1 — U10 CSV/XLSX durable en Kairoseth MongoDB (#84)
 
+**Implementación en curso:** confirmación explícita, store MongoDB TTL/durable,
+lease de batch, emisión reanudable y export seguro forman una única unidad de
+cierre. No se considera P1 cerrado hasta que el smoke MongoDB real y CI estén verdes.
+
 Debe cerrar el flujo:
 
 ```text
@@ -47,6 +51,16 @@ Criterios de salida:
 - resultados sanitizados;
 - export JSON/CSV;
 - Puente recibe un persistence bridge, nunca Mongo URI/client/password.
+
+### P1.5 — Persistencia data-plane Kairoseth en MongoDB (#91)
+
+Tras U10 hay que eliminar la dependencia productiva de SQLite en el runtime Kairoseth para:
+
+- cadena fiscal / operación idempotente;
+- API records e Idempotency-Key;
+- cualquier outbox/observabilidad que siga dependiendo del perfil SQLite y sea aplicable al deployment Kairoseth.
+
+SQLite continúa como perfil standalone/dev/test. Kairoseth productivo debe recibir stores MongoDB inyectados y fallar cerrado ante una configuración parcial.
 
 ### P2 — Gaps universales restantes (#55)
 
@@ -112,7 +126,7 @@ La foundation comercial ya fusionada se conserva, pero no es camino crítico.
 Para este ciclo, consideramos el producto terminado cuando:
 
 1. los canales declarados como soportados tienen flujo seguro end-to-end;
-2. el deployment Kairoseth usa sus bridges y MongoDB donde corresponde;
+2. el deployment Kairoseth usa sus bridges y MongoDB para la persistencia productiva de control-plane y data-plane;
 3. no quedan gaps P1/P2 que bloqueen un caso prometido;
 4. existe un candidato final reproducible con evidencia vigente;
 5. la declaración responsable corresponde exactamente al candidato;

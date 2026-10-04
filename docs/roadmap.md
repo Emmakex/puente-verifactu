@@ -14,7 +14,7 @@ Hasta cerrar el producto y su piloto, el orden obligatorio es:
 
 Quedan **deferidos** durante este tramo: pricing, cuotas, checkout, billing self-service y nuevas mejoras CRM/comerciales. La foundation comercial ya existente no se elimina, pero no compite por prioridad con el cierre técnico.
 
-Camino crítico actual: **#84 → gaps universales restantes de #55 → cierre #43 → piloto #53**.
+Camino crítico actual: **#84 → persistencia data-plane MongoDB #91 → gaps universales restantes de #55 → cierre #43 → piloto #53**.
 
 ## Fase 0 — Foundation ✅
 

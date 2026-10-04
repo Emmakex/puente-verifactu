@@ -148,11 +148,12 @@ Los adapters pueden evolucionar y versionarse de forma independiente, pero:
 Orden vigente:
 
 1. completar U10/#84 en MongoDB Kairoseth;
-2. cerrar los gaps universales que todavía afectan al producto utilizable (starter kits, manual fallback y retención Local Agent);
-3. congelar candidato final y regenerar evidencia de release;
-4. aprobar declaración responsable de ese candidato;
-5. ejecutar piloto progresivo #53;
-6. después reabrir pricing/billing/comercialización.
+2. cerrar #91 para que la persistencia fiscal/data-plane productiva Kairoseth use MongoDB inyectado y SQLite quede standalone;
+3. cerrar los gaps universales que todavía afectan al producto utilizable (starter kits, manual fallback y retención Local Agent);
+4. congelar candidato final y regenerar evidencia de release;
+5. aprobar declaración responsable de ese candidato;
+6. ejecutar piloto progresivo #53;
+7. después reabrir pricing/billing/comercialización.
 
 ## Roadmap de integración con Kairoseth Platform
 

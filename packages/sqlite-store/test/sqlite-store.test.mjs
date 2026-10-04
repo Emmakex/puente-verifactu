@@ -116,7 +116,7 @@ test('SQLite integration reservation is not duplicate on first use and conflicts
   }
 });
 
-test('parsed import session survives restart and expires without storing original binary', () => {
+test('parsed import session survives restart and expires without storing original binary', async () => {
   const files = fixture();
   let now = Date.parse('2026-09-15T09:00:00Z');
   const csv = Buffer.from([
@@ -131,7 +131,7 @@ test('parsed import session survives restart and expires without storing origina
       ttlMs: 60_000,
       store: persistence.importStore,
     });
-    const inspected = imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
+    const inspected = await imports.inspect({ buffer: csv, filename: 'facturas.csv', context });
     assert.equal(inspected.file.rows, 1);
     persistence.close();
 
@@ -141,13 +141,16 @@ test('parsed import session survives restart and expires without storing origina
       ttlMs: 60_000,
       store: persistence.importStore,
     });
-    const restored = imports.session(inspected.importId, context);
+    const restored = await imports.session(inspected.importId, context);
     assert.equal(restored.rows[0]['Nº Factura'], 'A-1');
     assert.equal('buffer' in restored, false);
     assert.equal('rawBody' in restored, false);
 
     now += 60_001;
-    assert.throws(() => imports.session(inspected.importId, context), { code: 'VF_IMPORT_SESSION_EXPIRED' });
+    await assert.rejects(
+      imports.session(inspected.importId, context),
+      { code: 'VF_IMPORT_SESSION_EXPIRED' },
+    );
     assert.equal(persistence.importStore.get(inspected.importId), null);
     persistence.close();
   } finally {

@@ -50,7 +50,7 @@ const imports = new ImportSessionService({
   clock: () => Date.parse('2026-09-15T09:00:00Z'),
 });
 
-const inspection = imports.inspect({
+const inspection = await imports.inspect({
   buffer: csv,
   filename: 'facturas-smoke.csv',
   context,
@@ -63,7 +63,7 @@ if (!inspection.assistant?.profile?.fields?.['Nº Factura']) {
 
 const selections = initialSelections(inspection);
 const payload = preflightPayload(selections, configuration);
-const report = imports.preflight(inspection.importId, context, payload);
+const report = await imports.preflight(inspection.importId, context, payload);
 
 if (!report.ok || report.summary.valid !== 1 || report.summary.invalid !== 0) {
   fail('ONBOARDING_PREFLIGHT_FAILED', { summary: report.summary, rows: report.rows });
