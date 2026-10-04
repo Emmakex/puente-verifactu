@@ -18,7 +18,7 @@ La aprobación privada no es una firma electrónica de la declaración ni sustit
 
 ## Política inicial
 
-Campos obligatorios de la política: `stop_on_warning=true`, `stop_on_rejection=true`, `stop_on_reconciliation_required=true`, `stop_on_blocked=true` y `rollback_mode=code-first-no-automatic-db-restore`.
+Campos obligatorios de la política: `deployment_profile=kairoseth-hostinger-mongodb`, `backup_evidence_kind=kairoseth-managed-backup-readiness`, `stop_on_warning=true`, `stop_on_rejection=true`, `stop_on_reconciliation_required=true`, `stop_on_blocked=true` y `rollback_mode=code-first-no-automatic-db-restore`.
 
 
 `config/pilot-policy.example.json` propone una primera ventana conservadora de hasta 5 operaciones o 120 minutos, backup con antigüedad máxima de 26 horas y restore drill con antigüedad máxima de 90 días. Son límites internos de ingeniería, no límites establecidos por AEAT.
@@ -72,9 +72,10 @@ Antes de ejecutar el gate deben sustituirse los placeholders con evidencia real.
 - timestamp del backup;
 - fingerprint SHA-256 del artefacto o manifest sanitizado que identifica ese backup;
 - restore drill satisfactorio sobre ese mismo fingerprint;
-- ausencia de secretos y datos fiscales en el informe compartido.
+- ausencia de secretos y datos fiscales en el informe compartido;
+- `provider` como referencia descriptiva opaca/no secreta, nunca URL firmada ni valor con token.
 
-El gate rechaza automáticamente backups demasiado antiguos, restore drills vencidos, fingerprints distintos o un informe asociado a otro perfil.
+El gate rechaza automáticamente backups demasiado antiguos, restore drills vencidos, fingerprints distintos, referencias de proveedor inseguras o un informe asociado a otro perfil/kind.
 
 ## Gate
 
