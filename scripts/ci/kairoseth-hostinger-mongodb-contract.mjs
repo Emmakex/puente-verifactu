@@ -75,9 +75,14 @@ expect(serverRuntime.includes("selectedIntegrationStore = requiredInjectedStore"
 expect(serverRuntime.includes("selectedImportSessionStore = requiredInjectedStore"), 'KAIROSETH_IMPORT_SESSION_REQUIRED_IN_PRODUCTIVE_MODE');
 expect(serverRuntime.includes("selectedImportBatchStore = requiredInjectedStore"), 'KAIROSETH_IMPORT_BATCH_REQUIRED_IN_PRODUCTIVE_MODE');
 expect(serverRuntime.includes("selectedAeatOutbox = requiredInjectedStore"), 'KAIROSETH_AEAT_OUTBOX_REQUIRED_IN_PRODUCTIVE_MODE');
+expect(serverRuntime.includes("requiredInjectedStore(onboardingProfileStore, 'onboardingProfileStore')"), 'KAIROSETH_ONBOARDING_STORE_REQUIRED_IN_PRODUCTIVE_MODE');
+expect(serverRuntime.includes("requiredInjectedStore(integrationProfileStore, 'integrationProfileStore')"), 'KAIROSETH_INTEGRATION_STORE_REQUIRED_IN_PRODUCTIVE_MODE');
+expect(serverRuntime.includes("resolveIntegrationSecretReference is required in kairoseth persistence mode"), 'KAIROSETH_SECRET_RESOLVER_REQUIRED_IN_PRODUCTIVE_MODE');
+expect(serverRuntime.includes("kairosethAuthProvider is required in kairoseth persistence mode"), 'KAIROSETH_AUTH_PROVIDER_REQUIRED_IN_PRODUCTIVE_MODE');
 expect(serverRuntime.includes("backupStatusProvider is required in kairoseth persistence mode"), 'KAIROSETH_BACKUP_STATUS_PROVIDER_REQUIRED');
 expect(serverRuntime.includes("database: null"), 'KAIROSETH_RUNTIME_MUST_EXPOSE_NO_SQLITE_DATABASE');
-expect(serverRuntime.indexOf("createSqlitePersistence") < serverRuntime.indexOf("if (mode === 'standalone')") || serverRuntime.includes("standalonePersistence = createSqlitePersistence"), 'KAIROSETH_SQLITE_MUST_BE_STANDALONE_ONLY');
+expect((serverRuntime.match(/createSqlitePersistence\s*\(/g) ?? []).length === 1, 'KAIROSETH_SQLITE_FACTORY_CALL_MUST_BE_SINGLE');
+expect(serverRuntime.includes("standalonePersistence = createSqlitePersistence"), 'KAIROSETH_SQLITE_MUST_BE_STANDALONE_ONLY');
 expect(integrationRuntime.includes('createHybridIntegrationResolvers'), 'KAIROSETH_HYBRID_INTEGRATION_RESOLVER_REQUIRED');
 expect(integrationRuntime.includes('dynamicProfiles.resolveMappingProfile'), 'KAIROSETH_DYNAMIC_MAPPING_RESOLVER_REQUIRED');
 expect(!serverRuntime.includes('integrationProfileStore ?? persistence'), 'KAIROSETH_INTEGRATION_SQLITE_FALLBACK_FORBIDDEN');
