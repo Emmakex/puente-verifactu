@@ -531,6 +531,24 @@ export function createApiHandler({
         const result = imports.preflight(importPreflightMatch[1], context, parseJsonBody(request));
         return json(200, result, correlationId);
       }
+      const importIssueMatch = path.match(/^\\/v1\\/imports\\/(imp_[a-f0-9]{32})\\/issue$/);
+      if (method === 'POST' && importIssueMatch) {
+        forbidIntegrationCredential(context, 'file import routes');
+        if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
+        const batch = imports.prepareBatch(importIssueMatch[1], context, parseJsonBody(request));
+        const results = [];
+        for (const row of batch.rows) {
+          const resource = await bridge.issue(row.intent, context, { idempotencyKey: row.idempotencyKey });
+          results.push({ row: row.row, recordId: resource.recordId, duplicate: Boolean(resource.duplicate), status: resource.status });
+        }
+        return json(202, {
+          importId: batch.importId,
+          mode: 'batch-issue',
+          summary: { rows: results.length, issued: results.filter((item) => !item.duplicate).length, duplicates: results.filter((item) => item.duplicate).length },
+          rows: results,
+        }, correlationId);
+      }
+
       if (method === 'DELETE' && importMatch) {
         forbidIntegrationCredential(context, 'file import routes');
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
