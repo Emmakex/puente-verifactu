@@ -1,3 +1,4 @@
+import { SOURCE_OPTIONS, capabilitiesForSource, visualRecommendation } from './src/capabilities.mjs';
 import {
   COPY,
   FIXED_FIELDS,
@@ -337,6 +338,7 @@ els.validateButton.addEventListener('click', validateImport);
 document.querySelectorAll('[data-lang]').forEach((button) => button.addEventListener('click', () => {
   state.locale = button.dataset.lang;
   translateStatic();
+renderSourceOptions();
   if (state.inspection) {
     renderFileMeta();
     renderMapping();
@@ -344,5 +346,38 @@ document.querySelectorAll('[data-lang]').forEach((button) => button.addEventList
     if (state.preflight) renderResult(state.preflight);
   }
 }));
+
+async function renderSourceOptions() {
+  const container = document.querySelector('#source-options');
+  const result = document.querySelector('#connection-result');
+  if (!container) return;
+  container.innerHTML = '';
+  for (const source of SOURCE_OPTIONS) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'primary';
+    button.textContent = source.label[state.locale] ?? source.label.es;
+    button.addEventListener('click', async () => {
+      setStatus(state.locale === 'en' ? 'Finding the best connection…' : 'Buscando la mejor conexión…');
+      try {
+        const strategy = await apiJson('/v1/control-plane/onboarding/resolve', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'accept-language': state.locale },
+          body: JSON.stringify(capabilitiesForSource(source.id, state.locale)),
+        });
+        const recommendation = visualRecommendation(strategy, state.locale);
+        result.hidden = false;
+        result.textContent = `${recommendation.title} — ${recommendation.summary}`;
+        setStatus(recommendation.requiresLocalAgent
+          ? (state.locale === 'en' ? 'This option will use Kairoseth Local Agent.' : 'Esta opción utilizará Kairoseth Local Agent.')
+          : '');
+      } catch (error) {
+        result.hidden = true;
+        setStatus(error.message);
+      }
+    });
+    container.append(button);
+  }
+}
 
 translateStatic();
