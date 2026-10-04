@@ -17,6 +17,7 @@ await writeFile(releasePath, JSON.stringify({
   artifacts: [
     { id: 'woocommerce-connector', filename: 'woo.zip', version: '0.2.0', sha256: 'a'.repeat(64) },
     { id: 'prestashop-connector', filename: 'ps.zip', version: '0.4.0', sha256: 'b'.repeat(64) },
+    { id: 'kairoseth-local-agent', filename: 'agent.zip', version: '0.1.0', sha256: 'c'.repeat(64) },
   ],
   ci: { workflow: 'CI', run_id: '1', run_number: '1', result: 'success' },
 }, null, 2));
@@ -45,6 +46,7 @@ assert.equal(bundle.source_commit, commit);
 assert.equal(bundle.product.deployment_profile, 'kairoseth-hostinger-mongodb');
 assert.equal(bundle.release.status, 'release_candidate');
 assert.equal(bundle.release.blockers, 0);
+assert.equal(bundle.artifacts.some((artifact) => artifact.id === 'kairoseth-local-agent'), true);
 assert.equal(bundle.ci.result, 'success');
 assert.equal(bundle.declaration.present, true);
 assert.equal(bundle.declaration.version_bound, true);
