@@ -89,6 +89,38 @@ function recordIdFor(record) {
   return `fr_${digest}`;
 }
 
+function operationForResource(resource) {
+  if (resource?.fiscalRecord?.recordType === 'anulacion') return 'cancel';
+  if (/^R[1-5]$/.test(String(resource?.fiscalRecord?.invoiceType ?? ''))) return 'rectification';
+  return 'issue';
+}
+
+function sanitizeDeliveryStatus(delivery) {
+  if (!delivery || typeof delivery !== 'object') return null;
+  const reconciliation = delivery.reconciliation && typeof delivery.reconciliation === 'object'
+    ? {
+        outcome: delivery.reconciliation.outcome ?? null,
+        received: delivery.reconciliation.received ?? null,
+        storedState: delivery.reconciliation.storedState ?? null,
+        shouldReissue: delivery.reconciliation.shouldReissue ?? null,
+        errorCode: delivery.reconciliation.errorCode ?? null,
+        requestId: delivery.reconciliation.requestId ?? null,
+        presentedAt: delivery.reconciliation.presentedAt ?? null,
+        lastModifiedAt: delivery.reconciliation.lastModifiedAt ?? null,
+      }
+    : null;
+  return Object.freeze({
+    status: delivery.status ?? delivery.state ?? null,
+    jobId: delivery.jobId ?? delivery.id ?? null,
+    attempts: Number.isFinite(Number(delivery.attempts)) ? Number(delivery.attempts) : null,
+    retryable: typeof delivery.retryable === 'boolean' ? delivery.retryable : null,
+    reconciliationRequired: typeof delivery.reconciliationRequired === 'boolean'
+      ? delivery.reconciliationRequired
+      : (delivery.state === 'reconciliation_required' ? true : null),
+    reconciliation: reconciliation ? Object.freeze(reconciliation) : null,
+  });
+}
+
 export class UniversalBridgeService {
   constructor({
     fiscalService,
@@ -186,7 +218,7 @@ export class UniversalBridgeService {
     return this.preflight(mapped, context);
   }
 
-  async issue(input, context, { idempotencyKey } = {}) {
+  async issue(input, context, { idempotencyKey, integrationProfileId = null } = {}) {
     if (!idempotencyKey || typeof idempotencyKey !== 'string') {
       throw apiError('VF_API_IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key is required', 400);
     }
@@ -217,6 +249,8 @@ export class UniversalBridgeService {
         organizationId: context.organizationId,
         installationId: context.installationId,
         sourceInvoiceId: intent.sourceInvoiceId,
+        sourceSystem: context.sourceSystem,
+        integrationProfileId: integrationProfileId ?? null,
         status,
         fiscalRecord: fiscalized.record,
         presentation: this.presentationForRecord(fiscalized.record),
@@ -230,18 +264,152 @@ export class UniversalBridgeService {
     }
   }
 
-  async issueMapped(source, profile, context, options) {
+  async issueMapped(source, profile, context, options = {}) {
     const mapped = applyMapping(source, profile);
-    return this.issue(mapped, context, options);
+    return this.issue(mapped, context, {
+      ...options,
+      integrationProfileId: profile?.id ?? null,
+    });
+  }
+
+  assertResourceAccess(resource, context) {
+    requireContext(context);
+    if (!resource || resource.organizationId !== context.organizationId) {
+      throw apiError('VF_API_RECORD_NOT_FOUND', 'Fiscal record not found', 404);
+    }
+    if (context?.credentialKind === 'kairoseth-data-plane') {
+      if (
+        resource.installationId !== context.installationId
+        || resource.integrationProfileId !== context.profileId
+        || resource.sourceSystem !== context.sourceSystem
+      ) {
+        throw apiError('VF_API_RECORD_NOT_FOUND', 'Fiscal record not found', 404);
+      }
+    }
+    return resource;
   }
 
   get(recordId, context) {
-    requireContext(context);
-    const record = this.store.get(recordId);
-    if (!record || record.organizationId !== context.organizationId) {
-      throw apiError('VF_API_RECORD_NOT_FOUND', 'Fiscal record not found', 404);
-    }
+    const record = this.assertResourceAccess(this.store.get(recordId), context);
     return this.withPresentation(record);
+  }
+
+  status(recordId, context) {
+    const resource = this.get(recordId, context);
+    return Object.freeze({
+      schemaVersion: 1,
+      recordId: resource.recordId,
+      operation: operationForResource(resource),
+      status: resource.status,
+      organizationId: resource.organizationId,
+      installationId: resource.installationId,
+      sourceSystem: resource.sourceSystem ?? resource.fiscalRecord?.source?.sourceSystem ?? null,
+      integrationProfileId: resource.integrationProfileId ?? null,
+      sourceInvoiceId: resource.sourceInvoiceId ?? null,
+      sourceCancellationId: resource.sourceCancellationId ?? null,
+      cancellationOfRecordId: resource.cancellationOfRecordId ?? null,
+      fiscal: Object.freeze({
+        recordType: resource.fiscalRecord?.recordType ?? null,
+        fiscalNumber: resource.fiscalRecord?.invoice?.fiscalNumber ?? null,
+        issueDate: resource.fiscalRecord?.invoice?.issueDate ?? null,
+      }),
+      presentation: resource.presentation ?? null,
+      delivery: sanitizeDeliveryStatus(resource.delivery),
+    });
+  }
+
+  async cancel(recordId, input, context, { idempotencyKey } = {}) {
+    if (!idempotencyKey || typeof idempotencyKey !== 'string') {
+      throw apiError('VF_API_IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key is required', 400);
+    }
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      throw apiError('VF_API_CANCELLATION_INPUT_INVALID', 'Cancellation body must be an object', 400);
+    }
+    const keys = Object.keys(input);
+    if (keys.length !== 1 || keys[0] !== 'sourceCancellationId') {
+      throw apiError(
+        'VF_API_CANCELLATION_INPUT_FORBIDDEN',
+        'Cancellation accepts only sourceCancellationId; fiscal identity is derived server-side',
+        400,
+      );
+    }
+    const sourceCancellationId = String(input.sourceCancellationId ?? '').trim();
+    if (!sourceCancellationId || sourceCancellationId.length > 160) {
+      throw apiError('VF_API_CANCELLATION_ID_INVALID', 'sourceCancellationId is required and must not exceed 160 characters', 400);
+    }
+
+    const original = this.get(recordId, context);
+    if (original.fiscalRecord?.recordType !== 'alta') {
+      throw apiError('VF_API_CANCELLATION_SOURCE_INVALID', 'Only an alta fiscal record can be cancelled', 409);
+    }
+
+    const request = {
+      organizationId: context.organizationId,
+      issuerTaxId: original.fiscalRecord.invoice.issuerTaxId,
+      series: '',
+      number: original.fiscalRecord.invoice.fiscalNumber,
+      issueDate: original.fiscalRecord.invoice.issueDate,
+      sourceCancellationId,
+    };
+    const requestPayload = {
+      originalRecordId: recordId,
+      sourceCancellationId,
+      integrationProfileId: original.integrationProfileId ?? null,
+    };
+    const requestKey = `${context.organizationId}\u001f${context.installationId}\u001fcancel\u001f${idempotencyKey}`;
+    const reservation = this.store.reserve(requestKey, requestPayload);
+
+    if (reservation.duplicate) {
+      if (!reservation.existing.recordId) {
+        throw apiError('VF_API_IDEMPOTENCY_IN_PROGRESS', 'The same cancellation request is already being processed', 409);
+      }
+      return { ...this.get(reservation.existing.recordId, context), duplicate: true };
+    }
+
+    try {
+      const fiscalized = await this.fiscalService.cancel(request);
+      const cancellationRecordId = recordIdFor(fiscalized.record);
+      const existingResource = this.store.get(cancellationRecordId);
+      if (fiscalized.duplicate && existingResource) {
+        this.assertResourceAccess(existingResource, context);
+        this.store.complete(requestKey, requestPayload, cancellationRecordId);
+        return { ...this.withPresentation(existingResource), duplicate: true };
+      }
+
+      let status = 'fiscalized';
+      let delivery = null;
+      if (this.enqueueDelivery) {
+        delivery = await this.enqueueDelivery({
+          operation: 'cancel',
+          cancellation: request,
+          originalRecord: original.fiscalRecord,
+          record: fiscalized.record,
+          recordId: cancellationRecordId,
+          originalRecordId: recordId,
+        });
+        status = delivery?.status ?? 'queued';
+      }
+
+      const resource = this.store.put({
+        recordId: cancellationRecordId,
+        organizationId: context.organizationId,
+        installationId: original.installationId,
+        sourceSystem: original.sourceSystem ?? context.sourceSystem,
+        integrationProfileId: original.integrationProfileId ?? null,
+        sourceInvoiceId: original.sourceInvoiceId ?? null,
+        sourceCancellationId,
+        cancellationOfRecordId: recordId,
+        status,
+        fiscalRecord: fiscalized.record,
+        presentation: null,
+        delivery,
+      });
+      this.store.complete(requestKey, requestPayload, cancellationRecordId);
+      return { ...resource, duplicate: fiscalized.duplicate };
+    } catch (error) {
+      this.store.release(requestKey, requestPayload);
+      throw error;
+    }
   }
 }
 
