@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 const contracts = [
   {
     path: 'docs/runbooks/README.md',
-    markers: ['reconciliation_required', 'deploy-rollback.md', 'backup-restore.md', 'credential-rotation.md', 'pilot-progressive.md'],
+    markers: ['kairoseth-hostinger-mongodb', 'mode=kairoseth-mongodb', 'SQLite `standalone`', 'reconciliation_required', 'deploy-rollback.md', 'backup-restore.md', 'credential-rotation.md', 'pilot-progressive.md'],
   },
   {
     path: 'docs/runbooks/deploy-rollback.md',
