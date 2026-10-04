@@ -27,6 +27,8 @@ const requiredPaths = [
   'apps/onboarding/src/model.mjs',
   'apps/server/README.md',
   'apps/server/src/main.mjs',
+  'apps/server/src/kairoseth-main.mjs',
+  'apps/server/src/aeat-delivery.mjs',
   'apps/server/src/runtime.mjs',
   'apps/server/src/auth.mjs',
   'apps/server/src/observability.mjs',
@@ -78,6 +80,7 @@ const requiredPaths = [
   'packages/core/src/mapping-assistant.mjs',
   'scripts/auth/hash-credential.mjs',
   'scripts/ops/sqlite-maintenance.mjs',
+  'scripts/ops/kairoseth-mongodb-init.mjs',
   'scripts/ci/onboarding-smoke.mjs',
   'scripts/ci/woocommerce-connector-check.mjs',
   'scripts/ci/woocommerce-package-check.mjs',
@@ -153,6 +156,15 @@ try {
   }
   if (pkg?.scripts?.server !== 'node apps/server/src/main.mjs') {
     failures.push({ code: 'REPO_SERVER_ENTRYPOINT_MISSING', expected: 'server script' });
+  }
+  if (pkg?.scripts?.['server:kairoseth'] !== 'node apps/server/src/kairoseth-main.mjs') {
+    failures.push({ code: 'REPO_KAIROSETH_SERVER_ENTRYPOINT_MISSING', expected: 'server:kairoseth script' });
+  }
+  if (pkg?.scripts?.['kairoseth:mongodb:init'] !== 'node scripts/ops/kairoseth-mongodb-init.mjs') {
+    failures.push({ code: 'REPO_KAIROSETH_MONGODB_INIT_MISSING', expected: 'kairoseth:mongodb:init script' });
+  }
+  if (pkg?.dependencies?.mongodb !== '7.7.0') {
+    failures.push({ code: 'REPO_KAIROSETH_MONGODB_DRIVER_INVALID', expected: 'mongodb@7.7.0' });
   }
 } catch (error) {
   failures.push({ code: 'REPO_PACKAGE_JSON_INVALID', message: error.message });
