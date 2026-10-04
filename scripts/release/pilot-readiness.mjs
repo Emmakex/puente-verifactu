@@ -3,6 +3,8 @@ import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const DEPLOYMENT_PROFILE = 'kairoseth-hostinger-mongodb';
+const BACKUP_EVIDENCE_KIND = 'kairoseth-managed-backup-readiness';
 
 function pilotError(code, message) {
   return Object.assign(new Error(message), { code });
@@ -55,10 +57,16 @@ function validatePolicy(policy) {
   if (policy?.schema_version !== 1 || policy?.kind !== 'puente-verifactu-pilot-policy') {
     throw pilotError('VF_PILOT_POLICY_INVALID', 'Unsupported pilot policy');
   }
-  if (policy.deployment_profile !== 'kairoseth-hostinger-mongodb') {
+  if (policy.deployment_profile !== DEPLOYMENT_PROFILE) {
     throw pilotError(
       'VF_PILOT_POLICY_PROFILE_INVALID',
-      'Pilot policy must target kairoseth-hostinger-mongodb',
+      `Pilot policy must target ${DEPLOYMENT_PROFILE}`,
+    );
+  }
+  if (policy.backup_evidence_kind !== BACKUP_EVIDENCE_KIND) {
+    throw pilotError(
+      'VF_PILOT_POLICY_BACKUP_KIND_INVALID',
+      `Pilot policy must require ${BACKUP_EVIDENCE_KIND}`,
     );
   }
   if (!Number.isInteger(policy.max_operations) || policy.max_operations < 1) {
@@ -108,10 +116,10 @@ function validateBundle(bundle, expectedCommit) {
   if (bundle?.ci?.result !== 'success') {
     throw pilotError('VF_PILOT_CI_NOT_GREEN', 'Candidate CI result is not success');
   }
-  if (bundle?.product?.deployment_profile !== 'kairoseth-hostinger-mongodb') {
+  if (bundle?.product?.deployment_profile !== DEPLOYMENT_PROFILE) {
     throw pilotError(
       'VF_PILOT_PROFILE_MISMATCH',
-      'Candidate deployment profile is not kairoseth-hostinger-mongodb',
+      `Candidate deployment profile is not ${DEPLOYMENT_PROFILE}`,
     );
   }
   if (bundle?.declaration?.present !== true
@@ -172,11 +180,26 @@ function validateOpsStatus(ops) {
   return ops;
 }
 
+function opaqueReference(value, name) {
+  const text = required(value, name);
+  if (
+    text.length > 256
+    || /:\/\//.test(text)
+    || /[?&](?:token|sig|signature|key|password)=/i.test(text)
+  ) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_REFERENCE_UNSAFE',
+      `${name} must be an opaque non-secret reference`,
+    );
+  }
+  return text;
+}
+
 function validateBackupReport(report, policy, referenceTime) {
   if (
     report?.schemaVersion !== 1
-    || report?.kind !== 'kairoseth-managed-backup-readiness'
-    || report?.deploymentProfile !== 'kairoseth-hostinger-mongodb'
+    || report?.kind !== BACKUP_EVIDENCE_KIND
+    || report?.deploymentProfile !== DEPLOYMENT_PROFILE
     || report?.status !== 'ok'
   ) {
     throw pilotError(
@@ -184,9 +207,7 @@ function validateBackupReport(report, policy, referenceTime) {
       'Kairoseth managed backup readiness report must be ok and match the candidate profile',
     );
   }
-  if (typeof report?.provider !== 'string' || !report.provider.trim()) {
-    throw pilotError('VF_PILOT_BACKUP_PROVIDER_MISSING', 'Managed backup provider reference is required');
-  }
+  const provider = opaqueReference(report?.provider, 'backup.provider');
   if (report.containsSecrets !== false || report.containsFiscalData !== false) {
     throw pilotError(
       'VF_PILOT_BACKUP_EVIDENCE_NOT_SANITIZED',
@@ -228,7 +249,14 @@ function validateBackupReport(report, policy, referenceTime) {
   if (drillAgeMs > policy.max_restore_drill_age_days * 24 * 60 * 60 * 1000) {
     throw pilotError('VF_PILOT_RESTORE_DRILL_TOO_OLD', 'Restore drill is older than pilot policy allows');
   }
-  return report;
+  return {
+    ...report,
+    _validated: {
+      provider,
+      backupCreatedAt: new Date(backupCreated).toISOString(),
+      restoreDrillAt: new Date(drillPerformed).toISOString(),
+    },
+  };
 }
 
 export async function buildPilotReadiness({
@@ -260,7 +288,7 @@ export async function buildPilotReadiness({
   validateOpsStatus(ops);
   const validatedPolicy = validatePolicy(policy);
   const generated = generatedAt ? isoDate(generatedAt, '--generated-at') : new Date().toISOString();
-  validateBackupReport(backup, validatedPolicy, generated);
+  const validatedBackup = validateBackupReport(backup, validatedPolicy, generated);
 
   const receipt = {
     schema_version: 1,
@@ -295,14 +323,18 @@ export async function buildPilotReadiness({
       expired_processing: 0,
       ops_status: 'ok',
       backup_status: 'ok',
-      backup_sha256: backup.newestBackup.sha256,
-      restore_drill_sha256: backup.restoreDrill.backupSha256,
+      backup_provider: validatedBackup._validated.provider,
+      backup_created_at: validatedBackup._validated.backupCreatedAt,
+      restore_drill_at: validatedBackup._validated.restoreDrillAt,
+      backup_sha256: validatedBackup.newestBackup.sha256,
+      restore_drill_sha256: validatedBackup.restoreDrill.backupSha256,
     },
     pilot_policy: {
       max_operations: validatedPolicy.max_operations,
       max_duration_minutes: validatedPolicy.max_duration_minutes,
       max_backup_age_hours: validatedPolicy.max_backup_age_hours,
       max_restore_drill_age_days: validatedPolicy.max_restore_drill_age_days,
+      backup_evidence_kind: validatedPolicy.backup_evidence_kind,
       stop_on_warning: true,
       stop_on_rejection: true,
       stop_on_reconciliation_required: true,

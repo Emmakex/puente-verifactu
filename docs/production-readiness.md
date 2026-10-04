@@ -19,9 +19,9 @@ El gate externo AEAT de Fase 3 quedó cerrado el 2026-10-03 con evidencia saniti
 
 ## Gates
 
-### 6.1 Backup/restore durable SQLite
+### 6.1 Backup/restore durable SQLite — referencia standalone
 
-Estado: **implementado**.
+Estado: **implementado para `standalone`; no es el gate de backup del candidato Kairoseth**.
 
 Criterios:
 
@@ -45,9 +45,9 @@ npm run sqlite:restore -- --backup <backup.sqlite> --db <target.sqlite>
 npm run sqlite:backup:smoke
 ```
 
-### 6.1b Ciclo de vida, copia remota y restore drill
+### 6.1b Ciclo de vida SQLite, copia remota y restore drill — referencia standalone
 
-Estado: **política y tooling v1 implementados; conformidad de cada deployment depende de su evidencia real**.
+Estado: **política/tooling v1 implementados para `standalone`; el candidato Kairoseth usa `docs/kairoseth-backup-evidence.md` y evidencia gestionada MongoDB**.
 
 Contrato del gate:
 
@@ -166,7 +166,7 @@ Estado: **implementados para standalone y con requisitos productivos Kairoseth d
 
 Cobertura obligatoria:
 
-- deploy/rollback con backup previo verificado, health/readiness y verificación de `/v1/ops/status` antes de reabrir tráfico;
+- deploy/rollback Kairoseth con evidencia gestionada de backup MongoDB, health/readiness y verificación de `/v1/ops/status` antes de reabrir tráfico;
 - rollback de código sin restore automático de base;
 - recuperación de base mediante backup/restore offline protegido;
 - incidente AEAT y tratamiento de `reconciliation_required` sin reemisión ciega;
