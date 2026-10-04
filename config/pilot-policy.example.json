@@ -9,5 +9,7 @@
   "stop_on_reconciliation_required": true,
   "stop_on_blocked": true,
   "require_verified_backup": true,
-  "rollback_mode": "code-first-no-automatic-db-restore"
+  "rollback_mode": "code-first-no-automatic-db-restore",
+  "max_backup_age_hours": 26,
+  "max_restore_drill_age_days": 90
 }
