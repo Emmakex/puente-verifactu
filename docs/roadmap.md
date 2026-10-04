@@ -188,7 +188,7 @@ Conectores ERP/CRM adicionales, portal multiempresa, herramientas para asesoría
 - [x] Universal Adapter Manifest v1.
 - [x] Selector capability-first inicial.
 - [x] Gate CI del manifest de referencia.
-- [ ] Productizar emisión por lotes CSV/XLSX.
+- [x] Productizar emisión por lotes CSV/XLSX: endpoint explícito post-preflight, validación all-or-nothing previa al inicio e idempotencia estable por sesión/fila para retry seguro.
 - [ ] Manifest/capabilities integrado en onboarding visual.
 - [ ] Starter kits HTTP/JSON para software propio.
 - [x] Local Agent v1 foundation: SQLite privado + cola offline + leases/recovery + checkpoint + discovery watch-folder + HTTPS saliente.
