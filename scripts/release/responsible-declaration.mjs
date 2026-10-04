@@ -50,6 +50,7 @@ function isInsideRepo(path) {
 export async function buildResponsibleDeclaration({
   producerConfig,
   packageJson,
+  releaseGates,
   outputPath,
 }) {
   const producer = producerConfig?.producer ?? {};
@@ -62,6 +63,18 @@ export async function buildResponsibleDeclaration({
   const signingDate = assertIsoDate(signature.date);
 
   const version = requiredString(packageJson?.version, 'package.version');
+  const deploymentProfile = requiredString(
+    releaseGates?.deployment_profile,
+    'release.deployment_profile',
+  );
+  if (deploymentProfile !== 'kairoseth-hostinger-mongodb') {
+    const error = new Error(
+      'Responsible declaration must target the Kairoseth Hostinger + MongoDB release profile',
+    );
+    error.code = 'VF_RESPONSIBLE_DECLARATION_PROFILE_INVALID';
+    error.field = 'release.deployment_profile';
+    throw error;
+  }
   const output = resolve(requiredString(outputPath, '--output'));
 
   if (isInsideRepo(output)) {
@@ -87,7 +100,7 @@ PV
 ${version}
 
 **d) Componentes, hardware y software, breve descripción y principales funcionalidades:**  
-Puente VeriFactu es un sistema informático de facturación de arquitectura modular para integración con sistemas empresariales. La versión ${version} incluye núcleo fiscal canónico, generación y encadenamiento de registros de alta y anulación, huella SHA-256, adaptador de remisión y consulta VERI*FACTU mediante servicios AEAT, outbox durable, reconciliación de resultados inciertos, API/SDK, importación CSV/XLSX, webhooks y conectores nativos para WooCommerce y PrestaShop. El perfil de despliegue declarado es software sobre servidor de propósito general en modo SQLite single-node; no requiere hardware propietario específico.
+Puente VeriFactu es un sistema informático de facturación de arquitectura modular para integración con sistemas empresariales. La versión ${version} incluye núcleo fiscal canónico, generación y encadenamiento de registros de alta y anulación, huella SHA-256, adaptador de remisión y consulta VERI*FACTU mediante servicios AEAT, outbox durable, reconciliación de resultados inciertos, API/SDK, importación CSV/XLSX, webhooks, captura manual y conectores nativos para WooCommerce y PrestaShop. El perfil productivo declarado corresponde a Kairoseth Fiscal sobre infraestructura Hostinger con persistencia MongoDB inyectada para cadena fiscal, API/idempotencia, importaciones, perfiles de integración y outbox AEAT. El runtime productivo Kairoseth no utiliza SQLite como persistencia de control-plane o data-plane; no requiere hardware propietario específico.
 
 **e) Indicación de si el sistema se ha producido para funcionar exclusivamente como «VERI*FACTU»:**  
 S - Sí.
@@ -119,7 +132,7 @@ ${optionalContacts.length ? optionalContacts.join('\n') : '- Sin datos adicional
 
 - Repositorio/producto: Puente VeriFactu.
 - Modalidad fiscal: VERI*FACTU.
-- Perfil de despliegue: SQLite single-node.
+- Perfil de despliegue: Kairoseth / Hostinger / MongoDB (${deploymentProfile}).
 - Conector WooCommerce incluido en la release: 0.2.0.
 - Conector PrestaShop incluido en la release: 0.4.0.
 - Evidencia técnica del gate externo AEAT: documentada de forma sanitizada para la versión candidata.
@@ -139,6 +152,7 @@ Esta declaración corresponde exclusivamente a la versión ${version}. Debe cons
     system: 'Puente VeriFactu',
     system_code: 'PV',
     version,
+    deployment_profile: deploymentProfile,
     contains_personal_data: true,
     repository_output: false,
   };
@@ -148,11 +162,17 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const producerPath = resolve(requiredString(argValue('--producer'), '--producer'));
   const outputPath = requiredString(argValue('--output'), '--output');
 
-  const [producerConfig, packageJson] = await Promise.all([
+  const [producerConfig, packageJson, releaseGates] = await Promise.all([
     readFile(producerPath, 'utf8').then(JSON.parse),
     readFile(resolve(REPO_ROOT, 'package.json'), 'utf8').then(JSON.parse),
+    readFile(resolve(REPO_ROOT, 'config/release-gates.json'), 'utf8').then(JSON.parse),
   ]);
 
-  const result = await buildResponsibleDeclaration({ producerConfig, packageJson, outputPath });
+  const result = await buildResponsibleDeclaration({
+    producerConfig,
+    packageJson,
+    releaseGates,
+    outputPath,
+  });
   console.log(JSON.stringify(result, null, 2));
 }
