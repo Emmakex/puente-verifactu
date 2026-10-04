@@ -46,7 +46,8 @@ El nombre comercial seleccionado es **Kairoseth Fiscal** y su slug canónico es 
 - posicionamiento: **VeriFactu para cualquier software**;
 - promesa principal: **Conecta tu software con VeriFactu sin cambiar de sistema**;
 - disponibilidad: acceso controlado / release candidate;
-- billing self-service: deshabilitado hasta aprobación de precios, límites y entitlements.
+- billing self-service: deshabilitado;
+- prioridad vigente: completar producto, candidato y piloto antes de reabrir pricing/billing.
 
 ## Gama comercial
 
