@@ -8,6 +8,7 @@ const STATIC_FILES = Object.freeze({
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
   '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
   '/src/model.mjs': ['src/model.mjs', 'text/javascript; charset=utf-8'],
+  '/src/capabilities.mjs': ['src/capabilities.mjs', 'text/javascript; charset=utf-8'],
 });
 
 function securityHeaders({ staticContent = false, api = false } = {}) {
