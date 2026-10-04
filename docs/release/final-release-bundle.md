@@ -12,7 +12,9 @@ El bundle resultante **no incluye** el contenido de la declaración, NIF, direcc
 - fingerprints reproducibles de WooCommerce, PrestaShop y Kairoseth Local Agent;
 - cero blockers abiertos;
 - CI del candidato en `success`;
-- declaración responsable con secciones a)-l), sin placeholders y con la misma versión del producto.
+- declaración responsable con secciones a)-l), sin placeholders, con la misma versión del producto y describiendo el perfil productivo Kairoseth en Hostinger + MongoDB.
+
+Un borrador anterior que describa `SQLite single-node` es **obsoleto** para este candidato y debe regenerarse desde el generador actualizado antes de cualquier aprobación.
 
 ## Comando
 
