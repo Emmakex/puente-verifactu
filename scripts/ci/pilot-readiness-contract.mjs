@@ -79,6 +79,7 @@ await writeFile(policyPath, JSON.stringify({
   schema_version: 1,
   kind: 'puente-verifactu-pilot-policy',
   deployment_profile: 'kairoseth-hostinger-mongodb',
+  backup_evidence_kind: 'kairoseth-managed-backup-readiness',
   max_operations: 5,
   max_duration_minutes: 120,
   max_backup_age_hours: 26,
@@ -110,7 +111,11 @@ assert.equal(receipt.operational_readiness.persistence_mode, 'kairoseth-mongodb'
 assert.equal(receipt.operational_readiness.ops_status, 'ok');
 assert.equal(receipt.operational_readiness.reconciliation_required, 0);
 assert.equal(receipt.operational_readiness.blocked, 0);
+assert.equal(receipt.operational_readiness.backup_provider, 'fixture-managed-backup');
+assert.equal(receipt.operational_readiness.backup_created_at, '2026-10-03T11:00:00.000Z');
+assert.equal(receipt.operational_readiness.restore_drill_at, '2026-10-03T11:30:00.000Z');
 assert.equal(receipt.operational_readiness.backup_sha256, backupSha);
+assert.equal(receipt.pilot_policy.backup_evidence_kind, 'kairoseth-managed-backup-readiness');
 assert.equal(receipt.pilot_policy.max_operations, 5);
 assert.equal(receipt.pilot_policy.max_backup_age_hours, 26);
 assert.equal(receipt.pilot_policy.max_restore_drill_age_days, 90);
@@ -121,6 +126,40 @@ assert.deepEqual(persisted, receipt);
 assert.equal((await stat(outputPath)).mode & 0o777, 0o600);
 
 
+
+const unsafeProviderPath = join(dir, 'backup-unsafe-provider.json');
+await writeFile(unsafeProviderPath, JSON.stringify({
+  schemaVersion: 1,
+  kind: 'kairoseth-managed-backup-readiness',
+  deploymentProfile: 'kairoseth-hostinger-mongodb',
+  status: 'ok',
+  provider: 'https://backup.example.invalid/object?token=secret',
+  containsSecrets: false,
+  containsFiscalData: false,
+  newestBackup: {
+    createdAt: '2026-10-03T11:00:00Z',
+    sha256: backupSha,
+    remote: true,
+    encryptedAtRest: true,
+  },
+  restoreDrill: {
+    performedAt: '2026-10-03T11:30:00Z',
+    backupSha256: backupSha,
+    result: 'ok',
+  },
+}, null, 2));
+await assert.rejects(
+  () => buildPilotReadiness({
+    bundlePath,
+    approvalPath,
+    opsStatusPath: opsPath,
+    backupReportPath: unsafeProviderPath,
+    policyPath,
+    expectedCommit: commit,
+    generatedAt: '2026-10-03T12:30:00Z',
+  }),
+  (error) => error.code === 'VF_PILOT_BACKUP_REFERENCE_UNSAFE',
+);
 
 const unsanitizedBackupPath = join(dir, 'backup-unsanitized.json');
 await writeFile(unsanitizedBackupPath, JSON.stringify({
@@ -233,6 +272,36 @@ await assert.rejects(
     generatedAt: '2026-10-03T12:30:00Z',
   }),
   (error) => error.code === 'VF_PILOT_APPROVAL_PROFILE_MISMATCH',
+);
+
+const wrongBackupKindPolicy = join(dir, 'policy-wrong-backup-kind.json');
+await writeFile(wrongBackupKindPolicy, JSON.stringify({
+  schema_version: 1,
+  kind: 'puente-verifactu-pilot-policy',
+  deployment_profile: 'kairoseth-hostinger-mongodb',
+  backup_evidence_kind: 'legacy-backup-evidence',
+  max_operations: 5,
+  max_duration_minutes: 120,
+  max_backup_age_hours: 26,
+  max_restore_drill_age_days: 90,
+  stop_on_warning: true,
+  stop_on_rejection: true,
+  stop_on_reconciliation_required: true,
+  stop_on_blocked: true,
+  require_verified_backup: true,
+  rollback_mode: 'code-first-no-automatic-db-restore',
+}, null, 2));
+await assert.rejects(
+  () => buildPilotReadiness({
+    bundlePath,
+    approvalPath,
+    opsStatusPath: opsPath,
+    backupReportPath: backupPath,
+    policyPath: wrongBackupKindPolicy,
+    expectedCommit: commit,
+    generatedAt: '2026-10-03T12:30:00Z',
+  }),
+  (error) => error.code === 'VF_PILOT_POLICY_BACKUP_KIND_INVALID',
 );
 
 const notApproved = join(dir, 'approval-no.json');
