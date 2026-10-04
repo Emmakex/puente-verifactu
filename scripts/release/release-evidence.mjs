@@ -6,6 +6,7 @@ import { buildPrestaShopZip } from './package-prestashop.mjs';
 import { buildWooCommerceZip } from './package-woocommerce.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const PRODUCTIVE_DEPLOYMENT_PROFILE = 'kairoseth-hostinger-mongodb';
 
 async function readJson(path) {
   return JSON.parse(await readFile(path, 'utf8'));
@@ -32,6 +33,9 @@ function validateReleaseGateConfig(config) {
   if (config?.schema_version !== 1) throw new Error('Unsupported release gate schema');
   if (!['release_blocked', 'release_candidate'].includes(config.release_status)) throw new Error('Invalid release_status');
   if (!Array.isArray(config.blockers) || !Array.isArray(config.profile_decisions)) throw new Error('Invalid release gate configuration');
+  if (config.deployment_profile !== PRODUCTIVE_DEPLOYMENT_PROFILE) {
+    throw new Error(`Productive release evidence must target ${PRODUCTIVE_DEPLOYMENT_PROFILE}`);
+  }
 }
 
 function validateRegulatoryRegistry(registry) {
