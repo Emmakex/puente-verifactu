@@ -37,6 +37,12 @@ for (const letter of 'abcdefghijkl') {
 }
 assert.match(content, /Puente VeriFactu/);
 assert.match(content, /0\.1\.0/);
+assert.match(content, /Kairoseth/);
+assert.match(content, /Hostinger/);
+assert.match(content, /MongoDB/);
+assert.match(content, /Local Agent/);
+assert.match(content, /captura manual/i);
+assert.doesNotMatch(content, /SQLite single-node/i);
 assert.match(content, /S - Sí\./);
 assert.match(content, /Persona Productora Ejemplo/);
 assert.match(content, /00000000T/);
