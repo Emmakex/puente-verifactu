@@ -126,6 +126,29 @@ test('manual preflight is side-effect free and issuance is explicit and idempote
   assert.equal(retry.body.duplicate, true);
 });
 
+test('manual issuance always reruns preflight server-side before effects', async () => {
+  const handler = setup();
+  const invalid = await handler({
+    method: 'POST',
+    path: '/v1/manual/fiscal-records',
+    headers: {},
+    body: payload({
+      tax: {
+        rate: '21',
+        baseAmount: '100.00',
+        taxAmount: '21.00',
+        totalAmount: '999.00',
+      },
+    }),
+  });
+  assert.equal(invalid.status, 422);
+  assert.equal(invalid.body.error.code, 'VF_MANUAL_PREFLIGHT_FAILED');
+  assert.equal(
+    invalid.body.error.details.some((item) => item.code === 'VF_VALIDATION_TOTAL_MISMATCH'),
+    true,
+  );
+});
+
 test('manual issuance rejects changed content under the same document identity', async () => {
   const handler = setup();
   const issued = await handler({
