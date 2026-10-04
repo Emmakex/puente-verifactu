@@ -22,7 +22,7 @@ await writeFile(bundlePath, JSON.stringify({
   evidence_kind: 'puente-verifactu-final-release-bundle',
   status: 'candidate_evidence_complete',
   source_commit: commit,
-  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'sqlite-single-node' },
+  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'kairoseth-hostinger-mongodb' },
   ci: { run_id: '10', run_number: '11', result: 'success' },
   release: { status: 'release_candidate', blockers: 0 },
   declaration: { present: true, version_bound: true, sha256: declarationSha, content_in_bundle: false },
@@ -41,6 +41,7 @@ await writeFile(approvalPath, JSON.stringify({
 
 await writeFile(opsPath, JSON.stringify({
   schemaVersion: 1,
+  mode: 'kairoseth-mongodb',
   database: { ok: true },
   aeatOutbox: {
     available: true,
@@ -54,15 +55,27 @@ await writeFile(opsPath, JSON.stringify({
 
 await writeFile(backupPath, JSON.stringify({
   schemaVersion: 1,
+  kind: 'kairoseth-managed-backup-readiness',
+  deploymentProfile: 'kairoseth-hostinger-mongodb',
   status: 'ok',
-  newestBackup: { sha256: backupSha },
-  restoreDrill: { backupSha256: backupSha },
+  provider: 'fixture-managed-backup',
+  newestBackup: {
+    createdAt: '2026-10-03T11:00:00Z',
+    sha256: backupSha,
+    remote: true,
+    encryptedAtRest: true,
+  },
+  restoreDrill: {
+    performedAt: '2026-10-03T11:30:00Z',
+    backupSha256: backupSha,
+    result: 'ok',
+  },
 }, null, 2));
 
 await writeFile(policyPath, JSON.stringify({
   schema_version: 1,
   kind: 'puente-verifactu-pilot-policy',
-  deployment_profile: 'sqlite-single-node',
+  deployment_profile: 'kairoseth-hostinger-mongodb',
   max_operations: 5,
   max_duration_minutes: 120,
   stop_on_warning: true,
@@ -88,6 +101,7 @@ assert.equal(receipt.status, 'pilot_ready');
 assert.equal(receipt.source_commit, commit);
 assert.equal(receipt.declaration.approved, true);
 assert.equal(receipt.declaration.sha256, declarationSha);
+assert.equal(receipt.operational_readiness.persistence_mode, 'kairoseth-mongodb');
 assert.equal(receipt.operational_readiness.ops_status, 'ok');
 assert.equal(receipt.operational_readiness.reconciliation_required, 0);
 assert.equal(receipt.operational_readiness.blocked, 0);
@@ -98,6 +112,28 @@ assert.equal(receipt.contains_personal_data, false);
 const persisted = JSON.parse(await readFile(outputPath, 'utf8'));
 assert.deepEqual(persisted, receipt);
 assert.equal((await stat(outputPath)).mode & 0o777, 0o600);
+
+
+const wrongProfileOps = join(dir, 'ops-wrong-profile.json');
+await writeFile(wrongProfileOps, JSON.stringify({
+  schemaVersion: 1,
+  mode: 'single-node-sqlite',
+  database: { ok: true },
+  aeatOutbox: { available: true, reconciliationRequired: 0, blocked: 0, expiredProcessing: 0 },
+  backup: { configured: true, status: 'ok' },
+  summary: { status: 'ok', critical: 0, warning: 0 },
+}, null, 2));
+await assert.rejects(
+  () => buildPilotReadiness({
+    bundlePath,
+    approvalPath,
+    opsStatusPath: wrongProfileOps,
+    backupReportPath: backupPath,
+    policyPath,
+    expectedCommit: commit,
+  }),
+  (error) => error.code === 'VF_PILOT_OPS_PROFILE_MISMATCH',
+);
 
 const notApproved = join(dir, 'approval-no.json');
 await writeFile(notApproved, JSON.stringify({
