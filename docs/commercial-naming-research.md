@@ -8,10 +8,16 @@ Definir la faceta comercial de `Puente VeriFactu` dentro de Kairoseth Platform s
 
 ```text
 Puente DeCA      -> Kairoseth Cargo
-Puente VeriFactu -> <nombre comercial a validar>
+Puente VeriFactu -> Kairoseth Fiscal
 ```
 
 El nombre técnico `Puente VeriFactu` y el `product_id=puente-verifactu` permanecen estables.
+
+## Decisión comercial
+
+**Kairoseth Fiscal** fue seleccionado como nombre comercial el 2026-10-03 y ya se utiliza en Kairoseth Platform con la ruta canónica `/products/kairoseth-fiscal`.
+
+La selección comercial no equivale a un dictamen jurídico de registrabilidad. La búsqueda formal OEPM/EUIPO continúa siendo due diligence de marca y no debe confundirse con el estado técnico o comercial del producto.
 
 ## Hallazgos de mercado
 
@@ -78,7 +84,7 @@ La AEAT utiliza `VERI*FACTU` como nombre oficial del sistema. Además, una búsq
 
 Esto **no es un dictamen jurídico ni un clearance de marca**. Antes de bloquear un nombre comercial debe hacerse búsqueda formal en OEPM/EUIPO de las clases relevantes.
 
-Decisión provisional: usar `VeriFactu` como descriptor de producto/compatibilidad, no como núcleo distintivo de la nueva marca.
+Decisión vigente: usar `VeriFactu` como descriptor de producto/compatibilidad y **Kairoseth Fiscal** como marca comercial.
 
 ## Patrón de Kairoseth Cargo
 
@@ -159,29 +165,21 @@ No avanzar como candidatos:
 - Kairoseth FiscalCore — FiscalCore está en uso en España y comunica VeriFactu.
 - cualquier variante `Veri...` / `...Factu` como núcleo de marca — mercado saturado y mayor proximidad con denominaciones existentes.
 
-## Shortlist de investigación
+## Resultado de la investigación
 
-Orden para la siguiente ronda de clearance, no decisión final:
+Selección adoptada:
 
-1. `Kairoseth Fiscal`
-2. `Kairoseth Relay`
-3. `Kairoseth Ledger`
+1. **Kairoseth Fiscal** — nombre comercial activo.
+2. Kairoseth Relay — alternativa archivada.
+3. Kairoseth Ledger — alternativa archivada.
 
-## Siguiente gate antes de elegir
+## Due diligence de marca pendiente
 
-Para cada finalista:
+Antes de una inversión amplia en marca o registro se mantiene como tarea jurídica/comercial:
 
 1. búsqueda exacta OEPM;
 2. búsqueda EUIPO/TMview;
-3. clases 9 y 42 como mínimo, y revisar 35 si la comercialización lo requiere;
-4. búsquedas fonéticas y similares;
-5. disponibilidad de slug dentro de Kairoseth;
-6. búsqueda web/SERP española;
-7. revisión lingüística ES/EN;
-8. test de arquitectura:
-   - `<Marca> Web`
-   - `<Marca> Connect`
-   - `<Marca> API`
-9. comprobar que el descriptor `VeriFactu para cualquier software` funciona sin ambigüedad.
+3. revisión de clases 9 y 42 como mínimo, y 35 si aplica;
+4. búsquedas fonéticas y similares.
 
-No se fijará `commercial_name` ni `commercial_slug` en `config/kairoseth-extension.json` hasta superar esta segunda ronda.
+Esto no bloquea el uso actual de **Kairoseth Fiscal** como faceta comercial controlada ni altera la identidad técnica `puente-verifactu`.
