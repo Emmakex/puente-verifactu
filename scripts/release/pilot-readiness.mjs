@@ -72,6 +72,18 @@ function validatePolicy(policy) {
   if (!Number.isInteger(policy.max_duration_minutes) || policy.max_duration_minutes < 1) {
     throw pilotError('VF_PILOT_POLICY_DURATION_INVALID', 'max_duration_minutes must be a positive integer');
   }
+  if (!Number.isInteger(policy.max_backup_age_hours) || policy.max_backup_age_hours < 1) {
+    throw pilotError(
+      'VF_PILOT_POLICY_BACKUP_AGE_INVALID',
+      'max_backup_age_hours must be a positive integer',
+    );
+  }
+  if (!Number.isInteger(policy.max_restore_drill_age_days) || policy.max_restore_drill_age_days < 1) {
+    throw pilotError(
+      'VF_PILOT_POLICY_RESTORE_AGE_INVALID',
+      'max_restore_drill_age_days must be a positive integer',
+    );
+  }
   for (const key of [
     'stop_on_warning',
     'stop_on_rejection',
@@ -170,7 +182,7 @@ function opaqueReference(value, name) {
   return text;
 }
 
-function validateBackupReport(report) {
+function validateBackupReport(report, policy, nowMs) {
   if (
     report?.schemaVersion !== 1
     || report?.kind !== BACKUP_EVIDENCE_KIND
@@ -208,6 +220,20 @@ function validateBackupReport(report) {
     'backup.restoreDrill.reference',
   );
   const provider = opaqueReference(report?.provider, 'backup.provider');
+  const backupAgeMs = Math.max(0, nowMs - Date.parse(backupCreatedAt));
+  const restoreAgeMs = Math.max(0, nowMs - Date.parse(restoreDrillAt));
+  if (backupAgeMs > policy.max_backup_age_hours * 60 * 60 * 1000) {
+    throw pilotError(
+      'VF_PILOT_BACKUP_TOO_OLD',
+      'Managed MongoDB backup evidence is older than the pilot policy allows',
+    );
+  }
+  if (restoreAgeMs > policy.max_restore_drill_age_days * 86_400_000) {
+    throw pilotError(
+      'VF_PILOT_RESTORE_DRILL_TOO_OLD',
+      'Managed MongoDB restore drill is older than the pilot policy allows',
+    );
+  }
   return {
     ...report,
     _validated: {
@@ -247,10 +273,10 @@ export async function buildPilotReadiness({
   validateBundle(bundle, commit);
   const approvedAt = validateApproval(approval, bundle, commit);
   validateOpsStatus(ops);
-  const validatedBackup = validateBackupReport(backup);
   validatePolicy(policy);
 
   const generated = generatedAt ? isoDate(generatedAt, '--generated-at') : new Date().toISOString();
+  const validatedBackup = validateBackupReport(backup, policy, Date.parse(generated));
 
   const receipt = {
     schema_version: 1,
@@ -298,6 +324,8 @@ export async function buildPilotReadiness({
       stop_on_reconciliation_required: true,
       stop_on_blocked: true,
       backup_evidence_kind: policy.backup_evidence_kind,
+      max_backup_age_hours: policy.max_backup_age_hours,
+      max_restore_drill_age_days: policy.max_restore_drill_age_days,
       rollback_mode: policy.rollback_mode,
     },
     contains_personal_data: false,
