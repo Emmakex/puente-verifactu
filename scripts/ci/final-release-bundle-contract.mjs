@@ -57,6 +57,27 @@ const persisted = JSON.parse(await readFile(outputPath, 'utf8'));
 assert.deepEqual(persisted, bundle);
 assert.equal((await stat(outputPath)).mode & 0o777, 0o600);
 
+
+const staleProfilePath = join(dir, 'release-evidence-stale-profile.json');
+await writeFile(staleProfilePath, JSON.stringify({
+  source: { commit },
+  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'sqlite-single-node' },
+  release: { status: 'release_candidate', blockers: [] },
+  artifacts: [
+    { id: 'woocommerce-connector', filename: 'woo.zip', version: '0.2.0', sha256: 'a'.repeat(64) },
+    { id: 'prestashop-connector', filename: 'ps.zip', version: '0.4.0', sha256: 'b'.repeat(64) },
+  ],
+  ci: { workflow: 'CI', run_id: '1', run_number: '1', result: 'success' },
+}, null, 2));
+await assert.rejects(
+  () => buildFinalReleaseBundle({
+    releaseEvidencePath: staleProfilePath,
+    declarationPath,
+    expectedCommit: commit,
+  }),
+  (error) => error.code === 'VF_FINAL_RELEASE_PROFILE_MISMATCH',
+);
+
 console.log(JSON.stringify({
   schema_version: 1,
   status: 'ok',
