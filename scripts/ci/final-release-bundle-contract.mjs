@@ -60,6 +60,26 @@ assert.deepEqual(persisted, bundle);
 assert.equal((await stat(outputPath)).mode & 0o777, 0o600);
 
 
+const missingAgentPath = join(dir, 'release-evidence-missing-agent.json');
+await writeFile(missingAgentPath, JSON.stringify({
+  source: { commit },
+  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'kairoseth-hostinger-mongodb' },
+  release: { status: 'release_candidate', blockers: [] },
+  artifacts: [
+    { id: 'woocommerce-connector', filename: 'woo.zip', version: '0.2.0', sha256: 'a'.repeat(64) },
+    { id: 'prestashop-connector', filename: 'ps.zip', version: '0.4.0', sha256: 'b'.repeat(64) },
+  ],
+  ci: { workflow: 'CI', run_id: '1', run_number: '1', result: 'success' },
+}, null, 2));
+await assert.rejects(
+  () => buildFinalReleaseBundle({
+    releaseEvidencePath: missingAgentPath,
+    declarationPath,
+    expectedCommit: commit,
+  }),
+  (error) => error.code === 'VF_FINAL_RELEASE_ARTIFACTS_MISSING',
+);
+
 const staleProfilePath = join(dir, 'release-evidence-stale-profile.json');
 await writeFile(staleProfilePath, JSON.stringify({
   source: { commit },
