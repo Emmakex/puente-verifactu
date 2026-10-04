@@ -116,7 +116,11 @@ npm run aeat:outbox:smoke
 
 Las pruebas cubren persistencia tras reinicio, dispatch único, lease activo frente a un segundo worker, expiración de lease tras crash, cuarentena de resultados de transporte inciertos y reintento únicamente después de reconciliación explícita.
 
-**Límite:** este outbox v1 endurece el perfil SQLite single-node. Un despliegue multi-réplica necesitará un store compartido con semántica equivalente de claim/lease y locking distribuido; SQLite no se usa como coordinación entre nodos.
+**Perfiles:** el store SQLite sigue siendo la referencia standalone. El perfil productivo
+Kairoseth usa un AEAT outbox MongoDB inyectado con la misma semántica de
+claim/lease, cuarentena `reconciliation_required` y resolución explícita.
+MongoDB es compartido entre réplicas y SQLite no participa en la coordinación
+productiva Kairoseth.
 
 ### 6.3 Observabilidad y alertas
 
@@ -125,14 +129,14 @@ Estado: **implementado para el perfil single-node y protegido por CI**.
 Contrato del gate:
 
 - `/healthz` sigue indicando únicamente proceso vivo;
-- `/readyz` sigue indicando únicamente disponibilidad mínima de SQLite;
+- `/readyz` indica disponibilidad mínima del store del perfil activo: SQLite en `standalone`, healthcheck MongoDB inyectado en `kairoseth`;
 - `GET /v1/ops/status` expone snapshot operacional agregado y requiere autenticación + permiso `ops:read`;
 - una credencial tenant/integración válida sin `ops:read` recibe `403 VF_OPS_FORBIDDEN`;
 - el snapshot no contiene NIF, factura, payload de outbox, job IDs, tenant IDs, credenciales ni rutas locales;
 - contadores AEAT por estado, pendientes vencidos, leases expirados y edad del pendiente/reconciliación más antiguos se calculan directamente del store durable;
 - `reconciliation_required`, `blocked` y lease expirado generan alertas críticas;
 - edad de pending genera warning/critical por umbral;
-- `PV_BACKUP_MANIFEST_PATH` permite vigilar antigüedad del último backup creado/verificado;
+- `PV_BACKUP_MANIFEST_PATH` mantiene la vigilancia del backup standalone; en `kairoseth`, `backupStatusProvider` inyecta el estado del backup MongoDB gestionado por la infraestructura;
 - backup no configurado produce warning, manifest ausente/inválido o demasiado antiguo produce alerta crítica;
 - si SQLite falla, el snapshot sigue siendo generable con estado crítico sanitizado en vez de depender de un 500 opaco;
 - los códigos de alerta son estables y aptos para integración con el monitor que el despliegue elija.
@@ -150,7 +154,9 @@ npm run ops:smoke
 
 El contrato completo, incluidos los códigos `VF_OBS_*`, se documenta en `docs/operations-observability.md`.
 
-**Límite:** no se impone todavía un proveedor de monitorización. El endpoint JSON es framework-neutral y puede ser recogido por Prometheus exporter, Grafana Agent, Datadog, Uptime Kuma u otra capa operacional sin acoplarla al motor fiscal.
+**Límite:** no se impone proveedor de monitorización. El endpoint JSON es
+framework-neutral. En modo `kairoseth`, el runtime no crea SQLite y obtiene
+salud de persistencia y backup desde providers inyectados por Kairoseth.
 
 ### 6.4 Runbooks operativos
 
@@ -259,3 +265,23 @@ Fase 6 solo puede marcarse completa cuando:
 - la declaración responsable definitiva de esa versión ha sido preparada y aprobada;
 - existe runbook de operación/recuperación;
 - se ha validado el perfil de despliegue que realmente se vaya a usar.
+
+
+### 6.8 Perfil productivo Kairoseth MongoDB-only
+
+Estado: **implementado como perfil separado del standalone**.
+
+`createPuenteRuntime({ persistenceMode: "kairoseth" })`:
+
+- no requiere `databasePath`;
+- no llama a `createSqlitePersistence()`;
+- exige stores inyectados para cadena fiscal, API/idempotencia, imports, Local Agent y AEAT outbox;
+- exige `backupStatusProvider`;
+- usa un healthcheck MongoDB para `/readyz`;
+- usa `snapshotAsync()` para `/v1/ops/status`;
+- falla cerrado si falta cualquiera de las dependencias productivas;
+- conserva leases recuperables para cadena, Idempotency-Key, import batches y outbox AEAT.
+
+El perfil `standalone` mantiene SQLite y sus procedimientos de backup/restore
+como referencia de desarrollo/test. Los dos perfiles no se mezclan
+implícitamente.

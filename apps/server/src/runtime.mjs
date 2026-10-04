@@ -7,24 +7,50 @@ import { FiscalRecordService } from '../../../packages/core/src/fiscal-record-se
 import { createSqlitePersistence } from '../../../packages/sqlite-store/src/index.mjs';
 import { createHttpAuthenticator } from './auth.mjs';
 import { createIntegrationResolvers } from './integration-config.mjs';
-import { KairosethIntegrationProfileControlPlane, createHybridIntegrationResolvers } from './integration-control-plane.mjs';
+import {
+  KairosethIntegrationProfileControlPlane,
+  createHybridIntegrationResolvers,
+} from './integration-control-plane.mjs';
 import { createKairosethAuthBridge } from './kairoseth-auth-bridge.mjs';
 import { createPuenteHttpServer } from './http-server.mjs';
 import { createOperationalObserver } from './observability.mjs';
 import { KairosethLocalAgentControlPlane } from './local-agent-control-plane.mjs';
 import { KairosethOnboardingControlPlane } from './onboarding-control-plane.mjs';
-import { DEFAULT_NATIVE_CONNECTORS, resolveKairosethIntegrationStrategy } from '../../../packages/kairoseth-control-plane/src/capability-onboarding.mjs';
+import {
+  DEFAULT_NATIVE_CONNECTORS,
+  resolveKairosethIntegrationStrategy,
+} from '../../../packages/kairoseth-control-plane/src/capability-onboarding.mjs';
 import { FixedWindowRateLimiter } from './rate-limit.mjs';
 
-const DEFAULT_ONBOARDING_DIR = resolve(fileURLToPath(new URL('../../onboarding/', import.meta.url)));
+const DEFAULT_ONBOARDING_DIR = resolve(
+  fileURLToPath(new URL('../../onboarding/', import.meta.url)),
+);
 
 function requiredString(value, name) {
-  if (!value || typeof value !== 'string' || !value.trim()) throw new TypeError(`${name} is required`);
+  if (!value || typeof value !== 'string' || !value.trim()) {
+    throw new TypeError(`${name} is required`);
+  }
   return value.trim();
 }
 
+function persistenceMode(value) {
+  const mode = String(value ?? 'standalone').trim().toLowerCase();
+  if (!['standalone', 'kairoseth'].includes(mode)) {
+    throw new TypeError('persistenceMode must be standalone or kairoseth');
+  }
+  return mode;
+}
+
+function requiredInjectedStore(value, name) {
+  if (!value || typeof value !== 'object') {
+    throw new TypeError(`${name} is required in kairoseth persistence mode`);
+  }
+  return value;
+}
+
 export function createPuenteRuntime({
-  databasePath,
+  persistenceMode: requestedPersistenceMode = 'standalone',
+  databasePath = null,
   authConfig,
   integrationConfig = { integrations: [], euroConversions: [] },
   sif,
@@ -33,6 +59,8 @@ export function createPuenteRuntime({
   clock = () => new Date(),
   observabilityClock = () => Date.now(),
   backupManifestPath = null,
+  backupStatusProvider = null,
+  persistenceHealthcheck = null,
   responsibleDeclarationPath = null,
   presentationEnvironment = 'test',
   observabilityThresholds = {},
@@ -43,40 +71,118 @@ export function createPuenteRuntime({
   importBatchStore = null,
   fiscalRecordStore = null,
   integrationDataStore = null,
+  aeatOutboxStore = null,
   resolveIntegrationSecretReference = null,
   kairosethAuthProvider = null,
   supportedNativeConnectors = DEFAULT_NATIVE_CONNECTORS,
 } = {}) {
+  const mode = persistenceMode(requestedPersistenceMode);
   const normalizedSif = {
     systemId: requiredString(sif?.systemId, 'sif.systemId'),
     installationNumber: requiredString(sif?.installationNumber, 'sif.installationNumber'),
     timeZone: requiredString(sif?.timeZone, 'sif.timeZone'),
   };
 
-  if ((importSessionStore == null) !== (importBatchStore == null)) {
-    throw new TypeError(
-      'importSessionStore and importBatchStore must be injected together',
-    );
-  }
-  if ((fiscalRecordStore == null) !== (integrationDataStore == null)) {
-    throw new TypeError(
-      'fiscalRecordStore and integrationDataStore must be injected together',
-    );
+  if (mode === 'standalone') {
+    if ((importSessionStore == null) !== (importBatchStore == null)) {
+      throw new TypeError(
+        'importSessionStore and importBatchStore must be injected together',
+      );
+    }
+    if ((fiscalRecordStore == null) !== (integrationDataStore == null)) {
+      throw new TypeError(
+        'fiscalRecordStore and integrationDataStore must be injected together',
+      );
+    }
   }
 
-  const persistence = createSqlitePersistence({ path: requiredString(databasePath, 'databasePath') });
-  // Single-node runtime recovery: after a process restart no in-flight HTTP request can still own
-  // a pending reservation. Fiscal operations are independently idempotent, so a retry can safely
-  // reconstruct the same durable API resource if the process stopped between fiscalization and completion.
-  const recoveredReservations = integrationDataStore
-    ? 0
-    : persistence.database.db
+  let standalonePersistence = null;
+  let runtimeHealthcheck = null;
+  let selectedFiscalStore;
+  let selectedIntegrationStore;
+  let selectedImportSessionStore;
+  let selectedImportBatchStore;
+  let selectedLocalAgentStore;
+  let selectedAeatOutbox;
+
+  if (mode === 'standalone') {
+    standalonePersistence = createSqlitePersistence({
+      path: requiredString(databasePath, 'databasePath'),
+    });
+    selectedFiscalStore = fiscalRecordStore ?? standalonePersistence.fiscalStore;
+    selectedIntegrationStore = integrationDataStore ?? standalonePersistence.integrationStore;
+    selectedImportSessionStore = importSessionStore ?? standalonePersistence.importStore;
+    selectedImportBatchStore = importBatchStore;
+    selectedLocalAgentStore = localAgentRegistryStore ?? standalonePersistence.localAgentRegistry;
+    selectedAeatOutbox = aeatOutboxStore ?? standalonePersistence.aeatOutbox;
+  } else {
+    selectedFiscalStore = requiredInjectedStore(
+      fiscalRecordStore,
+      'fiscalRecordStore',
+    );
+    selectedIntegrationStore = requiredInjectedStore(
+      integrationDataStore,
+      'integrationDataStore',
+    );
+    selectedImportSessionStore = requiredInjectedStore(
+      importSessionStore,
+      'importSessionStore',
+    );
+    selectedImportBatchStore = requiredInjectedStore(
+      importBatchStore,
+      'importBatchStore',
+    );
+    selectedLocalAgentStore = requiredInjectedStore(
+      localAgentRegistryStore,
+      'localAgentRegistryStore',
+    );
+    selectedAeatOutbox = requiredInjectedStore(
+      aeatOutboxStore,
+      'aeatOutboxStore',
+    );
+    requiredInjectedStore(onboardingProfileStore, 'onboardingProfileStore');
+    requiredInjectedStore(integrationProfileStore, 'integrationProfileStore');
+    if (typeof resolveIntegrationSecretReference !== 'function') {
+      throw new TypeError(
+        'resolveIntegrationSecretReference is required in kairoseth persistence mode',
+      );
+    }
+    if (!kairosethAuthProvider) {
+      throw new TypeError(
+        'kairosethAuthProvider is required in kairoseth persistence mode',
+      );
+    }
+    if (typeof backupStatusProvider !== 'function') {
+      throw new TypeError(
+        'backupStatusProvider is required in kairoseth persistence mode',
+      );
+    }
+    runtimeHealthcheck = typeof persistenceHealthcheck === 'function'
+      ? persistenceHealthcheck
+      : (
+          typeof selectedFiscalStore.healthcheck === 'function'
+            ? () => selectedFiscalStore.healthcheck()
+            : null
+        );
+    if (!runtimeHealthcheck) {
+      throw new TypeError(
+        'persistenceHealthcheck or fiscalRecordStore.healthcheck() is required in kairoseth persistence mode',
+      );
+    }
+  }
+
+  // Standalone process recovery can clear incomplete SQLite reservations because
+  // one process owns the database. Kairoseth MongoDB reservations use leases and
+  // must never be globally deleted on runtime startup.
+  const recoveredReservations = standalonePersistence && !integrationDataStore
+    ? standalonePersistence.database.db
       .prepare('DELETE FROM api_requests WHERE record_id IS NULL')
-      .run().changes;
+      .run().changes
+    : 0;
 
   const fiscalService = new FiscalRecordService({
     sif: normalizedSif,
-    store: fiscalRecordStore ?? persistence.fiscalStore,
+    store: selectedFiscalStore,
     clock,
   });
   const staticResolvers = createIntegrationResolvers(integrationConfig);
@@ -96,25 +202,25 @@ export function createPuenteRuntime({
   });
   const bridge = new FxAwareBridgeService({
     fiscalService,
-    store: integrationDataStore ?? persistence.integrationStore,
+    store: selectedIntegrationStore,
     resolveEuroConversion: resolvers.resolveEuroConversion,
     presentationEnvironment,
   });
   const imports = new ImportSessionService({
-    // SQLite remains the standalone reference fallback. Kairoseth production injects
-    // tenant-aware MongoDB session/batch stores without giving Puente Mongo credentials.
-    store: importSessionStore ?? persistence.importStore,
-    ...(importBatchStore ? { batchStore: importBatchStore } : {}),
+    store: selectedImportSessionStore,
+    ...(selectedImportBatchStore
+      ? { batchStore: selectedImportBatchStore }
+      : {}),
   });
   const localAgents = new KairosethLocalAgentControlPlane({
-    // SQLite is the single-node reference store only. Kairoseth production can inject
-    // its shared tenant-aware persistence without changing the control-plane service.
-    store: localAgentRegistryStore ?? persistence.localAgentRegistry,
+    store: selectedLocalAgentStore,
     clock: observabilityClock,
   });
-  const resolveOnboardingStrategy = (input) => resolveKairosethIntegrationStrategy(input, {
-    supportedNativeConnectors,
-  });
+  const resolveOnboardingStrategy = (input) => (
+    resolveKairosethIntegrationStrategy(input, {
+      supportedNativeConnectors,
+    })
+  );
   const onboardingProfiles = onboardingProfileStore
     ? new KairosethOnboardingControlPlane({
         store: onboardingProfileStore,
@@ -141,27 +247,63 @@ export function createPuenteRuntime({
     integrationProfiles,
     resolveOnboardingStrategy,
   });
-  const operationalObserver = createOperationalObserver({
-    persistence,
-    backupManifestPath,
-    clock: observabilityClock,
-    thresholds: observabilityThresholds,
-  });
+
+  const operationalObserver = mode === 'standalone'
+    ? createOperationalObserver({
+        persistence: standalonePersistence,
+        outbox: selectedAeatOutbox,
+        backupManifestPath,
+        clock: observabilityClock,
+        thresholds: observabilityThresholds,
+      })
+    : createOperationalObserver({
+        healthcheck: runtimeHealthcheck,
+        outbox: selectedAeatOutbox,
+        backupStatusProvider,
+        mode: 'kairoseth-mongodb',
+        clock: observabilityClock,
+        thresholds: observabilityThresholds,
+      });
+
+  const readiness = mode === 'standalone'
+    ? async () => {
+        try {
+          const row = standalonePersistence.database.db
+            .prepare('SELECT 1 AS ok')
+            .get();
+          return { ok: row?.ok === 1 };
+        } catch {
+          return { ok: false };
+        }
+      }
+    : async () => {
+        try {
+          const result = await runtimeHealthcheck();
+          return { ok: result?.ok === true };
+        } catch {
+          return { ok: false };
+        }
+      };
+
   const server = createPuenteHttpServer({
     apiHandler,
     authenticateHttp,
     rateLimiter,
     onboardingDir,
     responsibleDeclarationPath,
-    readiness: async () => {
-      try {
-        const row = persistence.database.db.prepare('SELECT 1 AS ok').get();
-        return { ok: row?.ok === 1 };
-      } catch {
-        return { ok: false };
-      }
-    },
-    operationalStatus: async () => operationalObserver.snapshot(),
+    readiness,
+    operationalStatus: async () => operationalObserver.snapshotAsync(),
+  });
+
+  const persistence = standalonePersistence ?? Object.freeze({
+    mode: 'kairoseth-mongodb',
+    database: null,
+    fiscalStore: selectedFiscalStore,
+    integrationStore: selectedIntegrationStore,
+    importStore: selectedImportSessionStore,
+    importBatchStore: selectedImportBatchStore,
+    localAgentRegistry: selectedLocalAgentStore,
+    aeatOutbox: selectedAeatOutbox,
   });
 
   return {
@@ -173,11 +315,18 @@ export function createPuenteRuntime({
     integrationProfiles,
     authBridge,
     persistence,
+    persistenceMode: mode,
     operationalObserver,
     recoveredReservations: Number(recoveredReservations),
     close: async () => {
-      if (server.listening) await new Promise((resolveClose, reject) => server.close((error) => error ? reject(error) : resolveClose()));
-      persistence.close();
+      if (server.listening) {
+        await new Promise((resolveClose, reject) => (
+          server.close((error) => (
+            error ? reject(error) : resolveClose()
+          ))
+        ));
+      }
+      standalonePersistence?.close();
     },
   };
 }

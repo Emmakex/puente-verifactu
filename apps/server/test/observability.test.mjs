@@ -97,3 +97,44 @@ test('operational snapshot remains available and sanitized after SQLite becomes 
   assert.ok(codes(snapshot).includes('VF_OBS_DATABASE_UNAVAILABLE'));
   assert.ok(codes(snapshot).includes('VF_OBS_AEAT_OUTBOX_UNAVAILABLE'));
 });
+
+
+test('asynchronous operational snapshot supports MongoDB health, outbox and backup providers', async () => {
+  const observer = createOperationalObserver({
+    mode: 'kairoseth-mongodb',
+    healthcheck: async () => ({ ok: true }),
+    outbox: {
+      async stats() {
+        return {
+          total: 1,
+          pending: 1,
+          processing: 0,
+          reconciliationRequired: 0,
+          completed: 0,
+          blocked: 0,
+          duePending: 1,
+          expiredProcessing: 0,
+          oldestPendingAt: 900,
+          oldestPendingAgeMs: 100,
+          oldestReconciliationAt: null,
+          oldestReconciliationAgeMs: null,
+        };
+      },
+    },
+    backupStatusProvider: async () => ({
+      configured: true,
+      status: 'ok',
+      createdAt: new Date(900).toISOString(),
+      ageMs: 100,
+    }),
+    clock: () => 1000,
+  });
+
+  const snapshot = await observer.snapshotAsync();
+  assert.equal(snapshot.mode, 'kairoseth-mongodb');
+  assert.equal(snapshot.database.ok, true);
+  assert.equal(snapshot.aeatOutbox.pending, 1);
+  assert.equal(snapshot.backup.status, 'ok');
+  assert.equal(snapshot.summary.status, 'ok');
+  assert.throws(() => observer.snapshot(), /snapshotAsync/);
+});

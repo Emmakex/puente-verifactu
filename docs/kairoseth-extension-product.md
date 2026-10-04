@@ -128,7 +128,15 @@ La superficie productiva de esta extensión debe respetar la infraestructura rea
 - secretos y certificado: backend de Kairoseth;
 - Local Agent: edge connector sin autoridad fiscal.
 
-El runtime SQLite de este repositorio es una implementación standalone de referencia y pruebas. No debe interpretarse como sustituto de MongoDB en el deployment productivo Kairoseth.
+El runtime tiene dos perfiles explícitos:
+
+- `standalone`: SQLite para desarrollo, pruebas y referencia single-node;
+- `kairoseth`: Hostinger + MongoDB, sin crear ni requerir SQLite.
+
+En modo `kairoseth` se inyectan los stores productivos de cadena fiscal,
+API/idempotencia, imports, Local Agent y AEAT outbox. Readiness y observabilidad
+usan health providers MongoDB, y el estado de backup se inyecta desde la
+infraestructura gestionada por Kairoseth.
 
 Las bases PostgreSQL, MySQL/MariaDB y SQL Server pertenecen al catálogo de **fuentes externas read-only** que el Local Agent puede consultar en instalaciones de clientes. No son infraestructura de Kairoseth.
 
@@ -147,13 +155,11 @@ Los adapters pueden evolucionar y versionarse de forma independiente, pero:
 
 Orden vigente:
 
-1. completar U10/#84 en MongoDB Kairoseth;
-2. cerrar #91 para que la persistencia fiscal/data-plane productiva Kairoseth use MongoDB inyectado y SQLite quede standalone;
-3. cerrar los gaps universales que todavía afectan al producto utilizable (starter kits, manual fallback y retención Local Agent);
-4. congelar candidato final y regenerar evidencia de release;
-5. aprobar declaración responsable de ese candidato;
-6. ejecutar piloto progresivo #53;
-7. después reabrir pricing/billing/comercialización.
+1. cerrar los gaps universales que todavía afectan al producto utilizable (starter kits, manual fallback y retención Local Agent);
+2. congelar candidato final y regenerar evidencia de release;
+3. aprobar declaración responsable de ese candidato;
+4. ejecutar piloto progresivo #53;
+5. después reabrir pricing/billing/comercialización.
 
 ## Roadmap de integración con Kairoseth Platform
 

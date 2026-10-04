@@ -43,3 +43,10 @@ export {
   mongoIntegrationRecordIndexes,
   mongoIntegrationRequestIndexes,
 } from './mongodb-dataplane.mjs';
+
+
+export {
+  MongoKairosethAeatOutboxStore,
+  createMongoKairosethAeatOutboxStore,
+  mongoAeatOutboxIndexes,
+} from './mongodb-aeat-outbox.mjs';

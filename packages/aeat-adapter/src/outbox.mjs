@@ -143,13 +143,19 @@ export class AeatOutboxWorker {
 
   async run(jobId) {
     const now = this.clock();
-    this.outbox.recoverExpired?.(now);
-    const existing = this.outbox.get(jobId);
+    if (typeof this.outbox.recoverExpired === 'function') {
+      await this.outbox.recoverExpired(now);
+    }
+    const existing = await this.outbox.get(jobId);
     if (!existing) throw Object.assign(new Error('Outbox job not found'), { code: 'VF_AEAT_OUTBOX_JOB_NOT_FOUND' });
     if (['completed', 'blocked', 'reconciliation_required', 'processing'].includes(existing.state)) return existing;
     if (now < existing.availableAt) return existing;
 
-    const job = this.outbox.claim(jobId, { owner: this.workerId, now, leaseMs: this.leaseMs });
+    const job = await this.outbox.claim(jobId, {
+      owner: this.workerId,
+      now,
+      leaseMs: this.leaseMs,
+    });
     if (!job) return this.outbox.get(jobId);
 
     let result;
@@ -217,8 +223,10 @@ export class AeatOutboxWorker {
 
   async runDue({ limit = 100 } = {}) {
     const now = this.clock();
-    this.outbox.recoverExpired?.(now);
-    const due = this.outbox.list()
+    if (typeof this.outbox.recoverExpired === 'function') {
+      await this.outbox.recoverExpired(now);
+    }
+    const due = (await this.outbox.list())
       .filter((job) => job.state === 'pending' && job.availableAt <= now)
       .slice(0, limit);
     const results = [];

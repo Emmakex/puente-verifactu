@@ -89,7 +89,7 @@ function outboxStatus(outbox, now) {
 
 function deriveAlerts({ database, outbox, backup }, thresholds) {
   const alerts = [];
-  if (!database.ok) alerts.push(alert('VF_OBS_DATABASE_UNAVAILABLE', 'critical', 'SQLite is not available'));
+  if (!database.ok) alerts.push(alert('VF_OBS_DATABASE_UNAVAILABLE', 'critical', 'Persistence is not available'));
   if (!outbox.available) {
     alerts.push(alert('VF_OBS_AEAT_OUTBOX_UNAVAILABLE', 'critical', 'AEAT outbox metrics are not available'));
   } else {
@@ -140,40 +140,97 @@ function deriveAlerts({ database, outbox, backup }, thresholds) {
 }
 
 export function createOperationalObserver({
-  persistence,
+  persistence = null,
+  healthcheck = null,
+  outbox = null,
   backupManifestPath = null,
+  backupStatusProvider = null,
+  mode = null,
   clock = () => Date.now(),
   thresholds: thresholdInput = {},
 } = {}) {
-  if (!persistence?.database || !persistence?.aeatOutbox || typeof persistence.aeatOutbox.stats !== 'function') {
-    throw new TypeError('persistence with database and aeatOutbox.stats() is required');
+  const resolvedOutbox = outbox ?? persistence?.aeatOutbox ?? null;
+  if (!resolvedOutbox || typeof resolvedOutbox.stats !== 'function') {
+    throw new TypeError('aeat outbox with stats() is required');
   }
+  const standaloneDatabase = persistence?.database ?? null;
+  if (!standaloneDatabase && typeof healthcheck !== 'function') {
+    throw new TypeError('database persistence or healthcheck() is required');
+  }
+  const resolvedMode = mode ?? (standaloneDatabase ? 'single-node-sqlite' : 'kairoseth-mongodb');
   const thresholds = normalizeThresholds(thresholdInput);
+
+  function buildSnapshot(now, database, outboxState, backup) {
+    const alerts = deriveAlerts({
+      database,
+      outbox: outboxState,
+      backup,
+    }, thresholds);
+    const critical = alerts.filter((item) => item.severity === 'critical').length;
+    const warning = alerts.filter((item) => item.severity === 'warning').length;
+    return Object.freeze({
+      schemaVersion: 1,
+      generatedAt: new Date(now).toISOString(),
+      mode: resolvedMode,
+      database,
+      aeatOutbox: outboxState,
+      backup,
+      alerts,
+      summary: Object.freeze({
+        status: critical > 0 ? 'critical' : warning > 0 ? 'warning' : 'ok',
+        critical,
+        warning,
+      }),
+    });
+  }
+
+  function syncBackup(now) {
+    if (backupStatusProvider) {
+      const value = backupStatusProvider(now);
+      if (value && typeof value.then === 'function') {
+        throw new TypeError('snapshot() cannot use an asynchronous backupStatusProvider');
+      }
+      return Object.freeze(structuredClone(value));
+    }
+    return backupStatus(backupManifestPath, now);
+  }
 
   return Object.freeze({
     snapshot() {
       const now = Number(clock());
-      if (!Number.isFinite(now)) throw new TypeError('observability clock must return epoch milliseconds');
-      const database = databaseStatus(persistence.database);
-      const outbox = outboxStatus(persistence.aeatOutbox, now);
-      const backup = backupStatus(backupManifestPath, now);
-      const alerts = deriveAlerts({ database, outbox, backup }, thresholds);
-      const critical = alerts.filter((item) => item.severity === 'critical').length;
-      const warning = alerts.filter((item) => item.severity === 'warning').length;
-      return Object.freeze({
-        schemaVersion: 1,
-        generatedAt: new Date(now).toISOString(),
-        mode: 'single-node-sqlite',
-        database,
-        aeatOutbox: outbox,
-        backup,
-        alerts,
-        summary: Object.freeze({
-          status: critical > 0 ? 'critical' : warning > 0 ? 'warning' : 'ok',
-          critical,
-          warning,
-        }),
-      });
+      if (!Number.isFinite(now)) {
+        throw new TypeError('observability clock must return epoch milliseconds');
+      }
+      if (!standaloneDatabase || healthcheck) {
+        throw new TypeError('snapshot() is available only for synchronous standalone persistence; use snapshotAsync()');
+      }
+      const database = databaseStatus(standaloneDatabase);
+      const outboxState = outboxStatus(resolvedOutbox, now);
+      const backup = syncBackup(now);
+      return buildSnapshot(now, database, outboxState, backup);
+    },
+
+    async snapshotAsync() {
+      const now = Number(clock());
+      if (!Number.isFinite(now)) {
+        throw new TypeError('observability clock must return epoch milliseconds');
+      }
+      const database = typeof healthcheck === 'function'
+        ? Object.freeze(structuredClone(await healthcheck()))
+        : databaseStatus(standaloneDatabase);
+      let outboxState;
+      try {
+        outboxState = Object.freeze({
+          available: true,
+          ...(await resolvedOutbox.stats(now)),
+        });
+      } catch {
+        outboxState = EMPTY_OUTBOX;
+      }
+      const backup = backupStatusProvider
+        ? Object.freeze(structuredClone(await backupStatusProvider(now)))
+        : backupStatus(backupManifestPath, now);
+      return buildSnapshot(now, database, outboxState, backup);
     },
   });
 }

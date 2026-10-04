@@ -128,11 +128,20 @@ export class FxAwareBridgeService extends UniversalBridgeService {
       currencyConversion: prepared.conversion,
     };
     const requestKey = `${context.organizationId}\u001f${context.installationId}\u001f${idempotencyKey}`;
-    const reservation = this.store.reserve(requestKey, requestPayload);
+    const reservation = await this.store.reserve(requestKey, requestPayload);
 
     if (reservation.duplicate) {
-      if (!reservation.existing.recordId) throw apiError('VF_API_IDEMPOTENCY_IN_PROGRESS', 'The same request is already being processed', 409);
-      return { ...this.publicResource(this.store.get(reservation.existing.recordId)), duplicate: true };
+      if (!reservation.existing.recordId) {
+        throw apiError(
+          'VF_API_IDEMPOTENCY_IN_PROGRESS',
+          'The same request is already being processed',
+          409,
+        );
+      }
+      return {
+        ...this.publicResource(await this.store.get(reservation.existing.recordId)),
+        duplicate: true,
+      };
     }
 
     try {
@@ -152,7 +161,7 @@ export class FxAwareBridgeService extends UniversalBridgeService {
         status = delivery?.status ?? 'queued';
       }
 
-      const resource = this.store.put({
+      const resource = await this.store.put({
         recordId,
         organizationId: context.organizationId,
         installationId: context.installationId,
@@ -167,10 +176,19 @@ export class FxAwareBridgeService extends UniversalBridgeService {
         presentation: this.presentationForRecord(fiscalized.record),
         delivery,
       });
-      this.store.complete(requestKey, requestPayload, recordId);
+      await this.store.complete(
+        requestKey,
+        requestPayload,
+        recordId,
+        reservation.reservationToken ?? null,
+      );
       return { ...this.publicResource(resource), duplicate: fiscalized.duplicate };
     } catch (error) {
-      this.store.release(requestKey, requestPayload);
+      await this.store.release(
+        requestKey,
+        requestPayload,
+        reservation.reservationToken ?? null,
+      );
       throw error;
     }
   }

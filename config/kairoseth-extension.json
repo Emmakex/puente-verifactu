@@ -79,6 +79,10 @@
     "import_batches": "mongodb-injected-durable",
     "fiscal_records": "mongodb-injected-durable",
     "api_records": "mongodb-injected-durable",
-    "api_idempotency": "mongodb-injected-lease"
+    "api_idempotency": "mongodb-injected-lease",
+    "aeat_outbox": "mongodb-injected-durable",
+    "runtime_persistence": "mongodb-only",
+    "backup_status": "kairoseth-injected",
+    "observability": "mongodb-aware"
   }
 }

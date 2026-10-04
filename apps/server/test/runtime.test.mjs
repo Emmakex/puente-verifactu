@@ -359,3 +359,211 @@ test('runtime rejects partial Kairoseth fiscal data-plane persistence injection'
     /fiscalRecordStore and integrationDataStore must be injected together/,
   );
 });
+
+
+function kairosethRuntimeStores() {
+  const sessions = new Map();
+  const batches = new Map();
+  const records = new Map();
+  const requests = new Map();
+  return {
+    fiscalRecordStore: {
+      async healthcheck() { return { ok: true }; },
+      async executeOperation({ operationKey, fingerprint, createRecord }) {
+        const existing = records.get(operationKey);
+        if (existing) return { record: existing.record, duplicate: true };
+        const record = createRecord(null);
+        records.set(operationKey, { fingerprint, record });
+        return { record, duplicate: false };
+      },
+    },
+    integrationDataStore: {
+      async reserve(key) {
+        const existing = requests.get(key);
+        if (existing) return { existing, duplicate: true };
+        const pending = { fingerprint: 'test', recordId: null };
+        requests.set(key, pending);
+        return { existing: pending, duplicate: false };
+      },
+      async get(recordId) { return records.get(recordId)?.resource ?? null; },
+      async put(record) {
+        records.set(record.recordId, { resource: record });
+        return record;
+      },
+      async complete(key, _payload, recordId) {
+        requests.set(key, { fingerprint: 'test', recordId });
+      },
+      async release(key) { requests.delete(key); },
+    },
+    importSessionStore: {
+      async purgeExpired() {},
+      async ensureCapacity() {},
+      async put(session) { sessions.set(session.importId, structuredClone(session)); return session; },
+      async get(importId) { return structuredClone(sessions.get(importId) ?? null); },
+      async delete(importId) { return sessions.delete(importId); },
+    },
+    importBatchStore: {
+      async create(batch) { batches.set(batch.batchId, structuredClone(batch)); return batch; },
+      async get(batchId) { return structuredClone(batches.get(batchId) ?? null); },
+      async acquireLease() { return null; },
+      async updateRow() { throw new Error('not used'); },
+      async releaseLease() { throw new Error('not used'); },
+    },
+    localAgentRegistryStore: {
+      async authByTokenSha256() { return null; },
+      async create() { throw new Error('not used'); },
+      async get() { return null; },
+      async list() { return []; },
+      async rotateCredential() { throw new Error('not used'); },
+      async revoke() { throw new Error('not used'); },
+      async setControl() { throw new Error('not used'); },
+      async heartbeat() { throw new Error('not used'); },
+    },
+    aeatOutboxStore: {
+      async stats() {
+        return {
+          total: 0,
+          pending: 0,
+          processing: 0,
+          reconciliationRequired: 0,
+          completed: 0,
+          blocked: 0,
+          duePending: 0,
+          expiredProcessing: 0,
+          oldestPendingAt: null,
+          oldestPendingAgeMs: null,
+          oldestReconciliationAt: null,
+          oldestReconciliationAgeMs: null,
+        };
+      },
+    },
+    onboardingProfileStore: {
+      async create() { throw new Error('not used'); },
+      async get() { return null; },
+      async list() { return []; },
+      async bindIntegration() { throw new Error('not used'); },
+      async reserveLocalAgent() { throw new Error('not used'); },
+      async finalizeLocalAgent() { throw new Error('not used'); },
+      async failLocalAgent() { throw new Error('not used'); },
+    },
+    integrationProfileStore: {
+      async create() { throw new Error('not used'); },
+      async get() { return null; },
+      async getInternal() { return null; },
+      async findForContext() { return null; },
+      async findByOnboarding() { return null; },
+      async list() { return []; },
+      async setMapping() { throw new Error('not used'); },
+      async setWebhookSecretRef() { throw new Error('not used'); },
+      async setAuthBinding() { throw new Error('not used'); },
+      async disable() { throw new Error('not used'); },
+    },
+    resolveIntegrationSecretReference: async () => null,
+    kairosethAuthProvider: {
+      async resolveBearerDigest() { return null; },
+    },
+  };
+}
+
+test('kairoseth runtime starts without SQLite databasePath and uses injected health/backup providers', async () => {
+  const stores = kairosethRuntimeStores();
+  const runtime = createPuenteRuntime({
+    persistenceMode: 'kairoseth',
+    authConfig: authConfig(),
+    sif: { systemId: 'PV', installationNumber: '001', timeZone: 'Europe/Madrid' },
+    ...stores,
+    backupStatusProvider: async () => ({
+      configured: true,
+      status: 'ok',
+      createdAt: '2026-10-04T08:00:00.000Z',
+      ageMs: 60_000,
+    }),
+  });
+
+  try {
+    assert.equal(runtime.persistenceMode, 'kairoseth');
+    assert.equal(runtime.persistence.database, null);
+    assert.equal(runtime.recoveredReservations, 0);
+    const baseUrl = await listen(runtime);
+
+    const ready = await fetch(baseUrl + '/readyz');
+    assert.equal(ready.status, 200);
+    assert.equal((await ready.json()).status, 'ready');
+
+    const issueRequest = () => fetch(baseUrl + '/v1/fiscal-records', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${apiToken}`,
+        'content-type': 'application/json',
+        'idempotency-key': 'runtime-kairoseth-async-store-1',
+      },
+      body: JSON.stringify({ intent: validIntent() }),
+    });
+
+    const issuedResponse = await issueRequest();
+    assert.equal(issuedResponse.status, 202);
+    const issued = await issuedResponse.json();
+    assert.match(issued.recordId, /^fr_[a-f0-9]{24}$/);
+    assert.equal(issued.duplicate, false);
+
+    const retriedResponse = await issueRequest();
+    assert.equal(retriedResponse.status, 200);
+    const retried = await retriedResponse.json();
+    assert.equal(retried.recordId, issued.recordId);
+    assert.equal(retried.duplicate, true);
+
+    const snapshot = await runtime.operationalObserver.snapshotAsync();
+    assert.equal(snapshot.mode, 'kairoseth-mongodb');
+    assert.equal(snapshot.database.ok, true);
+    assert.equal(snapshot.backup.status, 'ok');
+    assert.equal(snapshot.aeatOutbox.available, true);
+    assert.equal(snapshot.summary.status, 'ok');
+  } finally {
+    await runtime.close();
+  }
+});
+
+test('kairoseth runtime fails closed when a productive store or backup provider is missing', () => {
+  const stores = kairosethRuntimeStores();
+  const base = {
+    persistenceMode: 'kairoseth',
+    authConfig: authConfig(),
+    sif: { systemId: 'PV', installationNumber: '001', timeZone: 'Europe/Madrid' },
+    ...stores,
+    backupStatusProvider: async () => ({
+      configured: true,
+      status: 'ok',
+      createdAt: '2026-10-04T08:00:00.000Z',
+      ageMs: 0,
+    }),
+  };
+
+  for (const key of [
+    'fiscalRecordStore',
+    'integrationDataStore',
+    'importSessionStore',
+    'importBatchStore',
+    'localAgentRegistryStore',
+    'aeatOutboxStore',
+    'onboardingProfileStore',
+    'integrationProfileStore',
+  ]) {
+    assert.throws(
+      () => createPuenteRuntime({ ...base, [key]: null }),
+      new RegExp(key + ' is required'),
+    );
+  }
+
+  assert.throws(
+    () => createPuenteRuntime({ ...base, backupStatusProvider: null }),
+    /backupStatusProvider is required/,
+  );
+  assert.throws(
+    () => createPuenteRuntime({ ...base, resolveIntegrationSecretReference: null }),
+    /resolveIntegrationSecretReference is required/,
+  );
+  assert.throws(
+    () => createPuenteRuntime({ ...base, kairosethAuthProvider: null }),
+    /kairosethAuthProvider is required/,
+  );
+});

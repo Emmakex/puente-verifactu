@@ -11,13 +11,13 @@ Los identificadores de negocio pueden existir en logs internos sanitizados cuand
 ### Públicos y mínimos
 
 - `GET /healthz`: confirma que el proceso HTTP está vivo.
-- `GET /readyz`: confirma que SQLite responde.
+- `GET /readyz`: confirma que la persistencia mínima del perfil activo responde (SQLite en `standalone`; healthcheck MongoDB en `kairoseth`).
 
 Ambos endpoints permanecen deliberadamente mínimos y no revelan contadores ni estructura interna.
 
 ### Estado operacional autenticado
 
-`GET /v1/ops/status` devuelve un snapshot agregado del perfil single-node.
+`GET /v1/ops/status` devuelve un snapshot agregado del perfil activo (`single-node-sqlite` o `kairoseth-mongodb`).
 
 Requisitos:
 
@@ -48,14 +48,18 @@ Las credenciales existentes sin `permissions` siguen siendo válidas y reciben u
 
 El JSON incluye únicamente agregados:
 
-- salud SQLite;
+- salud de la persistencia activa;
 - outbox AEAT: total, `pending`, `processing`, `reconciliationRequired`, `completed`, `blocked`, pendientes ya vencidos y leases expirados;
 - edad del job pendiente más antiguo;
 - edad de la reconciliación pendiente más antigua;
 - estado y antigüedad del manifest de backup configurado;
 - alertas activas y resumen `ok|warning|critical`.
 
-El manifest de backup se configura con `PV_BACKUP_MANIFEST_PATH`. La observabilidad de manifest demuestra antigüedad del último backup creado/verificado por el procedimiento de backup; no sustituye los ejercicios periódicos de restore.
+En `standalone`, el manifest de backup se configura con
+`PV_BACKUP_MANIFEST_PATH`. En `kairoseth`, el runtime exige un
+`backupStatusProvider` inyectado que reporta el estado del backup MongoDB
+gestionado. En ambos casos, el estado observado no sustituye los ejercicios
+periódicos de restore.
 
 ## Umbrales v1
 
@@ -82,7 +86,9 @@ Códigos principales:
 - `VF_OBS_BACKUP_AGE_WARNING` — warning;
 - `VF_OBS_BACKUP_AGE_CRITICAL` — critical.
 
-Un snapshot sigue siendo generable aunque SQLite falle: en ese caso devuelve `database.ok=false`, `aeatOutbox.available=false` y alertas críticas sanitizadas en vez de depender de un 500 opaco.
+Un snapshot sigue siendo generable ante fallo de persistencia: devuelve
+`database.ok=false` y alertas críticas sanitizadas en vez de depender de un
+500 opaco. En Kairoseth, outbox y healthcheck son async/MongoDB-aware.
 
 ## Métricas mínimas futuras
 
@@ -146,3 +152,25 @@ Gate CI de este contrato:
 ```bash
 npm run ops:smoke
 ```
+
+
+## Perfil Kairoseth MongoDB
+
+El modo productivo se activa explícitamente:
+
+```js
+createPuenteRuntime({
+  persistenceMode: "kairoseth",
+  fiscalRecordStore,
+  integrationDataStore,
+  importSessionStore,
+  importBatchStore,
+  localAgentRegistryStore,
+  aeatOutboxStore,
+  backupStatusProvider,
+});
+```
+
+Este modo no crea SQLite. La ausencia de cualquier store obligatorio o del
+provider de backup impide arrancar. El endpoint operacional reporta
+`mode: "kairoseth-mongodb"`.
