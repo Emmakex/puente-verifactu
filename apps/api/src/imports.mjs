@@ -452,6 +452,7 @@ export class ImportSessionService {
               attempts,
             },
             now: this.clock(),
+            leaseExpiresAt: this.clock() + this.batchLeaseMs,
           });
         } catch (error) {
           await this.batchStore.updateRow({
@@ -469,6 +470,7 @@ export class ImportSessionService {
               attempts,
             },
             now: this.clock(),
+            leaseExpiresAt: this.clock() + this.batchLeaseMs,
           });
         }
       }
