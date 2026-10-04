@@ -11,7 +11,7 @@ El gate externo AEAT de Fase 3 quedó cerrado el 2026-10-03 con evidencia saniti
 3. Backup sin restore probado no cuenta como backup operativo.
 4. Un error técnico nunca debe crear una operación fiscal duplicada.
 5. Un resultado remoto incierto nunca se reenvía ciegamente: pasa a `reconciliation_required` hasta que una reconciliación explícita confirme si se puede completar, bloquear o reintentar.
-6. Single-node y HA/multi-réplica se tratan como perfiles distintos; no se atribuyen garantías distribuidas a SQLite.
+6. Standalone SQLite y Kairoseth Hostinger + MongoDB se tratan como perfiles distintos. El candidato productivo de este ciclo es `kairoseth-hostinger-mongodb`; HA/multi-réplica solo se exige si el deployment real usa múltiples réplicas escritoras.
 7. La evidencia de release no contiene certificados, claves privadas, tokens ni datos fiscales innecesarios.
 8. La observabilidad global nunca se expone a una credencial tenant/integración por defecto; requiere autoridad operacional explícita.
 9. Una política de backup implementada en código no acredita un entorno real hasta que ese entorno produzca evidencia válida de copia remota cifrada y restore drill.
@@ -124,7 +124,7 @@ productiva Kairoseth.
 
 ### 6.3 Observabilidad y alertas
 
-Estado: **implementado para el perfil single-node y protegido por CI**.
+Estado: **implementado para standalone y Kairoseth; protegido por CI**.
 
 Contrato del gate:
 
@@ -160,7 +160,7 @@ salud de persistencia y backup desde providers inyectados por Kairoseth.
 
 ### 6.4 Runbooks operativos
 
-Estado: **implementados para el perfil single-node y protegidos por `npm run check`**.
+Estado: **implementados para standalone y con requisitos productivos Kairoseth documentados/protegidos por `npm run check`**.
 
 Índice: `docs/runbooks/README.md`.
 
@@ -189,15 +189,15 @@ npm run runbooks:check
 
 El gate forma parte de `npm run check`, por lo que CI falla si desaparece un procedimiento, una guarda crítica o un comando operativo documentado.
 
-**Límite:** los runbooks actuales describen el perfil single-node. Cualquier deployment HA/multi-réplica deberá tener procedimientos específicos para su store compartido, locking y rate limiting antes de producción.
+**Límite:** SQLite mantiene sus runbooks de backup/restore como referencia standalone. El candidato productivo Kairoseth usa MongoDB y evidencia de backup/restore gestionada por infraestructura. Cualquier deployment HA/multi-réplica deberá añadir procedimientos específicos de coordinación antes de producción.
 
 ### 6.5 Perfil HA / multi-réplica
 
-Estado para el perfil actual `sqlite-single-node`: **no aplicable**.
+Estado para el candidato `kairoseth-hostinger-mongodb`: **no aplicable mientras el deployment real mantenga una sola réplica escritora**.
 
 No se añade complejidad distribuida únicamente para cerrar una casilla. Si un deployment futuro ejecuta múltiples réplicas escritoras de estado fiscal, entonces se convierte en gate obligatorio y deberá incorporar store transaccional compartido, locking/serialización distribuida, claims/leases y rate limiting compartidos. SQLite no se promociona como coordinación entre nodos.
 
-La decisión queda fijada en `config/release-gates.json` como `HA_MULTI_REPLICA = not_applicable` para el perfil actual.
+La decisión queda fijada en `config/release-gates.json` como `HA_MULTI_REPLICA = not_applicable` para el candidato actual. Si el topology productivo cambia a múltiples réplicas escritoras, este gate debe reabrirse antes del piloto.
 
 ### 6.6 Evidencia de release y verificación regulatoria
 
@@ -216,7 +216,8 @@ Contrato interno:
 - la evidencia referencia el checklist previo a la declaración responsable, pero no lo presenta como documento firmado ni como certificación AEAT.
 - la declaración responsable se genera desde un fichero privado del productor, fuera de Git, y el runtime la expone de manera autenticada en `GET /declaracion-responsable`;
 - un deployment candidato debe configurar `PV_RESPONSIBLE_DECLARATION_PATH`; si falta o el fichero no es legible, la ruta falla cerrada y no simula una declaración inexistente.
-- `npm run release:finalize` une la evidencia del commit candidato con la declaración privada mediante SHA-256, sin incorporar su contenido al bundle ni al repositorio.
+- `npm run release:finalize` une la evidencia del commit candidato con la declaración privada mediante SHA-256, sin incorporar su contenido al bundle ni al repositorio;
+- release evidence y bundle final fallan cerrado si el candidato no usa `deployment_profile=kairoseth-hostinger-mongodb`.
 
 Comandos:
 
@@ -243,7 +244,8 @@ El gate `npm run pilot:readiness` falla cerrado y exige, para el mismo commit ca
 - snapshot `/v1/ops/status` completamente `ok`, sin warnings ni critical;
 - cero `reconciliation_required`, cero `blocked` y cero leases expirados;
 - backup monitoring configurado y `ok`;
-- backup lifecycle real `ok` con copia remota/restore drill según la política del deployment;
+- snapshot operacional con `mode=kairoseth-mongodb`;
+- evidencia gestionada de backup MongoDB remoto/cifrado y restore drill sobre el mismo fingerprint, dentro de los límites de antigüedad de la política;
 - política de piloto con stop conditions obligatorias;
 - rollback `code-first-no-automatic-db-restore`.
 
@@ -251,7 +253,7 @@ El recibo `pilot_ready` es sanitizado, no incluye la declaración, tokens, NIF n
 
 La política de ejemplo comienza con una ventana interna conservadora de hasta 5 operaciones o 120 minutos. Es una decisión de ingeniería del proyecto, no un límite normativo.
 
-El piloto real sigue pendiente hasta que el productor apruebe expresamente la declaración responsable definitiva y la apertura de la ventana controlada.
+El piloto real sigue pendiente hasta que el productor apruebe expresamente la declaración responsable definitiva y la apertura de la ventana controlada. La aprobación privada no se automatiza ni se almacena en Git.
 
 ## Gate global de salida
 
