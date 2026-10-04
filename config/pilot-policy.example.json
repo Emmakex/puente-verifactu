@@ -2,14 +2,15 @@
   "schema_version": 1,
   "kind": "puente-verifactu-pilot-policy",
   "deployment_profile": "kairoseth-hostinger-mongodb",
+  "backup_evidence_kind": "kairoseth-managed-backup-readiness",
   "max_operations": 5,
   "max_duration_minutes": 120,
+  "max_backup_age_hours": 26,
+  "max_restore_drill_age_days": 90,
   "stop_on_warning": true,
   "stop_on_rejection": true,
   "stop_on_reconciliation_required": true,
   "stop_on_blocked": true,
   "require_verified_backup": true,
-  "rollback_mode": "code-first-no-automatic-db-restore",
-  "max_backup_age_hours": 26,
-  "max_restore_drill_age_days": 90
+  "rollback_mode": "code-first-no-automatic-db-restore"
 }
