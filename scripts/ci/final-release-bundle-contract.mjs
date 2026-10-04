@@ -12,7 +12,7 @@ const commit = '0123456789abcdef0123456789abcdef01234567';
 
 await writeFile(releasePath, JSON.stringify({
   source: { commit },
-  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'sqlite-single-node' },
+  product: { name: 'puente-verifactu', version: '0.1.0', deployment_profile: 'kairoseth-hostinger-mongodb' },
   release: { status: 'release_candidate', blockers: [] },
   artifacts: [
     { id: 'woocommerce-connector', filename: 'woo.zip', version: '0.2.0', sha256: 'a'.repeat(64) },
@@ -42,6 +42,7 @@ const bundle = await buildFinalReleaseBundle({
 
 assert.equal(bundle.status, 'candidate_evidence_complete');
 assert.equal(bundle.source_commit, commit);
+assert.equal(bundle.product.deployment_profile, 'kairoseth-hostinger-mongodb');
 assert.equal(bundle.release.status, 'release_candidate');
 assert.equal(bundle.release.blockers, 0);
 assert.equal(bundle.ci.result, 'success');
