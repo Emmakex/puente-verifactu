@@ -273,6 +273,7 @@ export class MongoKairosethImportBatchStore {
     row,
     patch,
     now,
+    leaseExpiresAt = null,
   }) {
     assertNoBinary(patch, 'rowPatch');
     const result = await this.collection.updateOne(
@@ -291,6 +292,9 @@ export class MongoKairosethImportBatchStore {
           'rows.$[target].error': patch.error ?? null,
           'rows.$[target].attempts': Number(patch.attempts ?? 0),
           'rows.$[target].updatedAt': Number(now),
+          ...(leaseExpiresAt == null
+            ? {}
+            : { 'lease.expiresAt': Number(leaseExpiresAt) }),
           updatedAt: Number(now),
         },
       },
