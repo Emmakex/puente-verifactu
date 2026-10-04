@@ -14,7 +14,7 @@ Hasta cerrar el producto y su piloto, el orden obligatorio es:
 
 Quedan **deferidos** durante este tramo: pricing, cuotas, checkout, billing self-service y nuevas mejoras CRM/comerciales. La foundation comercial ya existente no se elimina, pero no compite por prioridad con el cierre técnico.
 
-Camino crítico tras este cierre de persistencia: **gaps universales restantes de #55 → cierre #43 → piloto #53**. U10/#84 está cerrado en #90 y #91 se cierra con el runtime productivo MongoDB-only.
+Camino crítico actual: **alinear tooling de release/piloto con `kairoseth-hostinger-mongodb` → cierre #43 → piloto #53**. #55 está cerrado; U10/#84 cerró en #90 y #91 cerró con el runtime productivo MongoDB-only.
 
 ## Fase 0 — Foundation ✅
 
@@ -184,7 +184,7 @@ Camino crítico tras este cierre de persistencia: **gaps universales restantes d
 - [x] Workflow privado de declaración responsable v0.1.0: plantilla a)-l), generación fuera del repositorio, permisos `0600` y contrato CI.
 - [x] Acceso rápido e individualizado a la declaración responsable dentro del runtime mediante ruta autenticada y fichero privado de deployment.
 - [x] Bundle final sanitizado de candidato: liga evidencia de release + SHA-256 de la declaración privada sin incluir datos personales, y falla si commit/CI/versión/blockers no coinciden.
-- [ ] Cierre regulatorio final de una versión candidata: generar evidencia de release para el commit candidato final y preparar/aprobar la declaración responsable definitiva de esa versión.
+- [ ] Cierre regulatorio final de una versión candidata: congelar SHA con perfil `kairoseth-hostinger-mongodb`, generar evidencia de release para ese commit y preparar/aprobar la declaración responsable definitiva de esa versión.
 - [ ] Perfil HA/multi-réplica con store/locking/rate limiting compartidos **solo si el despliegue real lo requiere**; para el perfil `sqlite-single-node` actual figura como `not_applicable` y no bloquea el desarrollo interno.
 - [x] Tooling de readiness del piloto: bundle exacto + aprobación privada + backup lifecycle + snapshot operacional + stop conditions + recibo sanitizado.
 - [ ] Piloto progresivo con rollback y monitorización activa.
