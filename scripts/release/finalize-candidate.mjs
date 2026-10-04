@@ -78,6 +78,18 @@ function ensureDeclaration(content, version) {
     throw error;
   }
 
+  const requiredProfileMarkers = ['Kairoseth', 'Hostinger', 'MongoDB'];
+  if (
+    requiredProfileMarkers.some((marker) => !content.includes(marker))
+    || /SQLite single-node/i.test(content)
+  ) {
+    const error = new Error(
+      'Responsible declaration does not describe the Kairoseth Hostinger + MongoDB candidate profile',
+    );
+    error.code = 'VF_FINAL_RELEASE_DECLARATION_PROFILE_MISMATCH';
+    throw error;
+  }
+
   const placeholders = [
     '<NOMBRE', '<NIF>', '<DIRECCION', '<FECHA', '<LOCALIDAD',
     'NOMBRE Y APELLIDOS O RAZÓN SOCIAL', 'DIRECCIÓN POSTAL COMPLETA',
