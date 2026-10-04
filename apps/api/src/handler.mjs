@@ -20,6 +20,18 @@ function json(status, body, correlationId) {
   };
 }
 
+function raw(status, rawBody, contentType, correlationId, headers = {}) {
+  return {
+    status,
+    headers: {
+      'content-type': contentType,
+      'x-correlation-id': correlationId,
+      ...headers,
+    },
+    rawBody,
+  };
+}
+
 function normalizeError(error, correlationId) {
   const status = Number.isInteger(error?.status) ? error.status : 500;
   const code = error?.code ?? 'VF_API_INTERNAL';
@@ -553,19 +565,49 @@ export function createApiHandler({
       const importIssueMatch = path.match(/^\/v1\/imports\/(imp_[a-f0-9]{32})\/issue$/);
       if (method === 'POST' && importIssueMatch) {
         forbidIntegrationCredential(context, 'file import routes');
+        throw Object.assign(
+          new Error('Import must be explicitly confirmed before issuance'),
+          { code: 'VF_IMPORT_CONFIRMATION_REQUIRED', status: 409 },
+        );
+      }
+
+      const importBatchIssueMatch = path.match(
+        /^\/v1\/import-batches\/(bat_[a-f0-9]{32})\/issue$/,
+      );
+      if (method === 'POST' && importBatchIssueMatch) {
+        forbidIntegrationCredential(context, 'file import routes');
         if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
-        const batch = await imports.prepareBatch(importIssueMatch[1], context, parseJsonBody(request));
-        const results = [];
-        for (const row of batch.rows) {
-          const resource = await bridge.issue(row.intent, context, { idempotencyKey: row.idempotencyKey });
-          results.push({ row: row.row, recordId: resource.recordId, duplicate: Boolean(resource.duplicate), status: resource.status });
+        return json(
+          202,
+          await imports.issueBatch(importBatchIssueMatch[1], context, bridge),
+          correlationId,
+        );
+      }
+
+      const importBatchExportMatch = path.match(
+        /^\/v1\/import-batches\/(bat_[a-f0-9]{32})\/export$/,
+      );
+      if (method === 'GET' && importBatchExportMatch) {
+        forbidIntegrationCredential(context, 'file import routes');
+        if (!imports) throw Object.assign(new Error('Import service is unavailable'), { code: 'VF_IMPORT_SERVICE_UNAVAILABLE', status: 500 });
+        const accept = String(header(request.headers, 'accept') ?? '').toLowerCase();
+        if (accept.includes('text/csv')) {
+          const csv = await imports.exportBatch(importBatchExportMatch[1], context, 'csv');
+          return raw(
+            200,
+            csv,
+            'text/csv; charset=utf-8',
+            correlationId,
+            {
+              'content-disposition': `attachment; filename="${importBatchExportMatch[1]}.csv"`,
+            },
+          );
         }
-        return json(202, {
-          importId: batch.importId,
-          mode: 'batch-issue',
-          summary: { rows: results.length, issued: results.filter((item) => !item.duplicate).length, duplicates: results.filter((item) => item.duplicate).length },
-          rows: results,
-        }, correlationId);
+        return json(
+          200,
+          await imports.exportBatch(importBatchExportMatch[1], context, 'json'),
+          correlationId,
+        );
       }
 
       if (method === 'DELETE' && importMatch) {
