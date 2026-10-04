@@ -30,7 +30,7 @@ function assertSha40(value, name) {
   return value.toLowerCase();
 }
 
-function ensureDeclaration(content, version) {
+function ensureDeclaration(content, version, deploymentProfile) {
   const requiredSections = [...'abcdefghijkl'];
   for (const letter of requiredSections) {
     if (!content.includes(`**${letter}) `)) {
@@ -54,6 +54,18 @@ function ensureDeclaration(content, version) {
     const error = new Error('Responsible declaration still contains placeholders');
     error.code = 'VF_FINAL_RELEASE_DECLARATION_PLACEHOLDERS';
     throw error;
+  }
+
+  if (deploymentProfile === 'kairoseth-hostinger-mongodb') {
+    for (const marker of ['Kairoseth', 'Hostinger', 'MongoDB']) {
+      if (!content.includes(marker)) {
+        const error = new Error(
+          `Responsible declaration does not describe the ${deploymentProfile} profile (${marker} missing)`,
+        );
+        error.code = 'VF_FINAL_RELEASE_DECLARATION_PROFILE_MISMATCH';
+        throw error;
+      }
+    }
   }
 }
 
@@ -95,7 +107,18 @@ export async function buildFinalReleaseBundle({
   }
 
   const version = required(release?.product?.version, 'release.product.version');
-  ensureDeclaration(declaration, version);
+  const deploymentProfile = required(
+    release?.product?.deployment_profile,
+    'release.product.deployment_profile',
+  );
+  if (deploymentProfile !== 'kairoseth-hostinger-mongodb') {
+    const error = new Error(
+      'Final release candidate must target kairoseth-hostinger-mongodb',
+    );
+    error.code = 'VF_FINAL_RELEASE_PROFILE_INVALID';
+    throw error;
+  }
+  ensureDeclaration(declaration, version, deploymentProfile);
 
   const bundle = {
     schema_version: 1,
