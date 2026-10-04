@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 const PROFILE_RE = /^int_[a-f0-9]{32}$/;
 const ONBOARDING_RE = /^onb_[a-f0-9]{32}$/;
 const ID_RE = /^[A-Za-z0-9._:-]{1,128}$/;
-const AUTH_CHANNELS = new Set(['rest_api', 'webhook']);
+const AUTH_CHANNELS = new Set(['native_plugin', 'rest_api', 'webhook']);
 
 function fail(code, message, status = 400) {
   return Object.assign(new Error(message), { code, status });

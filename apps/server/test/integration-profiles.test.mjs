@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { hashBearerToken } from '../src/auth.mjs';
 import { createPuenteRuntime } from '../src/runtime.mjs';
 import { KairosethIntegrationProfileControlPlane } from '../src/integration-control-plane.mjs';
+import { createKairosethAuthBridge } from '../src/kairoseth-auth-bridge.mjs';
 import {
   MongoKairosethIntegrationProfileStore,
 } from '../../../packages/kairoseth-control-plane/src/mongodb-integration-profiles.mjs';
@@ -749,4 +750,47 @@ test('Kairoseth Auth provisions, rotates and revokes dynamic API credentials wit
   } finally {
     await runtime.close();
   }
+});
+
+
+test('native connector profiles can provision Kairoseth data-plane credentials', async () => {
+  const store = new MemoryIntegrationProfileStore();
+  const profileId = 'int_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+  await store.create({
+    profileId,
+    organizationId: 'org-native',
+    installationId: 'int-native-01',
+    onboardingProfileId: null,
+    channel: 'native_plugin',
+    adapter: 'woocommerce',
+    sourceType: 'native',
+    deploymentMode: 'platform-plugin',
+    status: 'active',
+    mappingProfile: mapping(profileId),
+    webhookSecretRef: null,
+    now: 1,
+  });
+
+  const provider = new FakeKairosethAuthProvider();
+  const control = new KairosethIntegrationProfileControlPlane({
+    store,
+    authBridge: createKairosethAuthBridge(provider),
+  });
+
+  const provisioned = await control.provisionCredential(
+    { organizationId: 'org-native' },
+    profileId,
+    {},
+  );
+
+  assert.equal(provisioned.profile.authBinding.status, 'active');
+  assert.equal(provisioned.profile.authBinding.provider, 'kairoseth');
+  assert.match(provisioned.credential.token, /^kairoseth_data_plane_/);
+  assert.equal(provisioned.credential.sourceSystem, 'woocommerce');
+  assert.equal(provisioned.credential.profileId, profileId);
+  assert.equal(provisioned.credentialShownOnce, true);
+
+  const persisted = await store.getInternal('org-native', profileId);
+  assert.equal(persisted.authBinding.credentialId, provisioned.credential.credentialId);
+  assert.equal(JSON.stringify(persisted).includes(provisioned.credential.token), false);
 });

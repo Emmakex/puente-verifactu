@@ -56,6 +56,8 @@ El navegador no procesa la lógica fiscal ni XLSX.
 
 WooCommerce, PrestaShop y futuros ERP/CRM reutilizan el SDK y el mismo contrato; ningún conector implementa lógica fiscal propia. Cada conector puede comprobarse con `packages/connector-contract-suite`.
 
+En Kairoseth, un `IntegrationProfile` nativo puede recibir una credencial data-plane dinámica igual que la API universal. El token se muestra una sola vez, queda ligado a organización + instalación + perfil + adaptador y nunca se persiste en claro.
+
 ## API v1
 
 - `POST /v1/imports/inspect`
