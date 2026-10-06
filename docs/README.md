@@ -29,6 +29,10 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `compliance.md` | Marco normativo, obligaciones y checklist de release |
 | `release-evidence.md` | Manifest reproducible, blockers, revisión regulatoria y fingerprints de release |
 | `release/declaracion-responsable-template.md` | Checklist interno previo a la declaración responsable definitiva de una versión |
+| `releases/v0.1.0.md` | Release notes técnicas post-piloto de v0.1.0 |
+| `releases/v0.1.0-changelog.md` | Changelog versionado y congelado de v0.1.0 |
+| `releases/v0.1.0-distribution-runbook.md` | Instalación, onboarding, rollback, soporte y distribución controlada de v0.1.0 |
+| `evidence/distribution-smoke-v0.1.0.md` | Evidencia sanitizada de instalación/smoke de los canales soportados |
 | `api-contract.md` | Modelo canónico, idempotencia y contratos |
 | `connectors.md` | Contrato de adaptadores y estrategia por plataforma |
 | `security.md` | Credenciales, tenants, secretos, amenazas y privacidad |
