@@ -1,8 +1,8 @@
 # Faceta comercial de Puente VeriFactu en Kairoseth
 
-## Patrón copiado de Puente DeCA → Kairoseth Cargo
+## 1. Separación de identidades
 
-Puente VeriFactu adopta el mismo patrón de separación entre **identidad técnica** y **faceta comercial** que ya usamos en DeCA.
+Puente VeriFactu mantiene una separación estricta entre **motor técnico** y **faceta comercial**.
 
 ### Identidad técnica
 
@@ -10,19 +10,11 @@ Puente VeriFactu adopta el mismo patrón de separación entre **identidad técni
 - slug técnico: `puente-verifactu`;
 - repositorio: `Emmakex/puente-verifactu`;
 - catálogo técnico: `extensions / puente-verifactu`;
-- responsabilidad: core fiscal, AEAT, contratos, adapters, reconciliación, QR/presentation y evidencias.
+- responsabilidad: core fiscal, AEAT, contratos, adapters, reconciliación, QR/presentation, evidencias, releases y conectores.
 
 ### Faceta comercial
 
-La venta y descubrimiento en Kairoseth deben usar una **marca comercial propia**, igual que:
-
-```text
-Puente DeCA      -> Kairoseth Cargo
-puente-deca      -> /products/kairoseth-cargo
-motor técnico    -> faceta comercial
-```
-
-Para VeriFactu la arquitectura queda preparada así:
+La venta y el descubrimiento en Kairoseth utilizan **Kairoseth Fiscal**.
 
 ```text
 Puente VeriFactu
@@ -32,34 +24,65 @@ Kairoseth Platform
 Extensions
       ↓
 Kairoseth Fiscal
-      ├── Fiscal Web
-      ├── Fiscal Connect
-      └── Fiscal API
 ```
 
-El nombre comercial seleccionado es **Kairoseth Fiscal** y su slug canónico es `kairoseth-fiscal`. **No se renombra el motor técnico ni el repositorio**. La superficie comercial permanece en acceso controlado mientras se completa release/piloto y se aprueban pricing, entitlements y billing.
+El motor técnico no se renombra. La marca comercial puede evolucionar sin cambiar `product_id=puente-verifactu`, contratos, APIs ni evidencias.
 
-## Estado comercial
+## 2. Estado actual
+
+### Producto técnico
+
+- release publicada: `v0.1.0`;
+- runtime probado: `fe4c6360a2b25d44f5044e202f7d2bc2faa626a7`;
+- piloto AEAT TEST: 5/5 accepted;
+- distribución controlada: validada;
+- WooCommerce `0.3.0`: publicado;
+- PrestaShop `0.5.0`: publicado;
+- Local Agent `0.1.0`: publicado;
+- AEAT producción: **deshabilitada**.
+
+### Producto comercial
 
 - nombre: **Kairoseth Fiscal**;
 - slug: `kairoseth-fiscal`;
-- posicionamiento: **VeriFactu para cualquier software**;
-- promesa principal: **Conecta tu software con VeriFactu sin cambiar de sistema**;
-- disponibilidad: acceso controlado / release candidate;
-- billing self-service: deshabilitado;
-- prioridad vigente: completar producto, candidato y piloto antes de reabrir pricing/billing.
+- URL canónica: `/products/kairoseth-fiscal`;
+- posicionamiento: **VeriFactu sin cambiar tu software**;
+- promesa: **adaptamos el sistema que ya utiliza el cliente en lugar de obligarle a migrar**;
+- fase actual: Fase 8 — comercialización;
+- pricing definitivo: pendiente de unit economics;
+- billing/checkout: pendiente;
+- producción AEAT: fuera del scope comercial hasta gate independiente.
 
-## Gama comercial
+## 3. Posicionamiento
 
-Se replica el patrón de Kairoseth Cargo:
+Kairoseth Fiscal no debe competir como:
+
+- otro ERP;
+- otro programa de facturación generalista;
+- una API commodity de bajo precio;
+- una solución que obliga a sustituir el sistema actual.
+
+Debe posicionarse como **capa fiscal/adaptadora multi-sistema**.
+
+Mensaje central:
+
+> **No cambies tu sistema. Kairoseth Fiscal adapta lo que ya usas a VeriFactu y a la evolución de la facturación electrónica.**
+
+## 4. Gama comercial
+
+Los modos comerciales son distintas formas de consumir el mismo producto.
 
 ### Fiscal Web
 
-Para autónomos/pymes que trabajan manualmente o con Excel/CSV.
+Para autónomos y pymes con:
 
-Incluye:
+- Excel/CSV;
+- carga manual;
+- flujo sencillo sin proyecto de integración.
+
+Incluye conceptualmente:
+
 - onboarding visual;
-- carga CSV/XLSX;
 - mapping asistido;
 - preflight;
 - estado y errores comprensibles;
@@ -67,87 +90,211 @@ Incluye:
 
 ### Fiscal Connect
 
-Para negocios con ecommerce, ERP o CRM conectable.
+Para:
 
-Incluye:
 - WooCommerce;
 - PrestaShop;
-- futuros conectores nativos;
-- webhook;
-- Local Agent / DB / SFTP cuando corresponda.
+- ERP/CRM conectables;
+- conectores/adapters estándar.
+
+Incluye conceptualmente:
+
+- integración nativa;
+- instalación asistida;
+- sincronización;
+- estado/reintentos;
+- mantenimiento de conector.
 
 ### Fiscal API
 
-Para ERP/TMS/CRM/software propio y partners técnicos.
+Para:
 
-Incluye:
+- SaaS;
+- software propio;
+- integradores;
+- equipos técnicos.
+
+Incluye conceptualmente:
+
 - REST API;
-- SDK;
+- starter kits/SDK;
+- webhooks;
 - MappingProfile;
-- Connector Contract Suite;
-- Universal Adapter Manifest;
-- integración server-to-server.
+- contrato estable de integración;
+- clasificación fiscal sensible server-side.
 
-Los tres son **formas comerciales del mismo producto/extensión**, no motores distintos.
+### Fiscal Custom
 
-## Regla de naming
+Para:
 
-La faceta comercial puede cambiar de nombre sin afectar:
+- ERP/CRM complejos;
+- software antiguo/local;
+- TPV;
+- bases de datos;
+- SFTP/watch-folder;
+- integraciones especiales.
 
-- `product_id=puente-verifactu`;
-- repositorio;
-- API;
-- contratos;
-- evidencias;
-- conectores;
-- migraciones.
+Incluye conceptualmente:
 
-El nombre comercial solo afecta a:
-- catálogo/landing;
-- SEO;
-- copy;
-- navegación;
-- CTAs;
-- packaging comercial.
+- diagnóstico técnico;
+- implantación gestionada;
+- Local Agent cuando aplique;
+- soporte y mantenimiento específico.
 
-## URL y redirección
+`Local Agent` no se presenta como producto principal al usuario final; es una capacidad técnica detrás de la solución para software legacy/local.
 
-Se mantiene el patrón DeCA:
+## 5. Arquitectura pública en kairoseth.com
+
+### Hub
 
 ```text
-/products/kairoseth-fiscal       -> URL canónica comercial
-/products/puente-verifactu        -> redirección permanente a la comercial
+/products/kairoseth-fiscal
 ```
 
-La redirección ya forma parte de Kairoseth Platform. `puente-verifactu` continúa siendo el identificador técnico y `kairoseth-fiscal` la URL pública/canónica.
+### Landings existentes
 
-## SEO
+```text
+/products/kairoseth-fiscal/woocommerce
+/products/kairoseth-fiscal/prestashop
+/products/kairoseth-fiscal/erp
+/products/kairoseth-fiscal/api
+/products/kairoseth-fiscal/excel
+/products/kairoseth-fiscal/software-propio
+/products/kairoseth-fiscal/software-antiguo
+```
 
-Aunque la marca comercial sea distinta, la página debe mantener visibles términos como:
+### Superficies comerciales previstas
 
-- VeriFactu / VERI*FACTU;
-- software VeriFactu;
-- conectar ERP con VeriFactu;
-- WooCommerce VeriFactu;
-- PrestaShop VeriFactu;
-- Excel VeriFactu;
+```text
+/products/kairoseth-fiscal/precios
+/products/kairoseth-fiscal/diagnostico
+/products/kairoseth-fiscal/partners
+/products/kairoseth-fiscal/faq
+```
+
+No se debe duplicar esta familia bajo una segunda raíz pública.
+
+## 6. Funnel
+
+```text
+SEO / Ads / Partner / Referencia
+            ↓
+Landing por intención
+            ↓
+Diagnóstico
+            ↓
+Preflight / prueba TEST cuando aplique
+            ↓
+Propuesta
+            ↓
+Implantación
+            ↓
+Validación
+            ↓
+Soporte recurrente
+```
+
+CTA transversal recomendado: **Comprobar mi sistema**.
+
+## 7. Pricing
+
+Modelo recomendado para estudiar:
+
+- setup/implantación;
+- cuota recurrente;
+- diferenciación por complejidad/canal/soporte;
+- pricing partner separado;
+- API y Custom con margen suficiente para integración y soporte.
+
+No se fija aquí ningún importe. Los precios solo se publicarán después de unit economics y definición de entitlements.
+
+## 8. Partners
+
+Canales prioritarios:
+
+- agencias web;
+- integradores ERP/desarrolladores;
+- asesorías/gestorías.
+
+Objetivo: permitir distribución multi-cliente sin que cada partner reconstruya la capa fiscal.
+
+Aspectos a definir en Fase 8:
+
+- referral/margen;
+- ownership del cliente;
+- soporte L1/L2;
+- onboarding;
+- control de versiones;
+- branding/white-label parcial cuando aplique.
+
+## 9. SEO/GEO
+
+La marca Kairoseth Fiscal no debe ocultar la intención de búsqueda.
+
+Clusters transaccionales prioritarios:
+
+- VeriFactu WooCommerce;
+- VeriFactu PrestaShop;
 - API VeriFactu;
-- adaptación VeriFactu para software propio.
+- VeriFactu ERP;
+- VeriFactu Excel;
+- software VeriFactu;
+- adaptar software a VeriFactu.
 
-La marca no debe ocultar la intención de búsqueda regulatoria, del mismo modo que Kairoseth Cargo conserva DeCA en título, descriptor y contenidos.
+La superficie editorial debe cubrir cambios/plazos regulatorios, autónomos, pymes, factura electrónica y guías por plataforma, siempre con revisión de fuente/fecha.
 
-## Frontera técnica/comercial
+Cada landing debe mantener canonical, metadata, FAQ/schema cuando corresponda, breadcrumbs, enlazado interno y claims verificables.
 
-```text
-Kairoseth Platform
-  auth / organizaciones / RBAC / billing / catálogo / workspace
-                     |
-                     v
-        faceta comercial del producto
-                     |
-                     v
-             Puente VeriFactu
-       runtime / core / adapters / AEAT
-```
+## 10. Regla de seguridad comercial
 
-No se crea un segundo login, panel de cliente o sistema de organizaciones dentro del motor.
+La faceta comercial nunca debe:
+
+- activar producción AEAT;
+- afirmar certificación oficial inexistente;
+- pedir PFX/passphrase o secretos en formularios públicos;
+- prometer compatibilidad no validada;
+- convertir una fecha regulatoria provisional en claim evergreen definitivo.
+
+Billing concede entitlement comercial; la activación fiscal sigue siendo un gate técnico/regulatorio separado.
+
+## 11. Fuente de verdad y documentación de implementación
+
+### Motor/producto
+
+Este repositorio (`Emmakex/puente-verifactu`) conserva la fuente de verdad de:
+
+- producto técnico;
+- contratos;
+- release;
+- adapters;
+- política fiscal;
+- alcance de la faceta comercial.
+
+### Web/plataforma
+
+`Emmakex/kairoseth-platform` conserva la fuente de verdad de implementación para:
+
+- rutas públicas;
+- UX;
+- navegación;
+- funnel;
+- diagnóstico;
+- pricing UI;
+- partners;
+- analytics;
+- billing/entitlements.
+
+Documentos de referencia en Kairoseth Platform:
+
+- `docs/KAIROSETH_FISCAL_COMMERCIAL_ARCHITECTURE_V1.md`;
+- `docs/KAIROSETH_FISCAL_WEB_ROADMAP_V1.md`.
+
+Seguimiento de Fase 8: issue `#108` de Puente VeriFactu.
+
+## 12. Regla de cambio
+
+Cualquier cambio material en naming, packaging, rutas, funnel, pricing, partners, claims o modelo de distribución debe actualizar primero o en el mismo PR:
+
+1. esta faceta comercial;
+2. la arquitectura comercial de Kairoseth Platform;
+3. el issue de Fase 8 cuando cambie el roadmap.
