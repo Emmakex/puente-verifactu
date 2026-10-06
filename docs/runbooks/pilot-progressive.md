@@ -102,7 +102,7 @@ operational_readiness.blocked: 0
 
 ## Apertura de la ventana en Kairoseth Platform
 
-Obtener `pilot_ready` no abre por sí solo la ventana. Antes de descubrir perfiles o emitir una credencial de data-plane, Kairoseth Platform debe superar un **preflight autenticado y de solo lectura**.
+Obtener `pilot_ready` no abre por sí solo la ventana. Antes de descubrir perfiles o ejecutar cualquier operación fiscal, Kairoseth Platform debe superar un **preflight autenticado y de solo lectura**.
 
 La implementación operativa vive en Kairoseth Platform y usa:
 
@@ -134,15 +134,58 @@ Además:
 - falla cerrado si `PV_AEAT_ENVIRONMENT` no es `test`;
 - falla cerrado si `PV_AEAT_ALLOW_PRODUCTION=YES`.
 
-Solo después de un preflight `ok` se continúa con esta secuencia:
+Solo después de un preflight `ok` se continúa con esta secuencia común:
 
 1. obtener el `organizationId` real desde el `pilot-context` autorizado de Kairoseth Platform; nunca inventarlo ni consultarlo directamente en MongoDB;
 2. ejecutar `list` para descubrir IntegrationProfiles sanitizados;
-3. seleccionar un `profileId` real;
-4. ejecutar `provision` si `credentialConfigured=false`, o `rotate` de forma explícita si ya existe una credencial activa;
-5. guardar el token one-shot fuera del repositorio con permisos `0600`, sin imprimirlo ni copiarlo a chat/logs;
-6. capturar un snapshot operacional fresco inmediatamente antes de la primera operación;
-7. iniciar la operación **1/5** únicamente en AEAT test.
+3. seleccionar un `profileId` real y comprobar `channel`, `adapter`, `status` y `credentialApplicable`;
+4. capturar backup gestionado, snapshot operacional y `pilot:readiness` frescos inmediatamente antes de la primera operación;
+5. iniciar la operación **1/5** únicamente en AEAT test y detenerse al primer stop condition.
+
+### Perfil con credencial data-plane
+
+Solo los canales `native_plugin`, `rest_api` y `webhook` usan credencial bearer del IntegrationProfile.
+
+Para esos canales:
+
+1. ejecutar `provision` si `credentialConfigured=false`, o `rotate` de forma explícita si ya existe una credencial activa;
+2. guardar el token one-shot fuera del repositorio con permisos `0600`, sin imprimirlo ni copiarlo a chat/logs;
+3. capturar snapshot/readiness frescos antes de la operación 1/5.
+
+### Perfil `manual/manual-capture`
+
+El perfil manual **no usa credencial data-plane**. El estado correcto es:
+
+```text
+credentialApplicable: false
+credentialConfigured: false
+```
+
+`credentialConfigured=false` no indica una credencial pendiente. `provision`, `rotate` y `revoke` no aplican a este canal; el motor falla cerrado con `VF_INTEGRATION_CREDENTIAL_NOT_APPLICABLE` si se intentan.
+
+El flujo controlado de Kairoseth Platform es:
+
+```text
+preflight Kairoseth
+  -> pilot-context
+  -> list
+  -> ensure-manual (solo si no existe)
+  -> list y verificar credentialApplicable=false
+  -> backup + snapshot + pilot:readiness frescos
+  -> POST pilot-manual action=preflight
+  -> revisión humana del preflight
+  -> POST pilot-manual action=issue con confirmIssue=true
+  -> operación 1/5
+  -> snapshot + reconciliación
+```
+
+La ruta temporal de sesión es:
+
+```text
+POST /api/organizations/<slug>/products/puente-verifactu/pilot-manual
+```
+
+`action=preflight` es dry-run y no crea un registro fiscal ni encola AEAT. `action=issue` exige `confirmIssue=true`, repite el preflight server-side y solo continúa si permanece limpio. Kairoseth deriva `organizationId`, `installationId` y `sourceSystem` desde la sesión/workspace y el IntegrationProfile controlado; el cliente no puede fijarlos.
 
 Si el preflight falla, la ventana **no se abre**. Si existe cualquier warning, rechazo AEAT, reconciliación requerida, bloqueo, lease expirado, pérdida de disponibilidad MongoDB/outbox o backup no `ok`, se detiene el piloto y se aplica la política de rollback/revisión.
 
@@ -152,7 +195,7 @@ Solo después de `pilot_ready` y del preflight autenticado `ok` se abre la venta
 
 Al cerrar la ventana:
 
-1. revocar la credencial temporal del IntegrationProfile usado;
+1. si el canal usado tiene `credentialApplicable=true`, revocar la credencial temporal del IntegrationProfile; para `manual`, no existe credencial que revocar;
 2. confirmar snapshot operacional limpio;
 3. volver a `PV_FISCAL_PILOT_CONTROL_ENABLED=NO`;
 4. comprobar que el control temporal vuelve a fallar cerrado;
