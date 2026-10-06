@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "puente-verifactu-artifact-validation",
+  "status": "ok",
+  "source_commit": "fe4c6360a2b25d44f5044e202f7d2bc2faa626a7",
+  "artifacts": {
+    "woocommerce": {
+      "version": "0.3.0",
+      "files": 13,
+      "sha256": "f034e1f6866f331fa7ce11983a751a0f6c4c15397d4793b10b2226edc96eba1f",
+      "reproduced": true
+    },
+    "prestashop": {
+      "version": "0.5.0",
+      "files": 18,
+      "directories": 3,
+      "sha256": "c734cc3b73e495de5538b6ee43f17ef36a3debbb1efd988704af784af96098eb",
+      "reproduced": true
+    },
+    "local_agent": {
+      "version": "0.1.0",
+      "files": 63,
+      "content_fingerprint": "67f5616a45176f5f69dd23692091e4da808cda77d18e0ba5c8bf5151856bfa9a",
+      "sha256": "d9c415dead492bf7cfec12e12b29561b88f9cda2802df638bbb8bec23c101f21",
+      "reproduced": true
+    }
+  },
+  "matches_candidate_evidence": true,
+  "contains_personal_data": false,
+  "contains_secrets": false,
+  "contains_fiscal_data": false
+}
