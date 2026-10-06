@@ -20,7 +20,6 @@ La aprobación privada no es una firma electrónica de la declaración ni sustit
 
 Campos obligatorios de la política: `deployment_profile=kairoseth-hostinger-mongodb`, `backup_evidence_kind=kairoseth-managed-backup-readiness`, `stop_on_warning=true`, `stop_on_rejection=true`, `stop_on_reconciliation_required=true`, `stop_on_blocked=true` y `rollback_mode=code-first-no-automatic-db-restore`.
 
-
 `config/pilot-policy.example.json` propone una primera ventana conservadora de hasta 5 operaciones o 120 minutos, backup con antigüedad máxima de 26 horas y restore drill con antigüedad máxima de 90 días. Son límites internos de ingeniería, no límites establecidos por AEAT.
 
 Cualquier warning, rechazo, reconciliación pendiente o bloqueo obliga a detener la ventana y revisar antes de continuar.
@@ -101,4 +100,62 @@ operational_readiness.reconciliation_required: 0
 operational_readiness.blocked: 0
 ```
 
-Solo después de ese resultado se abre la ventana controlada. Durante la ventana se vigila `/v1/ops/status` y se detiene al primer stop condition.
+## Apertura de la ventana en Kairoseth Platform
+
+Obtener `pilot_ready` no abre por sí solo la ventana. Antes de descubrir perfiles o emitir una credencial de data-plane, Kairoseth Platform debe superar un **preflight autenticado y de solo lectura**.
+
+La implementación operativa vive en Kairoseth Platform y usa:
+
+```bash
+node scripts/kairoseth-fiscal-pilot-control.mjs preflight
+```
+
+El comando requiere `OPERATIONS_HEALTH_SECRET` únicamente como variable de entorno privada local. No copiar ese secreto a Git, issues, logs, tickets o chat.
+
+El preflight solo es válido si el runtime efectivo confirma simultáneamente:
+
+```text
+environment: test
+pilotControlEnabled: true
+productionAllowed: false
+containsSecrets: false
+containsFiscalData: false
+```
+
+Además:
+
+- no requiere `organizationId` ni `profileId`;
+- responde antes de inicializar el control plane;
+- no consulta MongoDB;
+- no lista IntegrationProfiles;
+- no lee, crea, rota ni revoca credenciales;
+- no ejecuta ninguna operación fiscal;
+- falla cerrado si `PV_FISCAL_PILOT_CONTROL_ENABLED` no es `YES`;
+- falla cerrado si `PV_AEAT_ENVIRONMENT` no es `test`;
+- falla cerrado si `PV_AEAT_ALLOW_PRODUCTION=YES`.
+
+Solo después de un preflight `ok` se continúa con esta secuencia:
+
+1. obtener el `organizationId` real desde el `pilot-context` autorizado de Kairoseth Platform; nunca inventarlo ni consultarlo directamente en MongoDB;
+2. ejecutar `list` para descubrir IntegrationProfiles sanitizados;
+3. seleccionar un `profileId` real;
+4. ejecutar `provision` si `credentialConfigured=false`, o `rotate` de forma explícita si ya existe una credencial activa;
+5. guardar el token one-shot fuera del repositorio con permisos `0600`, sin imprimirlo ni copiarlo a chat/logs;
+6. capturar un snapshot operacional fresco inmediatamente antes de la primera operación;
+7. iniciar la operación **1/5** únicamente en AEAT test.
+
+Si el preflight falla, la ventana **no se abre**. Si existe cualquier warning, rechazo AEAT, reconciliación requerida, bloqueo, lease expirado, pérdida de disponibilidad MongoDB/outbox o backup no `ok`, se detiene el piloto y se aplica la política de rollback/revisión.
+
+## Durante y al cerrar la ventana
+
+Solo después de `pilot_ready` y del preflight autenticado `ok` se abre la ventana controlada. Durante la ventana se vigila `/v1/ops/status` y se detiene al primer stop condition.
+
+Al cerrar la ventana:
+
+1. revocar la credencial temporal del IntegrationProfile usado;
+2. confirmar snapshot operacional limpio;
+3. volver a `PV_FISCAL_PILOT_CONTROL_ENABLED=NO`;
+4. comprobar que el control temporal vuelve a fallar cerrado;
+5. conservar en Git únicamente evidencia sanitizada.
+
+El candidato fiscal permanece ligado al SHA aprobado; estas instrucciones operativas no cambian el candidato ni habilitan AEAT producción.
