@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { constants as zlibConstants, deflateRawSync } from 'node:zlib';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const PLUGIN_ROOT = join(REPO_ROOT, 'connectors/woocommerce');
@@ -53,7 +54,7 @@ export async function releaseEntries() {
   return selected;
 }
 
-export function createStoredZip(entries) {
+export function createDeflatedZip(entries) {
   const locals = [];
   const centrals = [];
   let offset = 0;
@@ -62,32 +63,36 @@ export function createStoredZip(entries) {
   for (const entry of entries) {
     const nameBuffer = Buffer.from(entry.name, 'utf8');
     const data = Buffer.from(entry.data);
+    const compressed = deflateRawSync(data, {
+      level: 9,
+      strategy: zlibConstants.Z_FIXED,
+    });
     const crc = crc32(data);
 
     const local = Buffer.alloc(30);
     local.writeUInt32LE(0x04034b50, 0);
     local.writeUInt16LE(20, 4);
     local.writeUInt16LE(0x0800, 6);
-    local.writeUInt16LE(0, 8);
+    local.writeUInt16LE(8, 8); // DEFLATE: keep PHP source out of the raw multipart request body.
     local.writeUInt16LE(0, 10);
     local.writeUInt16LE(dosDate, 12);
     local.writeUInt32LE(crc, 14);
-    local.writeUInt32LE(data.length, 18);
+    local.writeUInt32LE(compressed.length, 18);
     local.writeUInt32LE(data.length, 22);
     local.writeUInt16LE(nameBuffer.length, 26);
     local.writeUInt16LE(0, 28);
-    locals.push(local, nameBuffer, data);
+    locals.push(local, nameBuffer, compressed);
 
     const central = Buffer.alloc(46);
     central.writeUInt32LE(0x02014b50, 0);
     central.writeUInt16LE(0x0314, 4);
     central.writeUInt16LE(20, 6);
     central.writeUInt16LE(0x0800, 8);
-    central.writeUInt16LE(0, 10);
+    central.writeUInt16LE(8, 10);
     central.writeUInt16LE(0, 12);
     central.writeUInt16LE(dosDate, 14);
     central.writeUInt32LE(crc, 16);
-    central.writeUInt32LE(data.length, 20);
+    central.writeUInt32LE(compressed.length, 20);
     central.writeUInt32LE(data.length, 24);
     central.writeUInt16LE(nameBuffer.length, 28);
     central.writeUInt16LE(0, 30);
@@ -98,7 +103,7 @@ export function createStoredZip(entries) {
     central.writeUInt32LE(offset, 42);
     centrals.push(central, nameBuffer);
 
-    offset += local.length + nameBuffer.length + data.length;
+    offset += local.length + nameBuffer.length + compressed.length;
   }
 
   const localBuffer = Buffer.concat(locals);
@@ -122,7 +127,7 @@ export async function pluginVersion() {
 export async function buildWooCommerceZip() {
   const entries = await releaseEntries();
   if (entries.length === 0) throw new Error('No WooCommerce release files selected');
-  return { entries, buffer: createStoredZip(entries), version: await pluginVersion() };
+  return { entries, buffer: createDeflatedZip(entries), version: await pluginVersion() };
 }
 
 function argValue(flag) {
