@@ -1,0 +1,44 @@
+name: WooCommerce Wordfence-safe package
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'connectors/woocommerce/**'
+      - 'scripts/release/package-woocommerce.mjs'
+      - 'scripts/ci/woocommerce-package-check.mjs'
+      - '.github/workflows/woocommerce-wordfence-package.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Validate reproducible DEFLATE package
+        run: npm run woo:package:check
+
+      - name: Build installable WooCommerce ZIP
+        run: npm run woo:package -- --output dist/puente-verifactu-woocommerce-0.3.0.zip
+
+      - name: Inspect ZIP compression
+        run: unzip -lv dist/puente-verifactu-woocommerce-0.3.0.zip
+
+      - name: Upload installable plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: puente-verifactu-woocommerce-0.3.0-wordfence-safe
+          path: dist/puente-verifactu-woocommerce-0.3.0.zip
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
