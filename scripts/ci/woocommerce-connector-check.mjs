@@ -45,7 +45,7 @@ if (!bootstrap.includes('WC tested up to: 11.2')) failures.push({ code: 'WOO_TES
 if (!bootstrap.includes('Requires PHP: 7.4')) failures.push({ code: 'WOO_PHP_CONTRACT_MISSING', expected: '7.4' });
 if (!bootstrap.includes('Version: 0.4.0')) failures.push({ code: 'WOO_VERSION_CONTRACT_MISSING', expected: '0.4.0' });
 if (!bootstrap.includes('load_plugin_textdomain')) failures.push({ code: 'WOO_I18N_LOAD_MISSING' });
-if (!bootstrap.includes('Plugin Name: Kairoseth Fiscal for WooCommerce')) failures.push({ code: 'WOO_PRODUCT_NAME_MISSING' });
+if (!bootstrap.includes('Plugin Name: Kairoseth Fiscal')) failures.push({ code: 'WOO_PRODUCT_NAME_MISSING', expected: 'Kairoseth Fiscal' });
 
 const forbiddenStorage = [
   /\$wpdb\b/,
