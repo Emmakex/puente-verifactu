@@ -34,8 +34,8 @@ final class PV_Woo_Settings {
     public static function menu() {
         add_submenu_page(
             'woocommerce',
-            'Kairoseth Fiscal',
-            'Kairoseth Fiscal',
+            'VeriFactu Software',
+            'VeriFactu Software',
             'manage_woocommerce',
             'puente-verifactu',
             array( __CLASS__, 'render' )
@@ -130,7 +130,7 @@ final class PV_Woo_Settings {
         $settings['refund_profile_id'] = $parsed['refund_profile_id'];
         update_option( self::OPTION, $settings, false );
 
-        add_settings_error( 'pv_woo', 'connected', self::ui( 'Kairoseth Fiscal connection settings installed. Run a preflight on a test order before enabling automatic sending.', 'Kairoseth Fiscal ha quedado configurado. Haz un preflight con un pedido de prueba antes de activar el envío automático.' ), 'updated' );
+        add_settings_error( 'pv_woo', 'connected', self::ui( 'VeriFactu Software connection settings installed. Run a preflight on a test order before enabling automatic sending.', 'VeriFactu Software ha quedado configurado. Haz un preflight con un pedido de prueba antes de activar el envío automático.' ), 'updated' );
         set_transient( 'settings_errors', get_settings_errors(), 30 );
         self::redirect();
     }
@@ -150,7 +150,7 @@ final class PV_Woo_Settings {
         update_option( self::OPTION, $settings, false );
         PV_Woo_Secret_Store::save( '' );
 
-        add_settings_error( 'pv_woo', 'disconnected', self::ui( 'Kairoseth Fiscal was disconnected from this store.', 'Kairoseth Fiscal se ha desconectado de esta tienda.' ), 'updated' );
+        add_settings_error( 'pv_woo', 'disconnected', self::ui( 'VeriFactu Software was disconnected from this store.', 'VeriFactu Software se ha desconectado de esta tienda.' ), 'updated' );
         set_transient( 'settings_errors', get_settings_errors(), 30 );
         self::redirect();
     }
@@ -243,7 +243,7 @@ final class PV_Woo_Settings {
             PV_Woo_Secret_Store::save( '' );
         }
 
-        add_settings_error( 'pv_woo', 'saved', self::ui( 'Kairoseth Fiscal settings saved.', 'Ajustes de Kairoseth Fiscal guardados.' ), 'updated' );
+        add_settings_error( 'pv_woo', 'saved', self::ui( 'VeriFactu Software settings saved.', 'Ajustes de VeriFactu Software guardados.' ), 'updated' );
         set_transient( 'settings_errors', get_settings_errors(), 30 );
         self::redirect();
     }
@@ -268,26 +268,26 @@ final class PV_Woo_Settings {
         $statuses = wc_get_order_statuses();
         ?>
         <div class="wrap">
-            <h1>Kairoseth Fiscal</h1>
+            <h1>VeriFactu Software</h1>
             <p style="font-size:14px;max-width:900px"><?php echo esc_html( self::ui( 'Connect WooCommerce to VeriFactu without moving your fiscal logic, certificates or AEAT credentials into WordPress.', 'Conecta WooCommerce con VeriFactu sin guardar en WordPress la lógica fiscal, los certificados ni las credenciales de AEAT.' ) ); ?></p>
 
             <?php self::card_open( self::ui( 'Connection', 'Conexión' ) ); ?>
             <?php if ( $connected ) : ?>
                 <p><span style="display:inline-block;background:#edfaef;color:#116329;border:1px solid #b8e6c1;border-radius:999px;padding:5px 10px;font-weight:600">● <?php echo esc_html( self::ui( 'Configured', 'Configurado' ) ); ?></span></p>
-                <p><?php echo esc_html( self::ui( 'This store has Kairoseth Fiscal credentials installed. Validate a test order with Preflight before enabling automatic sending.', 'Esta tienda tiene instaladas las credenciales de Kairoseth Fiscal. Valida un pedido de prueba con Preflight antes de activar el envío automático.' ) ); ?></p>
+                <p><?php echo esc_html( self::ui( 'This store has VeriFactu Software credentials installed. Validate a test order with Preflight before enabling automatic sending.', 'Esta tienda tiene instaladas las credenciales de VeriFactu Software. Valida un pedido de prueba con Preflight antes de activar el envío automático.' ) ); ?></p>
                 <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-right:8px">
                     <input type="hidden" name="action" value="pv_woo_disconnect">
                     <?php wp_nonce_field( 'pv_woo_disconnect' ); ?>
                     <?php submit_button( self::ui( 'Disconnect store', 'Desconectar tienda' ), 'secondary', 'submit', false ); ?>
                 </form>
             <?php else : ?>
-                <p><?php echo esc_html( self::ui( 'Paste the connection key provided by Kairoseth Fiscal. You do not need to configure URLs, profile IDs or API tokens.', 'Pega la clave de conexión proporcionada por Kairoseth Fiscal. No necesitas configurar URLs, IDs de perfil ni tokens de API.' ) ); ?></p>
+                <p><?php echo esc_html( self::ui( 'Paste the connection key provided by VeriFactu Software. You do not need to configure URLs, profile IDs or API tokens.', 'Pega la clave de conexión proporcionada por VeriFactu Software. No necesitas configurar URLs, IDs de perfil ni tokens de API.' ) ); ?></p>
                 <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                     <input type="hidden" name="action" value="pv_woo_connect">
                     <?php wp_nonce_field( 'pv_woo_connect' ); ?>
                     <p><label for="pv-connection-key"><strong><?php echo esc_html( self::ui( 'Connection key', 'Clave de conexión' ) ); ?></strong></label></p>
                     <input class="regular-text" style="width:min(100%,620px)" id="pv-connection-key" name="connection_key" type="password" autocomplete="off" required placeholder="KFS1.…">
-                    <p><?php submit_button( self::ui( 'Connect with Kairoseth Fiscal', 'Conectar con Kairoseth Fiscal' ), 'primary', 'submit', false ); ?></p>
+                    <p><?php submit_button( self::ui( 'Connect with VeriFactu Software', 'Conectar con VeriFactu Software' ), 'primary', 'submit', false ); ?></p>
                 </form>
                 <p class="description"><?php echo esc_html( self::ui( 'The connection key is issued for this store and contains the scoped integration credential. Never share it publicly.', 'La clave se emite para esta tienda y contiene una credencial limitada a esta integración. No la compartas públicamente.' ) ); ?></p>
             <?php endif; ?>
@@ -353,7 +353,7 @@ final class PV_Woo_Settings {
                 <?php self::card_close(); ?>
             <?php endif; ?>
 
-            <p class="description" style="max-width:900px"><?php echo esc_html( self::ui( 'Technical engine: Puente VeriFactu. Fiscal rules, AEAT XML, certificates and hash chains remain server-side in Kairoseth Fiscal.', 'Motor técnico: Puente VeriFactu. Las reglas fiscales, XML de AEAT, certificados y cadena de huellas permanecen en Kairoseth Fiscal, fuera de WordPress.' ) ); ?></p>
+            <p class="description" style="max-width:900px"><?php echo esc_html( self::ui( 'Technical engine: Puente VeriFactu. Fiscal rules, AEAT XML, certificates and hash chains remain server-side in VeriFactu Software.', 'Motor técnico: Puente VeriFactu. Las reglas fiscales, XML de AEAT, certificados y cadena de huellas permanecen en VeriFactu Software, fuera de WordPress.' ) ); ?></p>
         </div>
         <?php
     }
