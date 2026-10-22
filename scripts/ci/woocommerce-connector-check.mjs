@@ -17,6 +17,7 @@ const required = [
   `${root}/languages/puente-verifactu-woocommerce-es_ES.po`,
   `${root}/languages/puente-verifactu-woocommerce-es_ES.mo`,
   `${root}/README.md`,
+  'scripts/ops/woocommerce-connection-key.mjs',
 ];
 const failures = [];
 
@@ -42,8 +43,9 @@ const bootstrap = text(`${root}/puente-verifactu-woocommerce.php`);
 if (!bootstrap.includes("declare_compatibility( 'custom_order_tables'")) failures.push({ code: 'WOO_HPOS_DECLARATION_MISSING' });
 if (!bootstrap.includes('WC tested up to: 11.1')) failures.push({ code: 'WOO_TESTED_VERSION_MISSING', expected: '11.1' });
 if (!bootstrap.includes('Requires PHP: 7.4')) failures.push({ code: 'WOO_PHP_CONTRACT_MISSING', expected: '7.4' });
-if (!bootstrap.includes('Version: 0.3.0')) failures.push({ code: 'WOO_VERSION_CONTRACT_MISSING', expected: '0.3.0' });
+if (!bootstrap.includes('Version: 0.4.0')) failures.push({ code: 'WOO_VERSION_CONTRACT_MISSING', expected: '0.4.0' });
 if (!bootstrap.includes('load_plugin_textdomain')) failures.push({ code: 'WOO_I18N_LOAD_MISSING' });
+if (!bootstrap.includes('Plugin Name: Kairoseth Fiscal for WooCommerce')) failures.push({ code: 'WOO_PRODUCT_NAME_MISSING' });
 
 const forbiddenStorage = [
   /\$wpdb\b/,
@@ -90,6 +92,16 @@ for (const marker of ['invoice_number_source', 'invoice_number_meta_key', "'orde
 for (const marker of ['refund_profile_id', 'refund_invoice_number_meta_key', 'auto_refunds']) {
   if (!settings.includes(marker)) failures.push({ code: 'WOO_REFUND_SETTING_MISSING', marker });
 }
+for (const marker of ['CUSTOMER_ENDPOINT', 'CONNECTION_PREFIX', 'pv_woo_connect', 'connection_key', 'Kairoseth Fiscal']) {
+  if (!settings.includes(marker)) failures.push({ code: 'WOO_CUSTOMER_ONBOARDING_MISSING', marker });
+}
+if (!settings.includes('https://kairoseth.com/api/fiscal')) failures.push({ code: 'WOO_CUSTOMER_ENDPOINT_MISSING' });
+
+const keyTool = text('scripts/ops/woocommerce-connection-key.mjs');
+for (const marker of ['base64url', '--profile', 'stdin.isTTY', 'KFS1.']) {
+  if (!keyTool.includes(marker)) failures.push({ code: 'WOO_CONNECTION_KEY_TOOL_MISSING', marker });
+}
+if (keyTool.includes("argument('--token')")) failures.push({ code: 'WOO_CONNECTION_KEY_TOKEN_ARG_FORBIDDEN' });
 
 const payload = text(`${root}/includes/class-pv-woo-order-payload.php`);
 for (const marker of ['get_taxes()', 'get_items(', "'tax_lines'", "'source_invoice_id'", "'invoice_number'", 'get_currency()', 'pv_woo_invoice_number']) {

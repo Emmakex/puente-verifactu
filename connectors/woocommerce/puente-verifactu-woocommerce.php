@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: Puente VeriFactu for WooCommerce
- * Plugin URI: https://github.com/Emmakex/puente-verifactu
- * Description: Connects WooCommerce orders to Puente VeriFactu without implementing AEAT fiscal logic inside WordPress.
- * Version: 0.3.0
+ * Plugin Name: Kairoseth Fiscal for WooCommerce
+ * Plugin URI: https://kairoseth.com/products/kairoseth-fiscal/woocommerce
+ * Description: Connects WooCommerce with Kairoseth Fiscal / Puente VeriFactu while keeping AEAT fiscal logic, certificates and hash chains outside WordPress.
+ * Version: 0.4.0
  * Author: Kairoseth Extensions
  * Text Domain: puente-verifactu-woocommerce
  * Domain Path: /languages
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PV_WOO_VERSION', '0.3.0' );
+define( 'PV_WOO_VERSION', '0.4.0' );
 define( 'PV_WOO_FILE', __FILE__ );
 define( 'PV_WOO_PATH', plugin_dir_path( __FILE__ ) );
 
@@ -39,7 +39,7 @@ add_action(
                 'admin_notices',
                 static function () {
                     if ( current_user_can( 'activate_plugins' ) ) {
-                        echo '<div class="notice notice-error"><p>' . esc_html__( 'Puente VeriFactu for WooCommerce requires WooCommerce to be active.', 'puente-verifactu-woocommerce' ) . '</p></div>';
+                        echo '<div class="notice notice-error"><p>' . esc_html__( 'Kairoseth Fiscal for WooCommerce requires WooCommerce to be active.', 'puente-verifactu-woocommerce' ) . '</p></div>';
                     }
                 }
             );

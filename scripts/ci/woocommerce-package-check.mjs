@@ -19,7 +19,7 @@ function listLocalEntries(buffer) {
 
 const first = await buildWooCommerceZip();
 const second = await buildWooCommerceZip();
-assert.equal(first.version, '0.3.0');
+assert.equal(first.version, '0.4.0');
 assert.deepEqual(first.buffer, second.buffer, 'WooCommerce ZIP must be byte-for-byte reproducible');
 
 const names = listLocalEntries(first.buffer);
