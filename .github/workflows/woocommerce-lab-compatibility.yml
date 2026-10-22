@@ -1,0 +1,70 @@
+name: WooCommerce customer lab
+
+on:
+  pull_request:
+    paths:
+      - 'connectors/woocommerce/**'
+      - 'scripts/ci/woocommerce-compatibility-smoke.sh'
+      - 'scripts/ci/woocommerce-package-check.mjs'
+      - 'scripts/release/package-woocommerce.mjs'
+      - '.github/workflows/woocommerce-lab-compatibility.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  customer-lab:
+    name: WP 7.1.3 / WooCommerce 11.2.1 / PHP 8.3
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_ROOT_HOST: '%'
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PHP 8.3 and WP-CLI
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: wp-cli
+
+      - name: Build reproducible Kairoseth Fiscal package
+        run: npm run woo:package:check
+
+      - name: Install and smoke-test customer lab stack
+        env:
+          WP_VERSION: '7.1.3'
+          WOO_VERSION: '11.2.1'
+        run: bash scripts/ci/woocommerce-compatibility-smoke.sh
+
+      - name: Build customer test ZIP
+        run: npm run woo:package -- --output dist/kairoseth-fiscal-woocommerce-0.4.0.zip
+
+      - name: Upload customer test ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kairoseth-fiscal-woocommerce-0.4.0-customer-lab
+          path: dist/kairoseth-fiscal-woocommerce-0.4.0.zip
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

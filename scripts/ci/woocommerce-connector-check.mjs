@@ -41,7 +41,7 @@ for (const path of required) {
 
 const bootstrap = text(`${root}/puente-verifactu-woocommerce.php`);
 if (!bootstrap.includes("declare_compatibility( 'custom_order_tables'")) failures.push({ code: 'WOO_HPOS_DECLARATION_MISSING' });
-if (!bootstrap.includes('WC tested up to: 11.1')) failures.push({ code: 'WOO_TESTED_VERSION_MISSING', expected: '11.1' });
+if (!bootstrap.includes('WC tested up to: 11.2')) failures.push({ code: 'WOO_TESTED_VERSION_MISSING', expected: '11.2' });
 if (!bootstrap.includes('Requires PHP: 7.4')) failures.push({ code: 'WOO_PHP_CONTRACT_MISSING', expected: '7.4' });
 if (!bootstrap.includes('Version: 0.4.0')) failures.push({ code: 'WOO_VERSION_CONTRACT_MISSING', expected: '0.4.0' });
 if (!bootstrap.includes('load_plugin_textdomain')) failures.push({ code: 'WOO_I18N_LOAD_MISSING' });
