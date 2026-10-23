@@ -48,6 +48,7 @@ add_action(
 
         require_once PV_WOO_PATH . 'includes/class-pv-woo-secret-store.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-settings.php';
+        require_once PV_WOO_PATH . 'includes/class-pv-woo-customer-activation.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-client.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-order-payload.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-refund-payload.php';
@@ -55,6 +56,7 @@ add_action(
         require_once PV_WOO_PATH . 'includes/class-pv-woo-invoice-presentation.php';
         require_once PV_WOO_PATH . 'includes/class-pv-woo-connector.php';
 
+        PV_Woo_Customer_Activation::register();
         PV_Woo_Connector::instance()->boot();
     },
     20
