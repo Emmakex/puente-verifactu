@@ -1,159 +1,185 @@
 # Faceta comercial de Puente VeriFactu en Kairoseth
 
-## 1. Separación de identidades
+## 1. Identidades
 
-Puente VeriFactu mantiene una separación estricta entre **motor técnico** y **faceta comercial**.
+Puente VeriFactu mantiene una separación estricta entre motor técnico y faceta comercial.
 
-### Identidad técnica
+### Motor técnico
 
-- motor/repositorio: `Puente VeriFactu`;
-- slug técnico: `puente-verifactu`;
 - repositorio: `Emmakex/puente-verifactu`;
-- catálogo técnico: `extensions / puente-verifactu`;
-- responsabilidad: core fiscal, AEAT, contratos, adapters, reconciliación, QR/presentation, evidencias, releases y conectores.
+- nombre técnico: `Puente VeriFactu`;
+- `product_id`: `puente-verifactu`;
+- responsabilidad: core fiscal, AEAT, contratos, adapters, reconciliación, evidencias, releases y conectores.
 
-### Faceta comercial
+### Producto visible
 
-La venta y el descubrimiento en Kairoseth utilizan **Kairoseth Fiscal**.
+El nombre visible al cliente en conectores y superficies comerciales es **VeriFactu Software**.
+
+Las rutas históricas `/products/kairoseth-fiscal/...` y otros identificadores internos pueden mantenerse para no romper SEO, integraciones ni contratos. El cambio de nombre visible no renombra el motor técnico.
 
 ```text
 Puente VeriFactu
       ↓ motor técnico
 Kairoseth Platform
       ↓
-Extensions
-      ↓
-Kairoseth Fiscal
+VeriFactu Software
 ```
 
-El motor técnico no se renombra. La marca comercial puede evolucionar sin cambiar `product_id=puente-verifactu`, contratos, APIs ni evidencias.
+## 2. Posicionamiento
 
-## 2. Estado actual
+Promesa central:
 
-### Producto técnico
+> **VeriFactu sin cambiar tu software. Conectamos el sistema que ya utilizas con la capa fiscal necesaria y validamos antes de activar producción.**
 
-- release publicada: `v0.1.0`;
-- runtime probado: `fe4c6360a2b25d44f5044e202f7d2bc2faa626a7`;
-- piloto AEAT TEST: 5/5 accepted;
-- distribución controlada: validada;
-- WooCommerce `0.3.0`: publicado;
-- PrestaShop `0.5.0`: publicado;
-- Local Agent `0.1.0`: publicado;
-- AEAT producción: **deshabilitada**.
-
-### Producto comercial
-
-- nombre: **Kairoseth Fiscal**;
-- slug: `kairoseth-fiscal`;
-- URL canónica: `/products/kairoseth-fiscal`;
-- posicionamiento: **VeriFactu sin cambiar tu software**;
-- promesa: **adaptamos el sistema que ya utiliza el cliente en lugar de obligarle a migrar**;
-- fase actual: Fase 8 — comercialización;
-- pricing definitivo: pendiente de unit economics;
-- billing/checkout: pendiente;
-- producción AEAT: fuera del scope comercial hasta gate independiente.
-
-## 3. Posicionamiento
-
-Kairoseth Fiscal no debe competir como:
+No competimos como:
 
 - otro ERP;
 - otro programa de facturación generalista;
-- una API commodity de bajo precio;
-- una solución que obliga a sustituir el sistema actual.
+- una API commodity;
+- una solución que obliga a migrar el sistema actual.
 
-Debe posicionarse como **capa fiscal/adaptadora multi-sistema**.
+La propuesta es una capa fiscal/adaptadora multi-sistema para WooCommerce, PrestaShop, ERP, CRM, software propio, API, Excel/CSV y sistemas legacy/locales.
 
-Mensaje central:
+## 3. Contrato comercial aprobado
 
-> **No cambies tu sistema. Kairoseth Fiscal adapta lo que ya usas a VeriFactu y a la evolución de la facturación electrónica.**
+La autoridad detallada vive en `docs/commercial-product-contract-v1.md`.
 
-## 4. Gama comercial
+Regla resumida:
 
-Los modos comerciales son distintas formas de consumir el mismo producto.
+```text
+Instalar plugin/conector      -> GRATIS
+Diagnóstico / preflight       -> GRATIS
+Conectar con Kairoseth        -> GRATIS
+AEAT TEST onboarding          -> GRATIS y limitado
+AEAT producción               -> plan ACTIVE + gate fiscal
+```
+
+El plugin no es el producto de pago. El servicio fiscal de producción, operación, soporte y entitlements asociados sí lo son.
+
+## 4. Funnel oficial
+
+```text
+SEO / Google / WordPress.org / Partner / Referencia
+                         ↓
+                  Instalar conector
+                         ↓
+                   Comprobar gratis
+                         ↓
+               Preflight sin AEAT
+                         ↓
+               Conectar con Kairoseth
+                         ↓
+               Onboarding automático
+                         ↓
+                AEAT TEST controlado
+                         ↓
+                Activar producción 🔒
+                         ↓
+                     ACTIVE
+                         ↓
+                 AEAT producción
+```
+
+CTA principal para integraciones estándar: **Comprobar gratis** o **Comprobar mi sistema** según el contexto.
+
+## 5. Gama comercial
+
+Son formas de consumir el mismo producto, no productos fiscales distintos.
 
 ### Fiscal Web
 
-Para autónomos y pymes con:
-
-- Excel/CSV;
-- carga manual;
-- flujo sencillo sin proyecto de integración.
-
-Incluye conceptualmente:
-
-- onboarding visual;
-- mapping asistido;
-- preflight;
-- estado y errores comprensibles;
-- fallback manual.
+Para Excel/CSV, carga manual y flujos sencillos. Incluye onboarding visual, mapping asistido, preflight y estado comprensible.
 
 ### Fiscal Connect
 
-Para:
-
-- WooCommerce;
-- PrestaShop;
-- ERP/CRM conectables;
-- conectores/adapters estándar.
-
-Incluye conceptualmente:
-
-- integración nativa;
-- instalación asistida;
-- sincronización;
-- estado/reintentos;
-- mantenimiento de conector.
+Para WooCommerce, PrestaShop y conectores/adapters estándar. Incluye integración nativa, conexión guiada, sincronización, estado/reintentos y mantenimiento del conector.
 
 ### Fiscal API
 
-Para:
-
-- SaaS;
-- software propio;
-- integradores;
-- equipos técnicos.
-
-Incluye conceptualmente:
-
-- REST API;
-- starter kits/SDK;
-- webhooks;
-- MappingProfile;
-- contrato estable de integración;
-- clasificación fiscal sensible server-side.
+Para SaaS, software propio, integradores y equipos técnicos. Incluye REST API, starter kits/SDK, webhooks y MappingProfile.
 
 ### Fiscal Custom
 
-Para:
+Para ERP/CRM complejos, software legacy/local, TPV, bases de datos, SFTP/watch-folder e integraciones especiales.
 
-- ERP/CRM complejos;
-- software antiguo/local;
-- TPV;
-- bases de datos;
-- SFTP/watch-folder;
-- integraciones especiales.
+`Local Agent` sigue siendo una capacidad técnica interna y no la categoría principal de compra.
 
-Incluye conceptualmente:
+## 6. Estados comerciales y entitlements
 
-- diagnóstico técnico;
-- implantación gestionada;
-- Local Agent cuando aplique;
-- soporte y mantenimiento específico.
+### FREE
 
-`Local Agent` no se presenta como producto principal al usuario final; es una capacidad técnica detrás de la solución para software legacy/local.
+Permite:
 
-## 5. Arquitectura pública en kairoseth.com
+- instalar;
+- conectar;
+- preflight/diagnóstico;
+- onboarding;
+- AEAT TEST limitado.
 
-### Hub
+No permite nuevos envíos a AEAT producción.
+
+### ACTIVE
+
+Permite, además de superar el gate fiscal:
+
+- AEAT producción;
+- envío manual/automático según configuración;
+- reconciliación y seguimiento;
+- rectificativas/anulaciones soportadas;
+- histórico operativo;
+- soporte/capacidades contratadas.
+
+### SUSPENDED
+
+Mantiene el histórico/consulta aplicable y bloquea nuevas operaciones de producción.
+
+Los futuros nombres de plan y precios se traducen a entitlements. El plugin no contiene lógica de precio.
+
+## 7. Regla de activación de producción
+
+Producción es fail-closed.
+
+```text
+commercial_entitlement = ACTIVE
+AND
+fiscal_gate = approved
+AND
+runtime_production_gate = enabled
+```
+
+Ni una instalación, ni un preflight correcto, ni un pago pueden saltarse esta regla.
+
+## 8. Onboarding cliente
+
+El cliente no debe manejar:
+
+- URLs internas;
+- `auth.json`;
+- hashes;
+- tokens administrativos;
+- IDs técnicos de IntegrationProfile;
+- certificados del runtime;
+- secretos de AEAT o infraestructura.
+
+Flujo objetivo:
+
+1. instalar;
+2. `Conectar con VeriFactu Software`;
+3. login o código de activación de un solo uso;
+4. Kairoseth resuelve organización/instalación;
+5. materializa IntegrationProfile/mapping;
+6. emite credencial data-plane scoped;
+7. el plugin recibe solo configuración mínima y credencial scoped;
+8. health check/preflight;
+9. TEST;
+10. activación de producción cuando proceda.
+
+## 9. Arquitectura pública
+
+Se conservan como rutas canónicas actuales:
 
 ```text
 /products/kairoseth-fiscal
-```
-
-### Landings existentes
-
-```text
 /products/kairoseth-fiscal/woocommerce
 /products/kairoseth-fiscal/prestashop
 /products/kairoseth-fiscal/erp
@@ -163,7 +189,7 @@ Incluye conceptualmente:
 /products/kairoseth-fiscal/software-antiguo
 ```
 
-### Superficies comerciales previstas
+Superficies previstas:
 
 ```text
 /products/kairoseth-fiscal/precios
@@ -172,64 +198,30 @@ Incluye conceptualmente:
 /products/kairoseth-fiscal/faq
 ```
 
-No se debe duplicar esta familia bajo una segunda raíz pública.
+El slug histórico no obliga a mostrar `Kairoseth Fiscal` como nombre de producto.
 
-## 6. Funnel
+## 10. Pricing y billing
 
-```text
-SEO / Ads / Partner / Referencia
-            ↓
-Landing por intención
-            ↓
-Diagnóstico
-            ↓
-Preflight / prueba TEST cuando aplique
-            ↓
-Propuesta
-            ↓
-Implantación
-            ↓
-Validación
-            ↓
-Soporte recurrente
-```
+No se fija aquí ningún importe.
 
-CTA transversal recomendado: **Comprobar mi sistema**.
+Los importes se publicarán después de unit economics. Stripe/Redsys/checkout automático no son requisito para las primeras ventas: mientras estén aplazados, Kairoseth Platform puede activar manualmente `ACTIVE` tras una contratación validada.
 
-## 7. Pricing
+Cuando exista billing automático, cambiará entitlements; nunca activará por sí solo el gate fiscal de producción.
 
-Modelo recomendado para estudiar:
+## 11. WordPress.org y conectores
 
-- setup/implantación;
-- cuota recurrente;
-- diferenciación por complejidad/canal/soporte;
-- pricing partner separado;
-- API y Custom con margen suficiente para integración y soporte.
+El plugin WooCommerce puede distribuirse gratis y debe ofrecer valor real antes de contratar:
 
-No se fija aquí ningún importe. Los precios solo se publicarán después de unit economics y definición de entitlements.
+- instalación;
+- conexión;
+- preflight sin AEAT;
+- TEST limitado.
 
-## 8. Partners
+WordPress.org debe indicar de forma transparente que el uso de AEAT producción requiere cuenta/plan activo de Kairoseth.
 
-Canales prioritarios:
+La UX normal debe ocultar IDs, URLs internas y tokens. Las opciones técnicas quedan en una sección avanzada solo cuando sean necesarias para soporte.
 
-- agencias web;
-- integradores ERP/desarrolladores;
-- asesorías/gestorías.
-
-Objetivo: permitir distribución multi-cliente sin que cada partner reconstruya la capa fiscal.
-
-Aspectos a definir en Fase 8:
-
-- referral/margen;
-- ownership del cliente;
-- soporte L1/L2;
-- onboarding;
-- control de versiones;
-- branding/white-label parcial cuando aplique.
-
-## 9. SEO/GEO
-
-La marca Kairoseth Fiscal no debe ocultar la intención de búsqueda.
+## 12. SEO/GEO
 
 Clusters transaccionales prioritarios:
 
@@ -241,60 +233,34 @@ Clusters transaccionales prioritarios:
 - software VeriFactu;
 - adaptar software a VeriFactu.
 
-La superficie editorial debe cubrir cambios/plazos regulatorios, autónomos, pymes, factura electrónica y guías por plataforma, siempre con revisión de fuente/fecha.
+Cada landing mantiene canonical, metadata, FAQ/schema cuando corresponda, breadcrumbs, enlazado interno y claims verificables.
 
-Cada landing debe mantener canonical, metadata, FAQ/schema cuando corresponda, breadcrumbs, enlazado interno y claims verificables.
-
-## 10. Regla de seguridad comercial
+## 13. Seguridad comercial
 
 La faceta comercial nunca debe:
 
-- activar producción AEAT;
+- activar AEAT producción por sí sola;
 - afirmar certificación oficial inexistente;
 - pedir PFX/passphrase o secretos en formularios públicos;
+- exponer credenciales control-plane al plugin;
 - prometer compatibilidad no validada;
-- convertir una fecha regulatoria provisional en claim evergreen definitivo.
+- convertir fechas regulatorias provisionales en claims evergreen.
 
-Billing concede entitlement comercial; la activación fiscal sigue siendo un gate técnico/regulatorio separado.
+## 14. Fuente de verdad
 
-## 11. Fuente de verdad y documentación de implementación
+`Emmakex/puente-verifactu` mantiene la fuente de verdad del motor, contratos, release, adapters, política fiscal y frontera comercial.
 
-### Motor/producto
+`Emmakex/kairoseth-platform` mantiene la implementación de web, UX, navegación, onboarding de cuenta, analytics, billing y entitlements.
 
-Este repositorio (`Emmakex/puente-verifactu`) conserva la fuente de verdad de:
+Documentos coordinados:
 
-- producto técnico;
-- contratos;
-- release;
-- adapters;
-- política fiscal;
-- alcance de la faceta comercial.
-
-### Web/plataforma
-
-`Emmakex/kairoseth-platform` conserva la fuente de verdad de implementación para:
-
-- rutas públicas;
-- UX;
-- navegación;
-- funnel;
-- diagnóstico;
-- pricing UI;
-- partners;
-- analytics;
-- billing/entitlements.
-
-Documentos de referencia en Kairoseth Platform:
-
+- `docs/commercial-product-contract-v1.md` en Puente VeriFactu;
+- `docs/VERIFACTU_SOFTWARE_COMMERCIAL_CONTRACT_V1.md` en Kairoseth Platform;
 - `docs/KAIROSETH_FISCAL_COMMERCIAL_ARCHITECTURE_V1.md`;
 - `docs/KAIROSETH_FISCAL_WEB_ROADMAP_V1.md`.
 
-Seguimiento de Fase 8: issue `#108` de Puente VeriFactu.
+Seguimiento comercial: issue `#108`.
 
-## 12. Regla de cambio
+## 15. Regla de cambio
 
-Cualquier cambio material en naming, packaging, rutas, funnel, pricing, partners, claims o modelo de distribución debe actualizar primero o en el mismo PR:
-
-1. esta faceta comercial;
-2. la arquitectura comercial de Kairoseth Platform;
-3. el issue de Fase 8 cuando cambie el roadmap.
+Todo cambio en naming visible, frontera gratis/pago, funnel, onboarding, entitlements, política TEST, pricing, partners o claims debe actualizar las fuentes de verdad coordinadas en el mismo cambio o en cambios enlazados.
