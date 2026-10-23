@@ -86,23 +86,25 @@ CTA principal para integraciones estándar: **Comprobar gratis** o **Comprobar m
 
 Son formas de consumir el mismo producto, no productos fiscales distintos.
 
-### Fiscal Web
+### Fiscal Web — 19 € / mes
 
 Para Excel/CSV, carga manual y flujos sencillos. Incluye onboarding visual, mapping asistido, preflight y estado comprensible.
 
-### Fiscal Connect
+### Fiscal Connect — 49 € / mes
 
 Para WooCommerce, PrestaShop y conectores/adapters estándar. Incluye integración nativa, conexión guiada, sincronización, estado/reintentos y mantenimiento del conector.
 
-### Fiscal API
+### Fiscal API — 99 € / mes
 
 Para SaaS, software propio, integradores y equipos técnicos. Incluye REST API, starter kits/SDK, webhooks y MappingProfile.
 
-### Fiscal Custom
+### Fiscal Custom — presupuesto gestionado
 
-Para ERP/CRM complejos, software legacy/local, TPV, bases de datos, SFTP/watch-folder e integraciones especiales.
+Para ERP/CRM complejos, software legacy/local, TPV, bases de datos, SFTP/watch-folder e integraciones especiales. No tiene un precio mensual canónico cerrado en v1.
 
 `Local Agent` sigue siendo una capacidad técnica interna y no la categoría principal de compra.
+
+No existe anualidad aprobada.
 
 ## 6. Estados comerciales y entitlements
 
@@ -133,7 +135,7 @@ Permite, además de superar el gate fiscal:
 
 Mantiene el histórico/consulta aplicable y bloquea nuevas operaciones de producción.
 
-Los futuros nombres de plan y precios se traducen a entitlements. El plugin no contiene lógica de precio.
+Los planes y precios se traducen a entitlements. El plugin no contiene lógica de precio como autoridad.
 
 ## 7. Regla de activación de producción
 
@@ -202,11 +204,19 @@ El slug histórico no obliga a mostrar `Kairoseth Fiscal` como nombre de product
 
 ## 10. Pricing y billing
 
-No se fija aquí ningún importe.
+Pricing mensual canónico:
 
-Los importes se publicarán después de unit economics. Stripe/Redsys/checkout automático no son requisito para las primeras ventas: mientras estén aplazados, Kairoseth Platform puede activar manualmente `ACTIVE` tras una contratación validada.
+- Fiscal Web: **19 € / mes**;
+- Fiscal Connect: **49 € / mes**;
+- Fiscal API: **99 € / mes**;
+- Fiscal Custom: presupuesto gestionado;
+- anualidad: **no aprobada / no disponible**.
 
-Cuando exista billing automático, cambiará entitlements; nunca activará por sí solo el gate fiscal de producción.
+WooCommerce y PrestaShop se comercializan normalmente como **Fiscal Connect (49 € / mes)**.
+
+Los métodos operativos iniciales son **Bizum + transferencia bancaria**. Stripe/Redsys continúan diferidos y fail-closed hasta aceptación TEST específica.
+
+Mientras el checkout automático esté aplazado, Kairoseth Platform valida el pago manual y concede el entitlement correspondiente. Cuando exista billing automático, cambiará entitlements; nunca activará por sí solo el gate fiscal de producción.
 
 ## 11. WordPress.org y conectores
 
@@ -217,7 +227,7 @@ El plugin WooCommerce puede distribuirse gratis y debe ofrecer valor real antes 
 - preflight sin AEAT;
 - TEST limitado.
 
-WordPress.org debe indicar de forma transparente que el uso de AEAT producción requiere cuenta/plan activo de Kairoseth.
+WordPress.org debe indicar de forma transparente que el uso de AEAT producción requiere cuenta/plan activo de Kairoseth. Para WooCommerce la modalidad estándar es Fiscal Connect, actualmente 49 € / mes.
 
 La UX normal debe ocultar IDs, URLs internas y tokens. Las opciones técnicas quedan en una sección avanzada solo cuando sean necesarias para soporte.
 
