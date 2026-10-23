@@ -139,7 +139,7 @@ Bloquea:
 
 - nuevas operaciones de producción hasta reactivación.
 
-Los futuros planes comerciales (Autónomo, Pyme, Profesional, Partner, volumen, etc.) deben mapearse a entitlements sin introducir lógica de precios dentro del plugin.
+Los planes comerciales se traducen a entitlements sin introducir lógica de precios dentro del plugin.
 
 ## 7. Regla para el plugin
 
@@ -200,11 +200,22 @@ runtime_production_gate = enabled
 
 ## 10. Pricing y cobro
 
-Los importes concretos siguen fuera de este contrato hasta cerrar unit economics.
+Pricing mensual canónico aprobado:
 
-Stripe/Redsys no son requisito para iniciar ventas. Mientras billing automático esté aplazado, una contratación validada puede activar manualmente el entitlement `ACTIVE` desde Kairoseth Platform tras el proceso comercial correspondiente.
+| Modalidad | Precio mensual | Uso principal |
+|---|---:|---|
+| Fiscal Web | 19 € / mes | Manual, Excel/CSV y flujos simples |
+| Fiscal Connect | 49 € / mes | WooCommerce, PrestaShop y conectores estándar |
+| Fiscal API | 99 € / mes | API/SDK/Webhook para software propio/SaaS |
+| Fiscal Custom | Presupuesto gestionado | ERP/CRM/legacy e integraciones especiales |
 
-Cuando exista checkout, automatizará el cambio de entitlement; no cambiará el contrato del plugin ni el core fiscal.
+No existe anualidad aprobada.
+
+WooCommerce y PrestaShop pertenecen a **Fiscal Connect**, por lo que su operación en AEAT producción requiere el plan de **49 € / mes**, salvo que una integración concreta necesite tratamiento Custom.
+
+Los métodos operativos de lanzamiento son **Bizum y transferencia bancaria**. Stripe/Redsys permanecen diferidos y fail-closed hasta disponer de credenciales y aceptación TEST reales.
+
+Mientras billing automático esté aplazado, una contratación validada puede activar manualmente el entitlement `ACTIVE` desde Kairoseth Platform. Cuando exista checkout automático, automatizará el cambio de entitlement; no cambiará el contrato del plugin ni el core fiscal y nunca saltará el gate de producción.
 
 ## 11. Coherencia de canales
 
@@ -215,13 +226,15 @@ Deben prometer lo mismo:
 - instalar/probar sin cambiar de sistema;
 - comprobar gratis;
 - TEST antes de producción;
-- producción sujeta a activación/plan.
+- producción sujeta a activación/plan;
+- precios canónicos coherentes con la modalidad seleccionada.
 
 ### WordPress.org
 
 - plugin gratuito;
 - funcionalidad útil gratuita real;
 - explicación transparente de que el servicio de producción requiere cuenta/plan de Kairoseth;
+- WooCommerce → Fiscal Connect 49 € / mes para producción;
 - sin promesas de certificación inexistente.
 
 ### Plugin WooCommerce
@@ -229,11 +242,13 @@ Deben prometer lo mismo:
 - onboarding sencillo;
 - preflight gratis y explícitamente sin AEAT;
 - TEST claramente identificado;
-- producción bloqueada hasta entitlement/gate.
+- producción bloqueada hasta entitlement/gate;
+- precio nunca hardcodeado como autoridad: debe venir de Kairoseth Platform o enlazar a la oferta vigente.
 
 ### Kairoseth Platform
 
 - fuente de verdad de cuenta, entitlement, onboarding y estado;
+- pricing/comercialización;
 - activación, suspensión, rotación/revocación y soporte;
 - histórico y observabilidad.
 
