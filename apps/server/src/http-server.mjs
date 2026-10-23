@@ -14,6 +14,8 @@ const STATIC_FILES = Object.freeze({
   '/src/manual-model.mjs': ['src/manual-model.mjs', 'text/javascript; charset=utf-8'],
 });
 
+const CUSTOMER_ACTIVATION_PATH = '/v1/customer-activation/exchange';
+
 function securityHeaders({ staticContent = false, api = false } = {}) {
   const headers = {
     'x-content-type-options': 'nosniff',
@@ -78,6 +80,17 @@ function readBody(req, maxBodyBytes) {
     req.on('aborted', () => reject(Object.assign(new Error('Request aborted'), { code: 'VF_HTTP_REQUEST_ABORTED', status: 400 })));
     req.on('error', reject);
   });
+}
+
+function parseJsonBuffer(body) {
+  try {
+    return JSON.parse(Buffer.isBuffer(body) ? body.toString('utf8') : String(body ?? ''));
+  } catch {
+    throw Object.assign(new Error('Request body must be valid JSON'), {
+      code: 'VF_API_JSON_INVALID',
+      status: 400,
+    });
+  }
 }
 
 function authChallenge(path) {
@@ -163,6 +176,14 @@ function rateHeaders(rate) {
   };
 }
 
+function activationRateContext(req) {
+  const address = String(req.socket?.remoteAddress ?? 'unknown').slice(0, 128);
+  return Object.freeze({
+    credentialId: `public-customer-activation:${address}`,
+    rateLimitPerMinute: 30,
+  });
+}
+
 export function createPuenteHttpServer({
   apiHandler,
   authenticateHttp,
@@ -179,7 +200,9 @@ export function createPuenteHttpServer({
   if (!onboardingDir) throw new TypeError('onboardingDir is required');
   if (typeof operationalStatus !== 'function') throw new TypeError('operationalStatus must be a function');
 
-  return createServer(async (req, res) => {
+  let customerActivationExchange = null;
+
+  const server = createServer(async (req, res) => {
     const path = pathname(req);
     const method = String(req.method ?? 'GET').toUpperCase();
 
@@ -188,6 +211,32 @@ export function createPuenteHttpServer({
       if (path === '/readyz') {
         const state = await readiness();
         return sendJson(res, state?.ok ? 200 : 503, { status: state?.ok ? 'ready' : 'not_ready' });
+      }
+
+      if (path === CUSTOMER_ACTIVATION_PATH) {
+        const rate = rateLimiter.consume(activationRateContext(req));
+        if (!rate.allowed) {
+          return sendJson(res, 429, errorEnvelope('VF_RATE_LIMITED', 'Too many activation requests', true), {
+            'retry-after': String(rate.retryAfterSeconds),
+            ...rateHeaders(rate),
+          });
+        }
+        if (method !== 'POST') {
+          return sendJson(res, 405, errorEnvelope('VF_HTTP_METHOD_NOT_ALLOWED', 'Method not allowed'), {
+            allow: 'POST',
+            ...rateHeaders(rate),
+          });
+        }
+        if (typeof customerActivationExchange !== 'function') {
+          return sendJson(res, 503, errorEnvelope(
+            'VF_CUSTOMER_ACTIVATION_UNAVAILABLE',
+            'Customer activation is unavailable',
+            true,
+          ), rateHeaders(rate));
+        }
+        const body = await readBody(req, Math.min(maxBodyBytes, 16 * 1024));
+        const result = await customerActivationExchange(parseJsonBuffer(body));
+        return sendJson(res, 200, result, rateHeaders(rate));
       }
 
       let authContext;
@@ -262,4 +311,17 @@ export function createPuenteHttpServer({
       ));
     }
   });
+
+  Object.defineProperty(server, 'setCustomerActivationExchange', {
+    enumerable: false,
+    value(handler) {
+      if (handler != null && typeof handler !== 'function') {
+        throw new TypeError('customer activation exchange handler must be a function');
+      }
+      customerActivationExchange = handler;
+      return server;
+    },
+  });
+
+  return server;
 }
