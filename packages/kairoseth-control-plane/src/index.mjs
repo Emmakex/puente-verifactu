@@ -21,6 +21,12 @@ export {
   normalizeMongoIntegrationCollectionName,
 } from './mongodb-integration-profiles.mjs';
 
+export {
+  MongoKairosethCustomerActivationStore,
+  createMongoKairosethCustomerActivationStore,
+  mongoCustomerActivationIndexes,
+  normalizeMongoCustomerActivationCollectionName,
+} from './mongodb-customer-activations.mjs';
 
 export {
   MongoKairosethImportSessionStore,
@@ -33,7 +39,6 @@ export {
   normalizeMongoImportBatchCollectionName,
 } from './mongodb-import-batches.mjs';
 
-
 export {
   MongoKairosethFiscalRecordStore,
   MongoKairosethIntegrationStore,
@@ -44,20 +49,17 @@ export {
   mongoIntegrationRequestIndexes,
 } from './mongodb-dataplane.mjs';
 
-
 export {
   MongoKairosethAeatOutboxStore,
   createMongoKairosethAeatOutboxStore,
   mongoAeatOutboxIndexes,
 } from './mongodb-aeat-outbox.mjs';
 
-
 export {
   MongoKairosethFiscalAuthProvider,
   createMongoKairosethFiscalAuthProvider,
   mongoFiscalDataPlaneAuthIndexes,
 } from './mongodb-fiscal-auth.mjs';
-
 
 export {
   applyKairosethMongoIndexes,
