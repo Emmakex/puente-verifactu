@@ -2,6 +2,9 @@ import {
   mongoAeatOutboxIndexes,
 } from './mongodb-aeat-outbox.mjs';
 import {
+  mongoCustomerActivationIndexes,
+} from './mongodb-customer-activations.mjs';
+import {
   mongoFiscalDataPlaneAuthIndexes,
 } from './mongodb-fiscal-auth.mjs';
 import {
@@ -33,6 +36,7 @@ export function kairosethMongoIndexPlan() {
     Object.freeze({ collection: 'kairoseth_local_agent_installations', indexes: mongoLocalAgentRegistryIndexes() }),
     Object.freeze({ collection: 'kairoseth_onboarding_profiles', indexes: mongoOnboardingProfileIndexes() }),
     Object.freeze({ collection: 'kairoseth_integration_profiles', indexes: mongoIntegrationProfileIndexes() }),
+    Object.freeze({ collection: 'kairoseth_customer_activations', indexes: mongoCustomerActivationIndexes() }),
     Object.freeze({ collection: 'kairoseth_aeat_outbox', indexes: mongoAeatOutboxIndexes() }),
     Object.freeze({ collection: 'kairoseth_fiscal_data_plane_credentials', indexes: mongoFiscalDataPlaneAuthIndexes() }),
   ]);
