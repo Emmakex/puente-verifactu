@@ -7,6 +7,7 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 | `product-scope.md` | Problema, usuarios, alcance MVP y exclusiones |
 | `kairoseth-extension-product.md` | Posición de Puente VeriFactu dentro de Kairoseth Extensions y regla un producto/múltiples adapters |
 | `kairoseth-commercial-facade.md` | Separación motor técnico/faceta comercial, packaging Fiscal Web/Connect/API/Custom y frontera con Kairoseth Platform |
+| `commercial-product-contract-v1.md` | Contrato aprobado gratis/pago: plugin y preflight gratis, AEAT TEST de onboarding y producción sujeta a plan ACTIVE + gate fiscal |
 | `commercial-naming-research.md` | Investigación de mercado, SEO, colisiones preliminares y shortlist para la faceta comercial |
 | `architecture.md` | Arquitectura, componentes, límites y flujos |
 | `integration-strategy.md` | Principio Camaleón y cinco niveles de integración |
@@ -46,12 +47,12 @@ Este directorio es la fuente de verdad funcional, técnica y normativa de Puente
 
 ## Fase 8 — comercialización
 
-La arquitectura comercial/web de Kairoseth Fiscal vive en `Emmakex/kairoseth-platform` para evitar duplicar la fuente de verdad de rutas y UX:
+La arquitectura comercial/web de VeriFactu Software vive en `Emmakex/kairoseth-platform` para evitar duplicar la fuente de verdad de rutas y UX:
 
 - `docs/KAIROSETH_FISCAL_COMMERCIAL_ARCHITECTURE_V1.md`;
 - `docs/KAIROSETH_FISCAL_WEB_ROADMAP_V1.md`.
 
-El alcance y frontera motor/comercial se mantienen aquí en `docs/kairoseth-commercial-facade.md`. El seguimiento operativo de la Fase 8 se realiza en el issue `#108`.
+El alcance y frontera motor/comercial se mantienen aquí en `docs/kairoseth-commercial-facade.md`. El contrato aprobado de gratuidad, TEST, producción y entitlements se mantiene en `docs/commercial-product-contract-v1.md`. El seguimiento operativo de la Fase 8 se realiza en el issue `#108`.
 
 ## Regla documental
 
